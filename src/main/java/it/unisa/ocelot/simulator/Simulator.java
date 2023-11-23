@@ -158,7 +158,11 @@ public class Simulator {
 	 * @return true if the simulation is correct, false otherwise
 	 */
 	public boolean isSimulationCorrect() {
-		return this.currentEventIndex == this.events.size();
+		if (this.currentEventIndex == 0) {
+			return (this.events.size() == 1 && this.events.get(0) == null);
+		} else {
+			return this.currentEventIndex == this.events.size();
+		}
 	}
 	
 	/**
