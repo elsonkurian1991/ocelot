@@ -19,6 +19,7 @@ import org.eclipse.cdt.internal.core.dom.parser.c.CASTFunctionDeclarator;
 import org.eclipse.cdt.internal.core.dom.parser.c.CASTFunctionDefinition;
 import org.eclipse.cdt.internal.core.dom.parser.c.CASTKnRFunctionDeclarator;
 import org.eclipse.cdt.internal.core.dom.parser.c.CPointerType;
+import org.eclipse.cdt.internal.core.dom.parser.c.CStructure;
 import org.eclipse.cdt.internal.core.dom.parser.c.CTypedef;
 
 /**
@@ -149,8 +150,8 @@ public class ExternalReferencesVisitor extends ASTVisitor {
 			type = ((CPointerType)type).getType();
 			pointers++;
 		}
-		
-		return getType(type).toString() + StringUtils.repeat('*', pointers);
+		IType nestedType = getType(type); // First fix HERE.... to add the STRUCT keyword for the external.
+		return (nestedType instanceof CStructure ? "struct ":"")+nestedType.toString() + StringUtils.repeat('*', pointers);
 	}
 
 	public String getExternalDeclarations() {
