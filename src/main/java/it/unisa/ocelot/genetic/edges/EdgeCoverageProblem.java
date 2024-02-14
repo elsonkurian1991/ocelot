@@ -1,5 +1,8 @@
 package it.unisa.ocelot.genetic.edges;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.Set;
 
 import it.unisa.ocelot.c.cfg.CFG;
@@ -90,16 +93,37 @@ public class EdgeCoverageProblem extends StandardProblem implements Serendipitou
 		
 		this.serendipitousCovered = bdalListener.getSerendipitousCovered();
 		this.serendipitousPotentials.removeAll(this.serendipitousCovered);
+		//Here we need to read the fitness values to objectives from the files that we wrote before.
+		int  i=0;
+        double fitnessEvalPC = 0.0;
+        System.out.println("calling CalculateFitness in EdgeCov_ before:"+fitnessEvalPC);
+		fitnessEvalPC = CalculateFitnessFromEvalPC.CalculateFitness();
+		System.out.println("calling CalculateFitness in EdgeCov_ after:"+fitnessEvalPC);
 		
-		double objective = bdalListener.getNormalizedBranchDistance()
-				+ bdalListener.getApproachLevel();
+		/*double fitnessPC1 = 0.0;
+		double fitnessPC2 = 0.0;
+		double fitnessPC3 = 0.0;
+		try {
+			String data = new String(Files.readAllBytes(Paths.get("evalPC1.txt")));
+			fitnessPC1 = Double.parseDouble(data);
+			data = new String(Files.readAllBytes(Paths.get("evalPC2.txt")));
+			fitnessPC2 = Double.parseDouble(data);
+			data = new String(Files.readAllBytes(Paths.get("evalPC3.txt")));
+			fitnessPC3 = Double.parseDouble(data);
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}*/
+		double objective =fitnessEvalPC;
+		//double objective = bdalListener.getNormalizedBranchDistance() + bdalListener.getApproachLevel() + fitnessEvalPC;
 		
 		solution.setObjective(0, objective);
 		
 		if (debug)
 			System.out.println(Utils.printParameters(arguments) + "\nObjective: " + objective);
 		
-		return bdalListener.getBranchDistance();
+		//return bdalListener.getBranchDistance();
+		return objective;
 	}
 	
 	public Set<LabeledEdge> getSerendipitousCovered() {

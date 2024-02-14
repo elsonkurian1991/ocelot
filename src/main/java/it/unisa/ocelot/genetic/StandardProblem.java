@@ -5,6 +5,8 @@ import java.util.HashMap;
 import java.util.Map;
 
 import it.unisa.ocelot.c.types.CType;
+import it.unisa.ocelot.genetic.edges.CalculateFitnessFromEvalPC;
+import it.unisa.ocelot.genetic.edges.FType;
 import it.unisa.ocelot.simulator.CBridge;
 import it.unisa.ocelot.simulator.SimulationException;
 
@@ -184,7 +186,7 @@ public abstract class StandardProblem extends Problem {
 		
 		while (tries > 0) {
 			try {
-				this.evaluateSolution(solution);
+				this.evaluateSolution(solution);			
 				return;
 			} catch (SimulationException e) {
 				tries--;

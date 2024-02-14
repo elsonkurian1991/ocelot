@@ -1,6 +1,11 @@
 package it.unisa.ocelot.suites.generators.mccabe;
 
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.HashSet;
+import java.util.Map.Entry;
 import java.util.Set;
 
 import it.unisa.ocelot.TestCase;
@@ -10,7 +15,9 @@ import it.unisa.ocelot.c.cfg.edges.LabeledEdge;
 import it.unisa.ocelot.c.cfg.nodes.CFGNode;
 import it.unisa.ocelot.conf.ConfigManager;
 import it.unisa.ocelot.genetic.VariableTranslator;
+import it.unisa.ocelot.genetic.edges.CalculateFitnessFromEvalPC;
 import it.unisa.ocelot.genetic.edges.DMCExperiment;
+import it.unisa.ocelot.genetic.edges.FType;
 import it.unisa.ocelot.suites.TestSuiteGenerationException;
 import it.unisa.ocelot.suites.generators.CascadeableGenerator;
 import it.unisa.ocelot.suites.generators.TestSuiteGenerator;
@@ -65,7 +72,36 @@ public class DynamicMcCabeTestSuiteGenerator extends TestSuiteGenerator implemen
 		
 		SolutionSet seedPopulation = null;
 		
-		while (currentTarget != null && calculator.getBranchCoverage() < config.getRequiredCoverage()) {
+		//while (currentTarget != null && calculator.getBranchCoverage() < config.getRequiredCoverage()) {
+		
+		/*File directory = new File("./");//ocelot
+
+        // Check if the directory exists
+        if (directory.exists() && directory.isDirectory()) {
+            // Get all files in the directory
+            File[] files = directory.listFiles();
+            if (files != null) {
+                for (File file : files) {
+                    if (file.isFile() && file.getName().endsWith(".epc")) {
+                    	try {                   		
+                    		double data = Double.parseDouble(new String(Files.readAllBytes(Paths.get(file.toURI()))));
+                    		System.out.println(file+" fitnessEvalPC is :"+data);                   	                			 
+                    		CalculateFitnessFromEvalPC.filesWithFitnessVals.put(file.toString(), new FType(data, false));
+                		} catch (IOException e) {
+                			// TODO Auto-generated catch block
+                			e.printStackTrace();
+                		}
+                    }
+                }
+            }
+        } else {
+            System.out.println("Invalid directory path.");
+        }	
+		
+		*/
+		boolean finish = false;
+		while (currentTarget != null && !finish)
+		{
 			DMCExperiment exp = new DMCExperiment(cfg, config, cfg.getParameterTypes(), currentTarget, 
 					seedPopulation, this.config.getDMCSeedSize());
 			
@@ -121,15 +157,30 @@ public class DynamicMcCabeTestSuiteGenerator extends TestSuiteGenerator implemen
 			
 			this.println("Parameters found: " + Utils.printParameters(numericParams));
 			
-			currentTarget = mcCabeCalculator.getNextTarget();
+			/*currentTarget = mcCabeCalculator.getNextTarget();
 			if (currentTarget != null && !getUncoveredEdges(suite).contains(currentTarget)) {
 				System.out.println(this.cfg.getEdgeSource(currentTarget));
 				System.out.println("ERRORE");
 			}
-			
+			*/
 			calculator.calculateCoverage(suite);
 			this.println("Partial coverage: " + calculator.getBranchCoverage());
 			this.budgetManager.updateTargets(mcCabeCalculator.extimateMissingTargets());
+			
+			for(Entry<String, FType> fitnessGenVal : CalculateFitnessFromEvalPC.filesWithFitnessVals.entrySet()){
+				String key = fitnessGenVal.getKey();
+				boolean isCovered= fitnessGenVal.getValue().isTestCovered() && fitnessGenVal.getValue().isFirst();
+				if(!fitnessGenVal.getValue().isTestGenerated()) {
+					CalculateFitnessFromEvalPC.filesWithFitnessVals.put(key, new FType(Double.MAX_VALUE, false, isCovered,false));
+				}
+				
+				
+			}
+			finish = true;
+			
+			for(FType fitnessCovered : CalculateFitnessFromEvalPC.filesWithFitnessVals.values()){
+				finish=finish && fitnessCovered.isTestGenerated();
+			}
 		}
 	}
 	

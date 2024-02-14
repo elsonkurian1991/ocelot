@@ -56,7 +56,8 @@ public class GenAndWrite {
 			System.out.println("Minimizer: " + minimizer.getClass().getSimpleName());
 			Set<TestCase> suite = generator.generateTestSuite();
 	
-			Set<TestCase> minimizedSuite = minimizer.minimize(suite);
+			//Set<TestCase> minimizedSuite = minimizer.minimize(suite);
+			Set<TestCase> minimizedSuite = suite;
 			CoverageCalculator calculator = new CoverageCalculator(cfg);
 			
 			calculator.calculateCoverage(minimizedSuite);

@@ -3,6 +3,9 @@ package it.unisa.ocelot.runnable;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
 import org.apache.commons.codec.digest.DigestUtils;
 
@@ -41,6 +44,12 @@ public class Run {
 	private boolean forceNoBuild;
 	
 	public static void main(String[] args) throws Exception {
+		System.out.println("Now deleting old build file.... just for better debuging");
+		String filePathToDelete1 = "/home/lta/git/ocelot/.lastbuild.cks";
+		deleteFileIfExists(filePathToDelete1);
+		String filePathToDelete2 = "/home/lta/git/ocelot/libTest.so";
+		deleteFileIfExists(filePathToDelete2);
+		deleteOldEvalPCfiles("/home/lta/git/ocelot/");
 		Run runner = new Run(args);
 		if (runner.mustBuild())
 			runner.build();
@@ -48,6 +57,47 @@ public class Run {
 		
 		runner.run();
 	}
+	private static void deleteOldEvalPCfiles(String directoryPath) {
+		File directory = new File(directoryPath);
+
+        // Check if the directory exists
+        if (directory.exists() && directory.isDirectory()) {
+            // Get all files in the directory
+            File[] files = directory.listFiles();
+
+            // Iterate through the files and delete .epc files
+            if (files != null) {
+                for (File file : files) {
+                    if (file.isFile() && file.getName().endsWith(".epc")) {
+                        if (file.delete()) {
+                            System.out.println("Deleted: " + file.getName());
+                        } else {
+                            System.out.println("Failed to delete: " + file.getName());
+                        }
+                    }
+                }
+            }
+        } else {
+            System.out.println("Invalid directory path.");
+        }
+		
+	}
+	public static void deleteFileIfExists(String filePath) {
+        Path path = Paths.get(filePath);
+
+        if (Files.exists(path)) {
+            try {
+                // Use the Files.delete method to delete the file
+                Files.delete(path);
+                System.out.println("File deleted successfully: " + filePath);
+            } catch (IOException e) {
+                System.err.println("Error deleting file: " + e.getMessage());
+            }
+        } else {
+            System.out.println("File does not exist: " + filePath+ " --No problem");
+        }
+    }
+	
 	
 	public Run(String[] args) throws IOException {
 		this.runnerType = RUNNER_WRITE;
@@ -158,7 +208,7 @@ public class Run {
 	}
 	
 	public void run() throws Exception {
-		System.loadLibrary("Test");
+		System.load("/home/lta/git/ocelot/libTest.so");
 		switch (this.runnerType) {
 		case RUNNER_SIMPLE_EXECUTE:
 			System.out.println("Running simple coverage test");

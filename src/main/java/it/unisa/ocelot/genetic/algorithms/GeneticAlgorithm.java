@@ -30,6 +30,8 @@ import it.unisa.ocelot.c.cfg.edges.LabeledEdge;
 import it.unisa.ocelot.genetic.OcelotAlgorithm;
 import it.unisa.ocelot.genetic.SerendipitousAlgorithm;
 import it.unisa.ocelot.genetic.SerendipitousProblem;
+import it.unisa.ocelot.genetic.edges.CalculateFitnessFromEvalPC;
+import it.unisa.ocelot.genetic.edges.FType;
 import jmetal.core.Operator;
 import jmetal.core.Problem;
 import jmetal.core.Solution;
@@ -150,6 +152,7 @@ public class GeneticAlgorithm extends OcelotAlgorithm implements SerendipitousAl
 			problem_.evaluate(solution);
 			checkSerendipitous(solution);
 			evaluations++;
+			
 		}
 
 		for (Solution solution : solutionList) {
