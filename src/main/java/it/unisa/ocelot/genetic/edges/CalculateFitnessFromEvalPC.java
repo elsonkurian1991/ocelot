@@ -26,7 +26,8 @@ public class CalculateFitnessFromEvalPC {
 				if(!set.isTestGenerated())
 				alreadyFound= alreadyFound||set.isFirst();
 			}
-			// Iterate through the files and delete .epc files
+			// Iterate through the files and select only the .epc files
+			// make it sort by type of files
 			if (files != null) {
 				for (File file : files) {
 					if (file.isFile() && file.getName().endsWith(".epc")) {

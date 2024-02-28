@@ -72,13 +72,13 @@ public class EdgeCoverageProblem extends StandardProblem implements Serendipitou
 	public double evaluateSolution(Solution solution) throws JMException, SimulationException {
 		Object[][][] arguments = this.getParameters(solution);
 
-		CBridge bridge = getCurrentBridge();
+		CBridge bridge = getCurrentBridge(); // calling the JNI interface to execute the code!!
 
 		EventsHandler handler = new EventsHandler();
 		EdgeDistanceListener bdalListener = new EdgeDistanceListener(cfg, target, dominators);
 		bdalListener.setSerendipitousPotentials(this.serendipitousPotentials);
 		
-		try {
+		try { //grab the  execution events
 			bridge.getEvents(handler, arguments[0][0], arguments[1], arguments[2][0]);
 		} catch (RuntimeException e) {
 			this.onError(solution, e);
@@ -114,16 +114,16 @@ public class EdgeCoverageProblem extends StandardProblem implements Serendipitou
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}*/
-		double objective =fitnessEvalPC;
-		//double objective = bdalListener.getNormalizedBranchDistance() + bdalListener.getApproachLevel() + fitnessEvalPC;
+		//double objective =fitnessEvalPC;
+		double objective = bdalListener.getNormalizedBranchDistance() + bdalListener.getApproachLevel() + fitnessEvalPC;
 		
 		solution.setObjective(0, objective);
 		
 		if (debug)
 			System.out.println(Utils.printParameters(arguments) + "\nObjective: " + objective);
 		
-		//return bdalListener.getBranchDistance();
-		return objective;
+		return bdalListener.getBranchDistance();
+		//return objective;
 	}
 	
 	public Set<LabeledEdge> getSerendipitousCovered() {

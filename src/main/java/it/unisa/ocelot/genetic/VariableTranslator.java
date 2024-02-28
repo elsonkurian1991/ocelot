@@ -6,6 +6,11 @@ import jmetal.core.Variable;
 import jmetal.encodings.variable.ArrayParameters;
 
 public class VariableTranslator {
+	@Override
+	public String toString() {
+		return "VariableTranslator [solution=" + solution + "]";
+	}
+
 	private Solution solution;
 	
 	public VariableTranslator(Solution pSolution) {

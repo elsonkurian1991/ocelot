@@ -1,0 +1,1 @@
+(input1 > 0 ? 0 : abs(input1)) + (input2 <= 0 ? 0 : abs(input2))

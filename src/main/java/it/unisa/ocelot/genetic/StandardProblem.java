@@ -173,7 +173,7 @@ public abstract class StandardProblem extends Problem {
 	public final void evaluate(Solution solution) throws JMException {
 		int tries = MAX_TRIES;
 		
-		Object[][][] arguments = this.getParameters(solution);
+		Object[][][] arguments = this.getParameters(solution); //I hope here the inputs are generated!!
 		
 		for (Object obj : arguments[2][0]) {
 			Integer pointerRef = (Integer)obj;

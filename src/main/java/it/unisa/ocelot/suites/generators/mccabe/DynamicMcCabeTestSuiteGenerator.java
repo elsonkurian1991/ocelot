@@ -100,7 +100,9 @@ public class DynamicMcCabeTestSuiteGenerator extends TestSuiteGenerator implemen
 		
 		*/
 		boolean finish = false;
-		while (currentTarget != null && !finish)
+		int i=0;
+		String tempString ="";
+		while (currentTarget != null && !finish  )//!finish calculator.getBranchCoverage() < config.getRequiredCoverage()
 		{
 			DMCExperiment exp = new DMCExperiment(cfg, config, cfg.getParameterTypes(), currentTarget, 
 					seedPopulation, this.config.getDMCSeedSize());
@@ -114,7 +116,7 @@ public class DynamicMcCabeTestSuiteGenerator extends TestSuiteGenerator implemen
 			this.println("Current target: branch " + currentTarget.toString() + " of node " + departingNode);
 			try {
 				this.print("Running... ");
-				exp.basicRun();
+				exp.basicRun(); // population and Ftype should come 
 				this.evaluations += exp.getNumberOfEvaluation();
 				
 				if (this.config.isDMCSeed())
@@ -129,7 +131,7 @@ public class DynamicMcCabeTestSuiteGenerator extends TestSuiteGenerator implemen
 
 			double fitnessValue = exp.getFitnessValue();
 			VariableTranslator translator = new VariableTranslator(exp.getSolution());
-			
+			tempString+=i+":"+translator+"\n";
 			if (config.getSerendipitousCoverage())
 				for (Solution solution : exp.getSerendipitousSolutions()) {
 					VariableTranslator currentTranslator = new VariableTranslator(solution);
@@ -137,7 +139,7 @@ public class DynamicMcCabeTestSuiteGenerator extends TestSuiteGenerator implemen
 					calculator.calculateCoverage(serendipitousParameters);
 					mcCabeCalculator.addPath(calculator.getCoveredPath());
 				}
-
+		
 			Object[][][] numericParams = translator.translateArray(cfg.getParameterTypes());
 
 			TestCase testCase = this.createTestCase(numericParams, suite.size());
@@ -181,7 +183,9 @@ public class DynamicMcCabeTestSuiteGenerator extends TestSuiteGenerator implemen
 			for(FType fitnessCovered : CalculateFitnessFromEvalPC.filesWithFitnessVals.values()){
 				finish=finish && fitnessCovered.isTestGenerated();
 			}
+			i++;
 		}
+		System.out.println(tempString);
 	}
 	
 	@Override
