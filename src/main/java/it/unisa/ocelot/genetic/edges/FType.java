@@ -31,7 +31,7 @@ public class FType {
 	@Override
 	public String toString() {
 		return "FType [fitnessValue=" + fitnessValue + ", testCovered=" + testCovered + ", testGenerated="
-				+ testGenerated + ", first=" + first + "]";
+				+ testGenerated + ", first=" + first + "]" + System.lineSeparator();
 	}
 	public double getFitnessValue() {
 		return fitnessValue;

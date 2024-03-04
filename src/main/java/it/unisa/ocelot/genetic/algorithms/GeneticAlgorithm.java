@@ -3,6 +3,7 @@ package it.unisa.ocelot.genetic.algorithms;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
@@ -43,41 +44,40 @@ import jmetal.util.comparators.ObjectiveComparator;
  * A multithreaded generational genetic algorithm
  */
 
-public class GeneticAlgorithm extends OcelotAlgorithm implements SerendipitousAlgorithm<LabeledEdge>, SeedableAlgorithm {
+public class GeneticAlgorithm extends OcelotAlgorithm
+		implements SerendipitousAlgorithm<LabeledEdge>, SeedableAlgorithm {
 	private static final long serialVersionUID = -2679014653669190929L;
-	
+
 	private int no_evaluation;
 
 	private Set<Solution> serendipitousSolutions;
 	private Set<LabeledEdge> serendipitousPotentials;
-	
+
 	private SolutionSet startingPopulation;
 	private SolutionSet lastPopulation;
 
 	/**
 	 * Constructor
 	 * 
-	 * @param problem
-	 *            Problem to solve
-	 * @param evaluator
-	 *            Parallel evaluator
+	 * @param problem   Problem to solve
+	 * @param evaluator Parallel evaluator
 	 */
 	public GeneticAlgorithm(Problem problem) {
 		super(problem);
-		
+
 		this.serendipitousSolutions = new HashSet<Solution>();
 		this.serendipitousPotentials = new HashSet<LabeledEdge>();
-		
+
 		this.lastPopulation = null;
 
 		no_evaluation = 0;
 	} // pgGA
-	
+
 	public void seedStartingPopulation(SolutionSet set, int keepNumber) {
 		this.startingPopulation = set;
-		
+
 		if (this.startingPopulation != null) {
-			for (int i = this.startingPopulation.size()-1; i >= keepNumber ; i--) {
+			for (int i = this.startingPopulation.size() - 1; i >= keepNumber; i--) {
 				this.startingPopulation.remove(i);
 			}
 		}
@@ -86,8 +86,8 @@ public class GeneticAlgorithm extends OcelotAlgorithm implements SerendipitousAl
 	/**
 	 * Runs the pgGA algorithm.
 	 * 
-	 * @return a <code>SolutionSet</code> that is a set of non dominated
-	 *         solutions as a result of the algorithm execution
+	 * @return a <code>SolutionSet</code> that is a set of non dominated solutions
+	 *         as a result of the algorithm execution
 	 * @throws jmetal.util.JMException
 	 */
 	@SuppressWarnings("rawtypes")
@@ -111,13 +111,11 @@ public class GeneticAlgorithm extends OcelotAlgorithm implements SerendipitousAl
 		comparator = new ObjectiveComparator(0); // Single objective comparator
 
 		// Read the parameters
-		populationSize = ((Integer) getInputParameter("populationSize"))
-				.intValue();
-		maxEvaluations = ((Integer) getInputParameter("maxEvaluations"))
-				.intValue();
+		populationSize = ((Integer) getInputParameter("populationSize")).intValue();
+		maxEvaluations = ((Integer) getInputParameter("maxEvaluations")).intValue();
 
 //		parallelEvaluator_.startEvaluator(problem_);
-			
+
 		offspringPopulation = new SolutionSet(populationSize);
 
 		evaluations = 0;
@@ -128,45 +126,53 @@ public class GeneticAlgorithm extends OcelotAlgorithm implements SerendipitousAl
 		selectionOperator = operators_.get("selection");
 
 		// Create the initial solutionSet
-		// Initialize the variables. If this is an extra execution, it keeps using the last population
+		// Initialize the variables. If this is an extra execution, it keeps using the
+		// last population
 		if (lastPopulation == null) {
 			if (startingPopulation == null) {
 				population = new SolutionSet(populationSize);
-			} else { 
+			} else {
 				population = startingPopulation;
 			}
 		} else {
 			population = lastPopulation;
 		}
-		
+
 		Solution newSolution;
 		List<Solution> solutionList = new ArrayList<>();
-		for (int i = 0; i < population.getCapacity() - population.size() ; i++) {
+		for (int i = 0; i < population.getCapacity() - population.size(); i++) {
 			newSolution = new Solution(problem_);
 			solutionList.add(newSolution);
 		}
-		
+
 		for (int i = 0; i < population.size(); i++) {
 			Solution solution = population.get(i);
 			prepareSerendipitous();
 			problem_.evaluate(solution);
 			checkSerendipitous(solution);
 			evaluations++;
-			
+
 		}
 
 		for (Solution solution : solutionList) {
 			prepareSerendipitous();
 			problem_.evaluate(solution);
 			checkSerendipitous(solution);
-			
+
 			population.add(solution);
 			evaluations++;
 		}
 
 		population.sort(comparator);
-
 		boolean targetCovered = false;
+		
+		for (int i = 0; i < populationSize; i++) {
+			if (population.get(i).getObjective(0) == 0.0) {
+				targetCovered = true;//we cover once we find the fitness.
+				break;
+			}
+		}
+
 		// Generations
 		while (evaluations < maxEvaluations && !targetCovered) {
 			// Copy the best two individuals to the offspring population
@@ -178,12 +184,9 @@ public class GeneticAlgorithm extends OcelotAlgorithm implements SerendipitousAl
 			for (int i = 0; i < (populationSize / 2) - 1; i++) {
 				if (evaluations < maxEvaluations) {
 					// obtain parents
-					parents[0] = (Solution) selectionOperator
-							.execute(population);
-					parents[1] = (Solution) selectionOperator
-							.execute(population);
-					Solution[] offSpring = (Solution[]) crossoverOperator
-							.execute(parents);
+					parents[0] = (Solution) selectionOperator.execute(population);
+					parents[1] = (Solution) selectionOperator.execute(population);
+					Solution[] offSpring = (Solution[]) crossoverOperator.execute(parents);
 					mutationOperator.execute(offSpring[0]);
 					mutationOperator.execute(offSpring[1]);
 					solutions.add(offSpring[0]);
@@ -191,12 +194,11 @@ public class GeneticAlgorithm extends OcelotAlgorithm implements SerendipitousAl
 				} // if
 			} // for
 
-
 			for (Solution solution : solutions) {
 				prepareSerendipitous();
 				problem_.evaluate(solution);
 				checkSerendipitous(solution);
-				
+
 				offspringPopulation.add(solution);
 				if (solution.getObjective(0) == 0.0)
 					targetCovered = true;
@@ -212,39 +214,38 @@ public class GeneticAlgorithm extends OcelotAlgorithm implements SerendipitousAl
 			population.sort(comparator);
 		} // while
 
-
 		// Return a population with the best individual
 		SolutionSet resultPopulation = new SolutionSet(1);
 		resultPopulation.add(population.get(0));
-		
+
 		this.lastPopulation = population;
 
 		this.algorithmStats.setEvaluations(evaluations);
 		this.no_evaluation = evaluations;
 		return resultPopulation;
 	} // execute
-	
-	public int getNumberOfEvaluation(){
+
+	public int getNumberOfEvaluation() {
 		return this.no_evaluation;
 	}
-	
+
 	@SuppressWarnings("unchecked")
 	protected void prepareSerendipitous() {
 		if (problem_ instanceof SerendipitousProblem<?>) {
-			SerendipitousProblem<LabeledEdge> problem = (SerendipitousProblem<LabeledEdge>)problem_;
-			
+			SerendipitousProblem<LabeledEdge> problem = (SerendipitousProblem<LabeledEdge>) problem_;
+
 			problem.setSerendipitousPotentials(this.serendipitousPotentials);
 		}
 	}
-	
+
 	@SuppressWarnings("unchecked")
 	protected void checkSerendipitous(Solution solution) {
 		if (problem_ instanceof SerendipitousProblem<?>) {
-			SerendipitousProblem<LabeledEdge> problem = (SerendipitousProblem<LabeledEdge>)problem_;
-			
+			SerendipitousProblem<LabeledEdge> problem = (SerendipitousProblem<LabeledEdge>) problem_;
+
 			if (problem.getSerendipitousCovered().size() > 0) {
 				this.serendipitousPotentials.removeAll(problem.getSerendipitousCovered());
-				
+
 				this.serendipitousSolutions.add(solution);
 			}
 		}
@@ -259,7 +260,7 @@ public class GeneticAlgorithm extends OcelotAlgorithm implements SerendipitousAl
 	public void setSerendipitousPotentials(Set<LabeledEdge> pPotentials) {
 		this.serendipitousPotentials = pPotentials;
 	}
-	
+
 	public SolutionSet getLastPopulation() {
 		return lastPopulation;
 	}
