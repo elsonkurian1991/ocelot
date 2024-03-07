@@ -54,3 +54,6 @@ results/
 RESULTS/
 testobject/
 /target/
+
+# epc files for pathEval 
+*.epc
