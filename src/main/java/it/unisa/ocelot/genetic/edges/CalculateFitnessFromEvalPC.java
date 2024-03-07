@@ -78,13 +78,14 @@ public class CalculateFitnessFromEvalPC {
 			System.out.println("Invalid directory path.");
 		}
 	
-		System.out.println(filesWithFitnessVals);
+		//System.out.println(filesWithFitnessVals);
 		for (Entry<String, FType> set : filesWithFitnessVals.entrySet()) {
 
-			System.out.println(set.getKey() + " = " + set.getValue());
+			//System.out.println(set.getKey() + " = " + set.getValue());
 			
 			if (!set.getValue().isTestGenerated()) {
 				if(set.getValue().isTestCovered()) {
+					System.out.println("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$");
 					return 0;
 				}
 				else {

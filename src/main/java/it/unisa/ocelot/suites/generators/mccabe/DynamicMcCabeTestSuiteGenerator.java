@@ -183,7 +183,14 @@ public class DynamicMcCabeTestSuiteGenerator extends TestSuiteGenerator implemen
 			for(FType fitnessCovered : CalculateFitnessFromEvalPC.filesWithFitnessVals.values()){
 				finish=finish && fitnessCovered.isTestGenerated();
 			}
+			//int maxEvaluations = this.getMaxEvaluations; 					((Integer) getInputParameter("maxEvaluations")).intValue();
 			i++;
+			int no= budgetManager.getConsumedBudget();
+			int nos= budgetManager.getExperimentBudget(exp);
+			System.out.println(no+":CONSUMED---------OUT OF:"+nos);
+			if(no >= nos) {
+				finish=true;// to stop the execution if not able to find the fitness.
+			}
 		}
 		System.out.println(tempString);
 	}

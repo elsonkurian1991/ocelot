@@ -96,7 +96,7 @@ public class EdgeCoverageProblem extends StandardProblem implements Serendipitou
 		//Here we need to read the fitness values to objectives from the files that we wrote before.
 		int  i=0;
         double fitnessEvalPC = 0.0;
-        System.out.println("calling CalculateFitness in EdgeCov_ before:"+fitnessEvalPC);
+       // System.out.println("calling CalculateFitness in EdgeCov_ before:"+fitnessEvalPC);
 		fitnessEvalPC = CalculateFitnessFromEvalPC.CalculateFitness();
 		System.out.println("calling CalculateFitness in EdgeCov_ after:"+fitnessEvalPC);
 		
