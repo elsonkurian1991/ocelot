@@ -18,6 +18,7 @@ import it.unisa.ocelot.c.makefile.LinuxMakefileGenerator;
 import it.unisa.ocelot.c.makefile.MacOSXMakefileGenerator;
 import it.unisa.ocelot.c.makefile.WindowsMakefileGenerator;
 import it.unisa.ocelot.conf.ConfigManager;
+import it.unisa.ocelot.genetic.edges.ReadEFLfilesforPairCombination;
 import it.unisa.ocelot.runnable.runners.ExecuteExperiment;
 import it.unisa.ocelot.runnable.runners.ExecuteWholeCoverage;
 import it.unisa.ocelot.runnable.runners.GenAndWrite;
@@ -50,12 +51,14 @@ public class Run {
 		String filePathToDelete2 = "/home/lta/git/ocelot/libTest.so";
 		deleteFileIfExists(filePathToDelete2);
 		deleteOldEvalPCfiles("/home/lta/git/ocelot/");
+		ReadEFLfilesforPairCombination.RunEFLfilesforPairCombination(); // run this to read the efl file and create pairwise combinations. find a best place to call this
 		Run runner = new Run(args);
 		if (runner.mustBuild())
 			runner.build();
 		runner.saveHash();
 		
 		runner.run();
+		System.out.println(ReadEFLfilesforPairCombination.pathTCfitness);
 	}
 	private static void deleteOldEvalPCfiles(String directoryPath) {
 		File directory = new File(directoryPath);

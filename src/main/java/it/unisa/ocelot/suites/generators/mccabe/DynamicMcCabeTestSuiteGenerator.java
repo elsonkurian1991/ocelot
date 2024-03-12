@@ -73,32 +73,9 @@ public class DynamicMcCabeTestSuiteGenerator extends TestSuiteGenerator implemen
 		SolutionSet seedPopulation = null;
 		
 		//while (currentTarget != null && calculator.getBranchCoverage() < config.getRequiredCoverage()) {
+				
+		// here we read a file, list of all epc file names. or combination of list
 		
-		/*File directory = new File("./");//ocelot
-
-        // Check if the directory exists
-        if (directory.exists() && directory.isDirectory()) {
-            // Get all files in the directory
-            File[] files = directory.listFiles();
-            if (files != null) {
-                for (File file : files) {
-                    if (file.isFile() && file.getName().endsWith(".epc")) {
-                    	try {                   		
-                    		double data = Double.parseDouble(new String(Files.readAllBytes(Paths.get(file.toURI()))));
-                    		System.out.println(file+" fitnessEvalPC is :"+data);                   	                			 
-                    		CalculateFitnessFromEvalPC.filesWithFitnessVals.put(file.toString(), new FType(data, false));
-                		} catch (IOException e) {
-                			// TODO Auto-generated catch block
-                			e.printStackTrace();
-                		}
-                    }
-                }
-            }
-        } else {
-            System.out.println("Invalid directory path.");
-        }	
-		
-		*/
 		boolean finish = false;
 		int i=0;
 		String tempString ="";

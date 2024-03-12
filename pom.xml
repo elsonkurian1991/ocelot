@@ -104,7 +104,14 @@
             <artifactId>jgraphaddons</artifactId>
             <version>1.0.2</version>
         </dependency>
-
+        
+        <!-- AllPairs4J is an open source Java library for generation of minimal set of test combinations.-->
+		<dependency>
+		    <groupId>io.github.pavelicii</groupId>
+		    <artifactId>allpairs4j</artifactId>
+		    <version>1.0.1</version>
+		</dependency>
+		
         <dependency>
             <groupId>org.eclipse.cdt</groupId>
             <artifactId>core</artifactId>

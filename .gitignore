@@ -57,3 +57,4 @@ testobject/
 
 # epc files for pathEval 
 *.epc
+*.efl
