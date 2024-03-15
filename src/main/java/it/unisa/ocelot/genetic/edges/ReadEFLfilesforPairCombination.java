@@ -6,6 +6,8 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -20,6 +22,7 @@ import javassist.expr.NewArray;
 
 public class ReadEFLfilesforPairCombination {
 	public static Map<String, ArrayList<String>> listofFunPaths = new HashMap<>();
+	public static Map<String, ArrayList<String>> listofKeys = new HashMap<>();
 	public static Map<String, EFLType> pathTCfitness = new HashMap<>();
 	/*public static void main(String[] args) throws IOException {
 		RunEFLfilesforPairCombination();
@@ -39,7 +42,54 @@ public class ReadEFLfilesforPairCombination {
 		}
 
 		System.out.println(listofFunPaths);
-		List<Parameter> parameterList = new ArrayList<>();
+		int i=0;
+		int j=0;
+		for(String keySet1: listofFunPaths.keySet()) {
+			for(String keySet2: listofFunPaths.keySet()) {
+				if(!keySet1.equals(keySet2)) {
+					boolean check=checkForKeySets(keySet1,keySet2);
+					if(!check) {
+						ArrayList<String> keySets=new ArrayList<>();
+						keySets.add(keySet1);
+						keySets.add(keySet2);
+						listofKeys.put(String.valueOf(j), keySets);
+						j++;
+						i=generatePairWiseCombinations(listofFunPaths,keySet1,keySet2,i);
+					}
+
+				}
+			}
+		}
+		System.out.println(pathTCfitness);
+        // Copy the entries of the map into a list
+        List<Map.Entry<String, EFLType>> tempListforSort = new ArrayList<>(pathTCfitness.entrySet());
+
+        // Sort the list based on keys
+        Collections.sort(tempListforSort, new Comparator<Map.Entry<String, EFLType>>() {
+            @Override
+
+            public int compare(Map.Entry<String, EFLType> entry1, Map.Entry<String, EFLType> entry2) {
+                // Parse the keys as integers before comparing
+                int key1 = Integer.parseInt(entry1.getKey());
+                int key2 = Integer.parseInt(entry2.getKey());
+                return Integer.compare(key1, key2);
+               // return entry1.getKey().compareTo(entry2.getKey());
+            }
+        });
+
+        // Create a new LinkedHashMap to maintain the insertion order
+        Map<String, EFLType> sortedMap = new LinkedHashMap<>();
+        for (Map.Entry<String, EFLType> entry : tempListforSort) {
+            sortedMap.put(entry.getKey(), entry.getValue());
+        }
+
+        // Update the original map reference
+        pathTCfitness = sortedMap;
+
+		
+		
+		
+		/*List<Parameter> parameterList = new ArrayList<>();
 		parameterList=genParameterListEFL(parameterList);
 		
 		AllPairs allPairs = generateAllPairs(parameterList);
@@ -50,7 +100,7 @@ public class ReadEFLfilesforPairCombination {
 		System.out.println(size);
 		System.out.println(allPairs.getGeneratedCases());
 		
-		int i=0;
+		//int i=0;
 		for(Case genList :allPairs.getGeneratedCases()) {
 			System.out.println(genList);
 			System.out.println(genList.entrySet());
@@ -64,11 +114,49 @@ public class ReadEFLfilesforPairCombination {
 			pathTCfitness.put(String.valueOf(i), temp);
 			++i;
 		}
-
+*/
 		System.out.println(pathTCfitness);
 		//CheckTCisCovered(pathTCfitness);
 	}
 	
+	private static boolean checkForKeySets(String keySet1, String keySet2) {
+		 if(listofKeys.isEmpty()) {
+			 return false;
+		 }
+		 else {
+			 for(Entry <String,ArrayList<String>> keyLists: listofKeys.entrySet()){
+				 if(keyLists.getValue().contains(keySet2.toString())&&keyLists.getValue().contains(keySet1.toString())) {
+					 return true;
+				 }
+				 for(String listVal:keyLists.getValue()) {
+					 if(listVal.contains(keySet1)&&listVal.contains(keySet2)) {
+						 return true;
+					 }
+				 }
+			 }
+			
+		 }
+		 return false;
+	}
+
+	private static int generatePairWiseCombinations(Map<String, ArrayList<String>> listofFunPaths2, String keySet1,
+			String keySet2, int i) {
+		ArrayList<String> params1= listofFunPaths2.get(keySet1);
+		ArrayList<String> params2= listofFunPaths2.get(keySet2);
+		//EFLType temp= new EFLType(null, null);
+		for(String param1: params1) {
+			for(String param2: params2) {
+				Map<String,Double> temp_Fname_Val= new HashMap<>();
+				temp_Fname_Val.put(param1.toString(),Double.MAX_VALUE);	
+				temp_Fname_Val.put(param2.toString(),Double.MAX_VALUE);	
+				EFLType temp= new EFLType(false, temp_Fname_Val);
+				pathTCfitness.put(String.valueOf(i), temp);
+				++i;
+			}	
+		}
+		return i;
+	}
+
 	public static void CheckTCisCovered(Map<String, EFLType> tempPathTCfitness) {
 		//System.out.println(tempPathTCfitness);
 		for(Entry<String, EFLType> entry:tempPathTCfitness.entrySet()) {
@@ -115,7 +203,9 @@ public class ReadEFLfilesforPairCombination {
 				.withParameters( parameterList)                     // alternative way to specify multiple Parameters as List
 				//  .withConstraint( Predicate<ConstrainableCase> )        // specifies 1 Constraint, default is no Constraints
 				// .withConstraints( List<Predicate<ConstrainableCase>> ) // alternative way to specify multiple Constraints as List
-				.withTestCombinationSize( listofFunPaths.size())         // specifies test combination size, default is 2 (pair)
+				.withTestCombinationSize(2)         // specifies test combination size, default is 2 (pair)
+				
+				//listofFunPaths.size()
 				//  .printEachCaseDuringGeneration()                       // prints Cases during generation, useful for debug
 				.build();
 		return allPairs;
@@ -127,7 +217,7 @@ public class ReadEFLfilesforPairCombination {
 		// TODO Auto-generated method stub
 		String keyVal[]=line.split("=");
 		String key=keyVal[0];
-		key=key.replaceAll("\\{","").trim();
+		key=key.replaceAll("\\{","").trim(); // line = line.replaceAll("[{};]", "");
 		String val=keyVal[1].replaceAll("\\}","").trim();
 		val=val.replaceAll(";", "").trim();
 		String values[]=val.split(",");
@@ -140,7 +230,35 @@ public class ReadEFLfilesforPairCombination {
 
 
 }		
+/*
+ * Backuo of ALLPAIRS combination
+ *      <List<Parameter> parameterList = new ArrayList<>();
+		parameterList=genParameterListEFL(parameterList);
+		
+		AllPairs allPairs = generateAllPairs(parameterList);
+		// or use Iterator
 
+		System.out.println(allPairs);
+		int size =allPairs.getTestCombinationSize();
+		System.out.println(size);
+		System.out.println(allPairs.getGeneratedCases());
+		
+		int i=0;
+		for(Case genList :allPairs.getGeneratedCases()) {
+			System.out.println(genList);
+			System.out.println(genList.entrySet());
+			Map<String,Double> temp_Fname_Val= new HashMap<>();
+			for(Entry<String, Object> entry:genList.entrySet()) {
+				//System.out.println(entry.getKey());
+				//System.out.println(entry.getValue());
+				temp_Fname_Val.put(entry.getValue().toString(),Double.MAX_VALUE);
+			}
+			EFLType temp= new EFLType(false, temp_Fname_Val);
+			pathTCfitness.put(String.valueOf(i), temp);
+			++i;
+		}
+		TILL HERE
+ */
 /*		        new Parameter("Browser", "Chrome", "Safari", "Edge"),
 		                new Parameter("OS", "Windows", "Linux", "macOS"),
 		                new Parameter("RAM", 2048, 4096, 8192, 16384),
