@@ -22,6 +22,7 @@ import javassist.expr.NewArray;
 
 public class ReadEFLfilesforPairCombination {
 	public static Map<String, ArrayList<String>> listofFunPaths = new HashMap<>();
+	public static Map<String, String> listofIntRelationKeys = new HashMap<>();
 	public static Map<String, ArrayList<String>> listofKeys = new HashMap<>();
 	public static Map<String, EFLType> pathTCfitness = new HashMap<>();
 	/*public static void main(String[] args) throws IOException {
@@ -30,17 +31,28 @@ public class ReadEFLfilesforPairCombination {
 	public static void RunEFLfilesforPairCombination() throws IOException{ //RunEFLfilesforPairCombination
 		// TODO Auto-generated method stub
 
-		try (BufferedReader br = new BufferedReader(new FileReader("./evalFunList.efl"))) { // TODO this file should written while parseing KQuery files.
-			String line;
-			while ((line = br.readLine()) != null) {
-				System.out.println(line);
-				AddFunPath(listofFunPaths,line);
+		try (BufferedReader br1 = new BufferedReader(new FileReader("./evalFunList.efl"))) { // TODO this file should written while parseing KQuery files.
+			String lineBr1;
+			while ((lineBr1 = br1.readLine()) != null) {
+				System.out.println(lineBr1);
+				AddFunPath(listofFunPaths,lineBr1);
+				// You can process the line here as needed
+			}
+		} catch (IOException e) {
+			System.err.println("Error reading evalFunList.efl file: " + e.getMessage());
+		}
+		try (BufferedReader br2 = new BufferedReader(new FileReader("./IntRelKeyList.kl"))) { // TODO somehow .
+			String lineBr2;
+			while ((lineBr2 = br2.readLine()) != null) {
+				System.out.println(lineBr2);
+				//AddFunPath(listofFunPaths,lineBr2);
+				AddIntegrationKeyList(listofIntRelationKeys,lineBr2);
 				// You can process the line here as needed
 			}
 		} catch (IOException e) {
 			System.err.println("Error reading the file: " + e.getMessage());
 		}
-
+		System.out.println(listofIntRelationKeys);
 		System.out.println(listofFunPaths);
 		int i=0;
 		int j=0;
@@ -48,7 +60,8 @@ public class ReadEFLfilesforPairCombination {
 			for(String keySet2: listofFunPaths.keySet()) {
 				if(!keySet1.equals(keySet2)) {
 					boolean check=checkForKeySets(keySet1,keySet2);
-					if(!check) {
+					boolean isIntRel=checkHaveIntegrationRelation(keySet1,keySet2);
+					if(!check&isIntRel) {
 						ArrayList<String> keySets=new ArrayList<>();
 						keySets.add(keySet1);
 						keySets.add(keySet2);
@@ -119,6 +132,25 @@ public class ReadEFLfilesforPairCombination {
 		//CheckTCisCovered(pathTCfitness);
 	}
 	
+	private static boolean checkHaveIntegrationRelation(String keySet1, String keySet2) {
+		 for(Entry <String,String> relationkeyLists: listofIntRelationKeys.entrySet()){
+			 if(relationkeyLists.getKey().equals(keySet1.toString())){
+				 if(relationkeyLists.getValue().equals(keySet2.toString())) {
+					 return true;
+				 }
+			 }
+		 }
+	
+		return false;
+	}
+
+	private static void AddIntegrationKeyList(Map<String, String> listofIntRelKeys, String lineBr2) {
+		
+		lineBr2 = lineBr2.replaceAll("[{};]", "");		
+		String values[]=lineBr2.split(",");
+		listofIntRelKeys.put(values[0], values[1]);		
+	}
+
 	private static boolean checkForKeySets(String keySet1, String keySet2) {
 		 if(listofKeys.isEmpty()) {
 			 return false;
