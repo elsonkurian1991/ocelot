@@ -9,10 +9,12 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Objects;
 
 import io.github.pavelicii.allpairs4j.AllPairs;
 import io.github.pavelicii.allpairs4j.AllPairs.AllPairsBuilder;
@@ -22,7 +24,7 @@ import javassist.expr.NewArray;
 
 public class ReadEFLfilesforPairCombination {
 	public static Map<String, ArrayList<String>> listofFunPaths = new HashMap<>();
-	public static Map<String, String> listofIntRelationKeys = new HashMap<>();
+	public static HashSet<FunctionPair> listofIntRelationKeys = new HashSet<>();
 	public static Map<String, ArrayList<String>> listofKeys = new HashMap<>();
 	public static Map<String, EFLType> pathTCfitness = new HashMap<>();
 	/*public static void main(String[] args) throws IOException {
@@ -46,13 +48,13 @@ public class ReadEFLfilesforPairCombination {
 			while ((lineBr2 = br2.readLine()) != null) {
 				System.out.println(lineBr2);
 				//AddFunPath(listofFunPaths,lineBr2);
-				AddIntegrationKeyList(listofIntRelationKeys,lineBr2);
+				AddIntegrationKeyList(lineBr2);
 				// You can process the line here as needed
 			}
 		} catch (IOException e) {
 			System.err.println("Error reading the file: " + e.getMessage());
 		}
-		System.out.println(listofIntRelationKeys);
+		System.out.println(listofIntRelationKeys.toString());
 		System.out.println(listofFunPaths);
 		int i=0;
 		int j=0;
@@ -67,7 +69,7 @@ public class ReadEFLfilesforPairCombination {
 						keySets.add(keySet2);
 						listofKeys.put(String.valueOf(j), keySets);
 						j++;
-						i=generatePairWiseCombinations(listofFunPaths,keySet1,keySet2,i);
+						i=generatePairWiseCombinations(keySet1,keySet2,i);
 					}
 
 				}
@@ -133,9 +135,9 @@ public class ReadEFLfilesforPairCombination {
 	}
 	
 	private static boolean checkHaveIntegrationRelation(String keySet1, String keySet2) {
-		 for(Entry <String,String> relationkeyLists: listofIntRelationKeys.entrySet()){
-			 if(relationkeyLists.getKey().equals(keySet1.toString())){
-				 if(relationkeyLists.getValue().equals(keySet2.toString())) {
+		 for(FunctionPair relationkeyLists: listofIntRelationKeys){
+			 if(relationkeyLists.getFun1().equals(keySet1.toString())){
+				 if(relationkeyLists.getFun2().equals(keySet2.toString())) {
 					 return true;
 				 }
 			 }
@@ -144,11 +146,13 @@ public class ReadEFLfilesforPairCombination {
 		return false;
 	}
 
-	private static void AddIntegrationKeyList(Map<String, String> listofIntRelKeys, String lineBr2) {
+	private static void AddIntegrationKeyList(String lineBr2) {
 		
 		lineBr2 = lineBr2.replaceAll("[{};]", "");		
 		String values[]=lineBr2.split(",");
-		listofIntRelKeys.put(values[0], values[1]);		
+		FunctionPair inner= new FunctionPair(values[0], values[1]);
+		listofIntRelationKeys.add(inner);	
+		System.out.println(listofIntRelationKeys);
 	}
 
 	private static boolean checkForKeySets(String keySet1, String keySet2) {
@@ -157,24 +161,26 @@ public class ReadEFLfilesforPairCombination {
 		 }
 		 else {
 			 for(Entry <String,ArrayList<String>> keyLists: listofKeys.entrySet()){
-				 if(keyLists.getValue().contains(keySet2.toString())&&keyLists.getValue().contains(keySet1.toString())) {
+				 ArrayList<String> lists = keyLists.getValue();
+				 String Chk1=lists.get(0);
+				 String Chk2=lists.get(1);
+				 if(Chk1.equals(keySet2.toString())&&Chk2.equals(keySet1.toString())) {
 					 return true;
 				 }
-				 for(String listVal:keyLists.getValue()) {
+				 /*for(String listVal:keyLists.getValue()) {
 					 if(listVal.contains(keySet1)&&listVal.contains(keySet2)) {
 						 return true;
 					 }
-				 }
+				 }*/
 			 }
 			
 		 }
 		 return false;
 	}
 
-	private static int generatePairWiseCombinations(Map<String, ArrayList<String>> listofFunPaths2, String keySet1,
-			String keySet2, int i) {
-		ArrayList<String> params1= listofFunPaths2.get(keySet1);
-		ArrayList<String> params2= listofFunPaths2.get(keySet2);
+	private static int generatePairWiseCombinations(String keySet1,String keySet2, int i) {
+		ArrayList<String> params1= listofFunPaths.get(keySet1);
+		ArrayList<String> params2= listofFunPaths.get(keySet2);
 		//EFLType temp= new EFLType(null, null);
 		for(String param1: params1) {
 			for(String param2: params2) {
@@ -259,9 +265,13 @@ public class ReadEFLfilesforPairCombination {
 		}
 		funPaths.put(key, valuesList);
 	}
+	
+}
 
 
-}		
+
+
+
 /*
  * Backuo of ALLPAIRS combination
  *      <List<Parameter> parameterList = new ArrayList<>();
