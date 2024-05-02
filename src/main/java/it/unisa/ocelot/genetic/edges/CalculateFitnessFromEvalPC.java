@@ -120,11 +120,11 @@ public class CalculateFitnessFromEvalPC {
 		//ReadEFLfilesforPairCombination.pathTCfitness
 		for(Entry<String, EFLType> entry:ReadEFLfilesforPairCombination.pathTCfitness.entrySet()) {
 			if(!entry.getValue().isTCcovered()) { //update the new fitness only is not covered
-				for(Entry<String, Double> fnameVal: entry.getValue().getFname_Val().entrySet()){
-					System.out.println(fnameVal.getKey()+"-"+fileNameWOepc);
-					if(fnameVal.getKey().toString().contentEquals(fileNameWOepc)) {
-						System.out.println(fnameVal.getKey()+"°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°");
-						fnameVal.setValue(currFitness);
+				for(FNameFitValType fnameVal: entry.getValue().getFname_Val()){
+					System.out.println(fnameVal.getfName()+"-"+fileNameWOepc);
+					if(fnameVal.getfName().toString().contentEquals(fileNameWOepc)) {
+						System.out.println(fnameVal.getfName()+"°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°");
+						fnameVal.setFitnessVal(currFitness);
 					}
 				}
 			}

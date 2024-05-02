@@ -23,7 +23,7 @@ import io.github.pavelicii.allpairs4j.Parameter;
 import javassist.expr.NewArray;
 
 public class ReadEFLfilesforPairCombination {
-	public static Map<String, ArrayList<String>> listofFunPaths = new HashMap<>();
+	public static HashSet<EvalFunPathType> listofFunPaths = new HashSet<>();
 	public static HashSet<FunctionPair> listofIntRelationKeys = new HashSet<>();
 	public static Map<String, ArrayList<String>> listofKeys = new HashMap<>();
 	public static Map<String, EFLType> pathTCfitness = new HashMap<>();
@@ -37,7 +37,7 @@ public class ReadEFLfilesforPairCombination {
 			String lineBr1;
 			while ((lineBr1 = br1.readLine()) != null) {
 				System.out.println(lineBr1);
-				AddFunPath(listofFunPaths,lineBr1);
+				AddFunPath(lineBr1);
 				// You can process the line here as needed
 			}
 		} catch (IOException e) {
@@ -58,18 +58,19 @@ public class ReadEFLfilesforPairCombination {
 		System.out.println(listofFunPaths);
 		int i=0;
 		int j=0;
-		for(String keySet1: listofFunPaths.keySet()) {
-			for(String keySet2: listofFunPaths.keySet()) {
-				if(!keySet1.equals(keySet2)) {
+		for(EvalFunPathType keySet1: listofFunPaths) {
+			for(EvalFunPathType keySet2: listofFunPaths) {
+				if(!keySet1.getEvalFunName().equals(keySet2.getEvalFunName())) {
 					boolean check=checkForKeySets(keySet1,keySet2);
 					boolean isIntRel=checkHaveIntegrationRelation(keySet1,keySet2);
 					if(!check&isIntRel) {
 						ArrayList<String> keySets=new ArrayList<>();
-						keySets.add(keySet1);
-						keySets.add(keySet2);
+						keySets.add(keySet1.getEvalFunName());
+						keySets.add(keySet2.getEvalFunName());
 						listofKeys.put(String.valueOf(j), keySets);
 						j++;
 						i=generatePairWiseCombinations(keySet1,keySet2,i);
+						//System.out.println(pathTCfitness);
 					}
 
 				}
@@ -134,14 +135,16 @@ public class ReadEFLfilesforPairCombination {
 		//CheckTCisCovered(pathTCfitness);
 	}
 	
-	private static boolean checkHaveIntegrationRelation(String keySet1, String keySet2) {
+	private static boolean checkHaveIntegrationRelation(EvalFunPathType keySet1, EvalFunPathType keySet2) {
+		String fun1=keySet1.getEvalFunName();
+		String fun2=keySet2.getEvalFunName();
+		System.out.println("fun1:"+fun1+ " fun2:"+fun2);
 		 for(FunctionPair relationkeyLists: listofIntRelationKeys){
-			 if(relationkeyLists.getFun1().equals(keySet1.toString())){
-				 if(relationkeyLists.getFun2().equals(keySet2.toString())) {
-					 return true;
+			 if((relationkeyLists.getFun1().equals(fun1)) && (relationkeyLists.getFun2().equals(fun2))) {
+				 System.out.println(relationkeyLists.toString());
+				 return true;
 				 }
 			 }
-		 }
 	
 		return false;
 	}
@@ -155,7 +158,7 @@ public class ReadEFLfilesforPairCombination {
 		System.out.println(listofIntRelationKeys);
 	}
 
-	private static boolean checkForKeySets(String keySet1, String keySet2) {
+	private static boolean checkForKeySets(EvalFunPathType keySet1, EvalFunPathType keySet2) {
 		 if(listofKeys.isEmpty()) {
 			 return false;
 		 }
@@ -178,31 +181,43 @@ public class ReadEFLfilesforPairCombination {
 		 return false;
 	}
 
-	private static int generatePairWiseCombinations(String keySet1,String keySet2, int i) {
-		ArrayList<String> params1= listofFunPaths.get(keySet1);
-		ArrayList<String> params2= listofFunPaths.get(keySet2);
+	public static int generatePairWiseCombinations(EvalFunPathType keySet1,EvalFunPathType keySet2, int i) {
+
+		//HashSet<EvalFunPathType> list= listofFunPaths.;
+		ArrayList<String> params1=keySet1.getEvalFunPathList();
+		ArrayList<String> params2= keySet2.getEvalFunPathList();
 		//EFLType temp= new EFLType(null, null);
 		for(String param1: params1) {
 			for(String param2: params2) {
-				Map<String,Double> temp_Fname_Val= new HashMap<>();
-				temp_Fname_Val.put(param1.toString(),Double.MAX_VALUE);	
-				temp_Fname_Val.put(param2.toString(),Double.MAX_VALUE);	
-				EFLType temp= new EFLType(false, temp_Fname_Val);
+				List<FNameFitValType> fname_Val_Temp= new ArrayList<FNameFitValType>();
+				FNameFitValType temp_Fname_Val1 = new FNameFitValType(param1.toString(),Double.MAX_VALUE);
+				FNameFitValType temp_Fname_Val2 = new FNameFitValType(param2.toString(),Double.MAX_VALUE);
+				//temp_Fname_Val1.setfName(param1.toString());
+				//temp_Fname_Val1.setFitnessVal(Double.MAX_VALUE);
+				//FNameFitValType temp_Fname_Val2 = null;
+				//temp_Fname_Val2.setfName(param2.toString());
+				//temp_Fname_Val2.setFitnessVal(Double.MAX_VALUE);
+				//temp_Fname_Val.add(param1.toString(),Double.MAX_VALUE);	
+				//temp_Fname_Val.put(param2.toString(),Double.MAX_VALUE);	
+				fname_Val_Temp.add(temp_Fname_Val1);
+				fname_Val_Temp.add(temp_Fname_Val2);
+				EFLType temp= new EFLType(false, fname_Val_Temp);
 				pathTCfitness.put(String.valueOf(i), temp);
 				++i;
 			}	
 		}
-		return i;
+		
+		return i; 
 	}
 
-	public static void CheckTCisCovered(Map<String, EFLType> tempPathTCfitness) {
+	public static void CheckTCisCovered(Map<String, EFLType> pathTCfitness2) {
 		//System.out.println(tempPathTCfitness);
-		for(Entry<String, EFLType> entry:tempPathTCfitness.entrySet()) {
+		for(Entry<String, EFLType> entry:pathTCfitness.entrySet()) {
 			//System.out.println(entry.getValue());
 			boolean isTCCovered=false;
-			for(Entry<String, Double> fnameVal: entry.getValue().getFname_Val().entrySet()){
+			for(FNameFitValType fnameVal: entry.getValue().getFname_Val()){
 				//System.out.println(fnameVal.getValue());
-				if(fnameVal.getValue()!=0.0) {
+				if(fnameVal.getFitnessVal()!=0.0) {
 					isTCCovered= false;
 					break; // we need all fitness should be 0.0 else break
 				}
@@ -223,7 +238,7 @@ public class ReadEFLfilesforPairCombination {
 	}
 	
 	
-	public static List genParameterListEFL(List<Parameter> parameterList) {
+	/*public static List genParameterListEFL(List<Parameter> parameterList) {
 		
 		for (Map.Entry<String, ArrayList<String>> entry : listofFunPaths.entrySet()) {
 			String key = entry.getKey();
@@ -235,6 +250,7 @@ public class ReadEFLfilesforPairCombination {
 		return parameterList;
 		
 	}
+	*/
 	public static AllPairs generateAllPairs(List<Parameter> parameterList) {
 		AllPairs allPairs = new AllPairs.AllPairsBuilder()
 				// .withParameter( Parameter )                            // specifies 1 Parameter
@@ -251,8 +267,9 @@ public class ReadEFLfilesforPairCombination {
 		//for (Case c : allPairs) { ... }     
 
 	}
-	public static void AddFunPath(Map<String, ArrayList<String>> funPaths, String line) {
+	public static void AddFunPath(String line) {
 		// TODO Auto-generated method stub
+		//HashSet<EvalFunPathType> evalFunPaths = new HashSet<>();
 		String keyVal[]=line.split("=");
 		String key=keyVal[0];
 		key=key.replaceAll("\\{","").trim(); // line = line.replaceAll("[{};]", "");
@@ -263,8 +280,11 @@ public class ReadEFLfilesforPairCombination {
 		for(int i=0;i<values.length;i++) {
 			valuesList.add(values[i]);
 		}
-		funPaths.put(key, valuesList);
+		EvalFunPathType evalFunPathType = new EvalFunPathType(key, valuesList);
+		listofFunPaths.add(evalFunPathType);
 	}
+
+	
 	
 }
 

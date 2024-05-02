@@ -1,9 +1,9 @@
 #include <stdlib.h>
 #include <check.h>
-START_TEST(ocelot_testcase1)
+START_TEST(ocelot_testcase2)
 {
-double __val0 = -79;
-double __val1 = -96;
+double __val0 = 15;
+double __val1 = 59;
 
 
 
@@ -19,8 +19,8 @@ END_TEST
 
 START_TEST(ocelot_testcase3)
 {
-double __val0 = 77;
-double __val1 = -67;
+double __val0 = 99;
+double __val1 = -68;
 
 
 
@@ -36,8 +36,8 @@ END_TEST
 
 START_TEST(ocelot_testcase4)
 {
-double __val0 = 42;
-double __val1 = 72;
+double __val0 = 74;
+double __val1 = -86;
 
 
 
@@ -51,10 +51,10 @@ ck_assert_str_eq("OK", "OK");
 END_TEST
 
 
-START_TEST(ocelot_testcase2)
+START_TEST(ocelot_testcase1)
 {
-double __val0 = 10;
-double __val1 = -69;
+double __val0 = -16;
+double __val1 = 36;
 
 
 
@@ -68,15 +68,15 @@ ck_assert_str_eq("OK", "OK");
 END_TEST
 
 
-Suite * ocelot_generated_eef2490a(void)
+Suite * ocelot_generated_952b1535(void)
 {
 Suite *s;
 TCase *temp_tc;
 
-s = suite_create("ocelot_generated_eef2490a");
+s = suite_create("ocelot_generated_952b1535");
 
-temp_tc = tcase_create("ocelot_testcase1");
-tcase_add_test(temp_tc, ocelot_testcase1);
+temp_tc = tcase_create("ocelot_testcase2");
+tcase_add_test(temp_tc, ocelot_testcase2);
 suite_add_tcase(s, temp_tc);
 
 temp_tc = tcase_create("ocelot_testcase3");
@@ -87,8 +87,8 @@ temp_tc = tcase_create("ocelot_testcase4");
 tcase_add_test(temp_tc, ocelot_testcase4);
 suite_add_tcase(s, temp_tc);
 
-temp_tc = tcase_create("ocelot_testcase2");
-tcase_add_test(temp_tc, ocelot_testcase2);
+temp_tc = tcase_create("ocelot_testcase1");
+tcase_add_test(temp_tc, ocelot_testcase1);
 suite_add_tcase(s, temp_tc);
 
 return s;
@@ -99,7 +99,7 @@ int number_failed;
 Suite *s;
 SRunner *sr;
 
-s = ocelot_generated_eef2490a();
+s = ocelot_generated_952b1535();
 sr = srunner_create(s);
 
 srunner_run_all(sr, CK_NORMAL);
