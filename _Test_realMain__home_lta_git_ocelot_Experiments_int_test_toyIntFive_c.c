@@ -2,8 +2,8 @@
 #include <check.h>
 START_TEST(ocelot_testcase3)
 {
-double __val0 = 39;
-double __val1 = 39;
+double __val0 = 44;
+double __val1 = 41;
 
 
 
@@ -19,8 +19,8 @@ END_TEST
 
 START_TEST(ocelot_testcase4)
 {
-double __val0 = -37;
-double __val1 = 18;
+double __val0 = 91;
+double __val1 = -18;
 
 
 
@@ -36,8 +36,8 @@ END_TEST
 
 START_TEST(ocelot_testcase1)
 {
-double __val0 = -8;
-double __val1 = -63;
+double __val0 = -58;
+double __val1 = 87;
 
 
 
@@ -53,8 +53,8 @@ END_TEST
 
 START_TEST(ocelot_testcase5)
 {
-double __val0 = 40;
-double __val1 = -62;
+double __val0 = -60;
+double __val1 = 18;
 
 
 
@@ -70,8 +70,8 @@ END_TEST
 
 START_TEST(ocelot_testcase2)
 {
-double __val0 = 43;
-double __val1 = 85;
+double __val0 = -92;
+double __val1 = 7;
 
 
 
@@ -85,12 +85,12 @@ ck_assert_str_eq("OK", "OK");
 END_TEST
 
 
-Suite * ocelot_generated_b6b1eccd(void)
+Suite * ocelot_generated_381f4dbc(void)
 {
 Suite *s;
 TCase *temp_tc;
 
-s = suite_create("ocelot_generated_b6b1eccd");
+s = suite_create("ocelot_generated_381f4dbc");
 
 temp_tc = tcase_create("ocelot_testcase3");
 tcase_add_test(temp_tc, ocelot_testcase3);
@@ -120,7 +120,7 @@ int number_failed;
 Suite *s;
 SRunner *sr;
 
-s = ocelot_generated_b6b1eccd();
+s = ocelot_generated_381f4dbc();
 sr = srunner_create(s);
 
 srunner_run_all(sr, CK_NORMAL);

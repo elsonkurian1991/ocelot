@@ -16,6 +16,8 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
 
+import org.apache.commons.math3.analysis.function.Max;
+
 import io.github.pavelicii.allpairs4j.AllPairs;
 import io.github.pavelicii.allpairs4j.AllPairs.AllPairsBuilder;
 import io.github.pavelicii.allpairs4j.Case;
@@ -201,7 +203,7 @@ public class ReadEFLfilesforPairCombination {
 				//temp_Fname_Val.put(param2.toString(),Double.MAX_VALUE);	
 				fname_Val_Temp.add(temp_Fname_Val1);
 				fname_Val_Temp.add(temp_Fname_Val2);
-				EFLType temp= new EFLType(false, fname_Val_Temp);
+				EFLType temp= new EFLType(false,false,"null", fname_Val_Temp);
 				pathTCfitness.put(String.valueOf(i), temp);
 				++i;
 			}	
@@ -210,32 +212,89 @@ public class ReadEFLfilesforPairCombination {
 		return i; 
 	}
 
-	public static void CheckTCisCovered(Map<String, EFLType> pathTCfitness2) {
+	public static void CheckTCisCovered(Map<String, EFLType> pathTCfitness2, Object[][][] args2) {
 		//System.out.println(tempPathTCfitness);
+		//Object[][][] arguments = this.getParameters(solution);
+		String argsList="";
+		for (int i = 0; i < args2.length; i++) {
+            for (int j = 0; j < args2[i].length; j++) {
+                for (int k = 0; k < args2[i][j].length; k++) {
+                    System.out.println("args2[" + i + "][" + j + "][" + k + "] = " + args2[i][j][k]);
+                    argsList=argsList+args2[i][j][k].toString();
+                    argsList=argsList+",";
+                }
+               
+            }
+            
+        }
+		argsList=argsList.substring(0, argsList.length()-1);
+		argsList=argsList+";";
+		
+		System.out.println(argsList);
 		for(Entry<String, EFLType> entry:pathTCfitness.entrySet()) {
-			//System.out.println(entry.getValue());
-			boolean isTCCovered=false;
-			for(FNameFitValType fnameVal: entry.getValue().getFname_Val()){
-				//System.out.println(fnameVal.getValue());
-				if(fnameVal.getFitnessVal()!=0.0) {
-					isTCCovered= false;
-					break; // we need all fitness should be 0.0 else break
+			EFLType valueList= entry.getValue();
+			
+			List<FNameFitValType> fnameVals=valueList.getFname_Val(); 
+			if((fnameVals.get(0).getFitnessVal()==0)&&(fnameVals.get(1).getFitnessVal()==0)){
+				String tempArgs=valueList.getArgumentList();
+				if(tempArgs.contentEquals("null")) {
+					tempArgs="";
 				}
-				else {
-				//	System.out.println(fnameVal.getKey());
-					isTCCovered= true;
+				if(!tempArgs.contains(argsList)) {
+					tempArgs=tempArgs+argsList;
 				}
+				valueList.setTCcovered(true); // check that pairwise combination are covered.
+				valueList.setArgumentList(tempArgs);
+				/*for (Entry<String, FType> set : CalculateFitnessFromEvalPC.filesWithFitnessVals.entrySet()) {
+					FType temp = new FType(set.getValue().getFitnessValue(), false, set.getValue().isTestGenerated(),set.getValue().isFirst());
+					if(!set.getKey().contentEquals(fnameVals.get(0).getfName())){
+						set.setValue(temp);
+					}
+					else if(!set.getKey().contentEquals(fnameVals.get(1).getfName())) {
+						set.setValue(temp);
+					}
+				}*/
 				
 			}
-			if(isTCCovered) {
-			//	System.out.println(entry.getKey());
-			//	System.out.println(entry.getValue());
-				entry.getValue().setTCcovered(isTCCovered); //set the TCCov if all fitness is 0.0
-			//	System.out.println(entry.getValue());
+			else if((fnameVals.get(0).getFitnessVal()==0)|(fnameVals.get(1).getFitnessVal()==0)) {
+				//fnameVals.get(0).setFitnessVal(Double.MAX_VALUE);
+				//fnameVals.get(1).setFitnessVal(Double.MAX_VALUE);
+				for (Entry<String, FType> set : CalculateFitnessFromEvalPC.filesWithFitnessVals.entrySet()) {
+					FType temp = new FType(set.getValue().getFitnessValue(), false, set.getValue().isTestGenerated(),set.getValue().isFirst());
+					if(set.getKey().contentEquals(fnameVals.get(0).getfName())){
+						set.setValue(temp);
+					}
+					else if(set.getKey().contentEquals(fnameVals.get(1).getfName())) {
+						set.setValue(temp);
+					}
+				}
 			}
 		}
-		//System.out.println(tempPathTCfitness);
 	}
+			
+			//System.out.println(entry.getValue());
+			//boolean isTCCovered=false;
+			//for(FNameFitValType fnameVal: entry.getValue().getFname_Val()){
+				//System.out.println(fnameVal.getValue());
+				//if(fnameVal.getFitnessVal()!=0.0) {
+					//isTCCovered= false;
+					//break; // we need all fitness should be 0.0 else break
+				//}
+				//else {
+				//	System.out.println(fnameVal.getKey());
+				//	isTCCovered= true;
+			//}
+				
+		//	}
+			//if(isTCCovered) {
+			//	System.out.println(entry.getKey());
+			//	System.out.println(entry.getValue());
+			//	entry.getValue().setTCcovered(isTCCovered); //set the TCCov if all fitness is 0.0
+			//	System.out.println(entry.getValue());
+		//	}
+		//}
+		//System.out.println(tempPathTCfitness);
+	//}
 	
 	
 	/*public static List genParameterListEFL(List<Parameter> parameterList) {

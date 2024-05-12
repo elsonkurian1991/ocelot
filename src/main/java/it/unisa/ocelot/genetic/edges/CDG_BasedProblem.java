@@ -89,7 +89,7 @@ public class CDG_BasedProblem extends StandardProblem {
 		//Here we need to read the fitness values to detFitness from the files that we wrote before.
 		double fitnessEvalPC = 0.0;
 		System.out.println("calling CalculateFitness in CDG_ before:"+fitnessEvalPC);
-		fitnessEvalPC = CalculateFitnessFromEvalPC.CalculateFitness();
+		fitnessEvalPC = CalculateFitnessFromEvalPC.CalculateFitness(arguments);
 		System.out.println("calling CalculateFitness in CDG_ after:"+fitnessEvalPC);
 		/*double fitnessPC1 = 0.0;
 		double fitnessPC2 = 0.0;

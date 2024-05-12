@@ -8,12 +8,36 @@ import java.util.Objects;
 
 public class EFLType {
     private boolean isTCcovered;
+    private boolean isGenerated;
+    private String argumentList;
     private List<FNameFitValType> Fname_Val= new ArrayList<FNameFitValType>();
     
 	
-    public EFLType(boolean isTCcovered, List<FNameFitValType> Fname_Val) {
+    public EFLType(boolean isTCcovered,boolean isGenerated,String argumentList, List<FNameFitValType> Fname_Val) {
     	this.isTCcovered=isTCcovered;
+    	this.isGenerated=isGenerated;
+    	this.argumentList=argumentList;
     	this.Fname_Val=Fname_Val;
+	}
+
+
+	public String getArgumentList() {
+		return argumentList;
+	}
+
+
+	public void setArgumentList(String argumentList) {
+		this.argumentList = argumentList;
+	}
+
+
+	public boolean isGenerated() {
+		return isGenerated;
+	}
+
+
+	public void setGenerated(boolean isGenerated) {
+		this.isGenerated = isGenerated;
 	}
 
 
@@ -39,7 +63,7 @@ public class EFLType {
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(Fname_Val, isTCcovered);
+		return Objects.hash(Fname_Val, argumentList, isGenerated, isTCcovered);
 	}
 
 
@@ -52,13 +76,15 @@ public class EFLType {
 		if (getClass() != obj.getClass())
 			return false;
 		EFLType other = (EFLType) obj;
-		return Objects.equals(Fname_Val, other.Fname_Val) && isTCcovered == other.isTCcovered;
+		return Objects.equals(Fname_Val, other.Fname_Val) && Objects.equals(argumentList, other.argumentList)
+				&& isGenerated == other.isGenerated && isTCcovered == other.isTCcovered;
 	}
 
 
 	@Override
 	public String toString() {
-		return "EFLType [isTCcovered=" + isTCcovered + ", Fname_Val=" + Fname_Val + "]"+ System.lineSeparator();
+		return "EFLType [isTCcovered=" + isTCcovered + ", isGenerated=" + isGenerated + ", argumentList=" + argumentList
+				+ ", Fname_Val=" + Fname_Val + "]"+System.lineSeparator();
 	}
 
 
