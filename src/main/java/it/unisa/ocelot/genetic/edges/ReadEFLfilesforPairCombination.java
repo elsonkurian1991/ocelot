@@ -259,8 +259,10 @@ public class ReadEFLfilesforPairCombination {
 			else if((fnameVals.get(0).getFitnessVal()==0)|(fnameVals.get(1).getFitnessVal()==0)) {
 				//fnameVals.get(0).setFitnessVal(Double.MAX_VALUE);
 				//fnameVals.get(1).setFitnessVal(Double.MAX_VALUE);
+				//CalculateFitnessFromEvalPC.filesWithFitnessVals.
 				for (Entry<String, FType> set : CalculateFitnessFromEvalPC.filesWithFitnessVals.entrySet()) {
 					FType temp = new FType(set.getValue().getFitnessValue(), false, set.getValue().isTestGenerated(),set.getValue().isFirst());
+					
 					if(set.getKey().contentEquals(fnameVals.get(0).getfName())){
 						set.setValue(temp);
 					}
