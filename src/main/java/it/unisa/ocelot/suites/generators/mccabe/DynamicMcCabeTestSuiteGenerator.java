@@ -16,8 +16,11 @@ import it.unisa.ocelot.c.cfg.nodes.CFGNode;
 import it.unisa.ocelot.conf.ConfigManager;
 import it.unisa.ocelot.genetic.VariableTranslator;
 import it.unisa.ocelot.genetic.edges.CalculateFitnessFromEvalPC;
+import it.unisa.ocelot.genetic.edges.CalculateFitnessFromEvalPC2;
 import it.unisa.ocelot.genetic.edges.DMCExperiment;
 import it.unisa.ocelot.genetic.edges.FType;
+import it.unisa.ocelot.genetic.edges.FitType;
+import it.unisa.ocelot.genetic.edges.ReadEFLfilesforPairCombination;
 import it.unisa.ocelot.suites.TestSuiteGenerationException;
 import it.unisa.ocelot.suites.generators.CascadeableGenerator;
 import it.unisa.ocelot.suites.generators.TestSuiteGenerator;
@@ -146,7 +149,22 @@ public class DynamicMcCabeTestSuiteGenerator extends TestSuiteGenerator implemen
 			this.println("Partial coverage: " + calculator.getBranchCoverage());
 			this.budgetManager.updateTargets(mcCabeCalculator.extimateMissingTargets());
 			
-			for(Entry<String, FType> fitnessGenVal : CalculateFitnessFromEvalPC.filesWithFitnessVals.entrySet()){
+			for(Entry<String, FitType> entry:ReadEFLfilesforPairCombination.files_PC_PairCom_FitnessVals.entrySet()) {
+				String key = entry.getKey();
+				boolean isCovered= entry.getValue().isTestCovered() && entry.getValue().isFirst();
+				String params=CalculateFitnessFromEvalPC2.GetArguInString(numericParams);
+				boolean foundTCParams=false;
+				if(entry.getValue().getArgumentList().contains(params)) {
+					foundTCParams=true;
+				}
+				if(!entry.getValue().isTestGenerated()&foundTCParams) {
+					entry.getValue().setTestCovered(false);
+					entry.getValue().setTestGenerated(true);
+					entry.getValue().setFirst(false);
+				}
+			}
+				
+			/*for(Entry<String, FType> fitnessGenVal : CalculateFitnessFromEvalPC.filesWithFitnessVals.entrySet()){
 				String key = fitnessGenVal.getKey();
 				boolean isCovered= fitnessGenVal.getValue().isTestCovered() && fitnessGenVal.getValue().isFirst();
 				if(!fitnessGenVal.getValue().isTestGenerated()) {
@@ -154,12 +172,14 @@ public class DynamicMcCabeTestSuiteGenerator extends TestSuiteGenerator implemen
 				}
 				
 				
-			}
+			}*/
 			finish = true;
-			
-			for(FType fitnessCovered : CalculateFitnessFromEvalPC.filesWithFitnessVals.values()){
+			for(FitType fitnessCovered: ReadEFLfilesforPairCombination.files_PC_PairCom_FitnessVals.values()) {
 				finish=finish && fitnessCovered.isTestGenerated();
 			}
+			/*for(FType fitnessCovered : CalculateFitnessFromEvalPC.filesWithFitnessVals.values()){
+				finish=finish && fitnessCovered.isTestGenerated();
+			}*/
 			//int maxEvaluations = this.getMaxEvaluations; 					((Integer) getInputParameter("maxEvaluations")).intValue();
 			i++;
 			int no= budgetManager.getConsumedBudget();
@@ -169,7 +189,7 @@ public class DynamicMcCabeTestSuiteGenerator extends TestSuiteGenerator implemen
 				finish=true;// to stop the execution if not able to find the fitness.
 			}
 		}
-		System.out.println(tempString);
+		//System.out.println(tempString);
 	}
 	
 	@Override

@@ -45,6 +45,7 @@ public class Run {
 	private boolean forceNoBuild;
 	
 	public static void main(String[] args) throws Exception {
+		long startTime =System.currentTimeMillis();
 		System.out.println("Now deleting old build file.... just for better debuging");
 		String filePathToDelete1 = "/home/lta/git/ocelot/.lastbuild.cks";
 		deleteFileIfExists(filePathToDelete1);
@@ -58,7 +59,13 @@ public class Run {
 		runner.saveHash();
 		
 		runner.run();
-		System.out.println(ReadEFLfilesforPairCombination.pathTCfitness);
+		System.out.println(ReadEFLfilesforPairCombination.files_PC_PairCom_FitnessVals);
+		long endTime=System.currentTimeMillis();
+		long time=endTime-startTime;
+		long hours = time / 3600000;
+        long minutes = (time / 60000) % 60;
+        long seconds = (time / 1000) % 60;
+        System.out.println("Execution time: " + hours + " hours, " + minutes + " minutes, " + seconds + " seconds");
 	}
 	private static void deleteOldEvalPCfiles(String directoryPath) {
 		File directory = new File(directoryPath);

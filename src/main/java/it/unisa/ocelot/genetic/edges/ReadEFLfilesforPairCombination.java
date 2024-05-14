@@ -29,6 +29,7 @@ public class ReadEFLfilesforPairCombination {
 	public static HashSet<FunctionPair> listofIntRelationKeys = new HashSet<>();
 	public static Map<String, ArrayList<String>> listofKeys = new HashMap<>();
 	public static Map<String, EFLType> pathTCfitness = new HashMap<>();
+	public static Map<String, FitType> files_PC_PairCom_FitnessVals = new HashMap<>();
 	/*public static void main(String[] args) throws IOException {
 		RunEFLfilesforPairCombination();
 	}*/
@@ -38,7 +39,7 @@ public class ReadEFLfilesforPairCombination {
 		try (BufferedReader br1 = new BufferedReader(new FileReader("./evalFunList.efl"))) { // TODO this file should written while parseing KQuery files.
 			String lineBr1;
 			while ((lineBr1 = br1.readLine()) != null) {
-				System.out.println(lineBr1);
+				//System.out.println(lineBr1);
 				AddFunPath(lineBr1);
 				// You can process the line here as needed
 			}
@@ -48,7 +49,7 @@ public class ReadEFLfilesforPairCombination {
 		try (BufferedReader br2 = new BufferedReader(new FileReader("./IntRelKeyList.kl"))) { // TODO somehow .
 			String lineBr2;
 			while ((lineBr2 = br2.readLine()) != null) {
-				System.out.println(lineBr2);
+				//System.out.println(lineBr2);
 				//AddFunPath(listofFunPaths,lineBr2);
 				AddIntegrationKeyList(lineBr2);
 				// You can process the line here as needed
@@ -56,8 +57,8 @@ public class ReadEFLfilesforPairCombination {
 		} catch (IOException e) {
 			System.err.println("Error reading the file: " + e.getMessage());
 		}
-		System.out.println(listofIntRelationKeys.toString());
-		System.out.println(listofFunPaths);
+		//System.out.println(listofIntRelationKeys.toString());
+		//System.out.println(listofFunPaths);
 		int i=0;
 		int j=0;
 		for(EvalFunPathType keySet1: listofFunPaths) {
@@ -78,7 +79,7 @@ public class ReadEFLfilesforPairCombination {
 				}
 			}
 		}
-		System.out.println(pathTCfitness);
+		//System.out.println(pathTCfitness);
         // Copy the entries of the map into a list
         List<Map.Entry<String, EFLType>> tempListforSort = new ArrayList<>(pathTCfitness.entrySet());
 
@@ -133,17 +134,19 @@ public class ReadEFLfilesforPairCombination {
 			++i;
 		}
 */
-		System.out.println(pathTCfitness);
+        //System.out.println(pathTCfitness);
 		//CheckTCisCovered(pathTCfitness);
+		
+		System.out.println(files_PC_PairCom_FitnessVals);
 	}
 	
 	private static boolean checkHaveIntegrationRelation(EvalFunPathType keySet1, EvalFunPathType keySet2) {
 		String fun1=keySet1.getEvalFunName();
 		String fun2=keySet2.getEvalFunName();
-		System.out.println("fun1:"+fun1+ " fun2:"+fun2);
+		//System.out.println("fun1:"+fun1+ " fun2:"+fun2);
 		 for(FunctionPair relationkeyLists: listofIntRelationKeys){
 			 if((relationkeyLists.getFun1().equals(fun1)) && (relationkeyLists.getFun2().equals(fun2))) {
-				 System.out.println(relationkeyLists.toString());
+				 // System.out.println(relationkeyLists.toString());
 				 return true;
 				 }
 			 }
@@ -157,7 +160,7 @@ public class ReadEFLfilesforPairCombination {
 		String values[]=lineBr2.split(",");
 		FunctionPair inner= new FunctionPair(values[0], values[1]);
 		listofIntRelationKeys.add(inner);	
-		System.out.println(listofIntRelationKeys);
+		//System.out.println(listofIntRelationKeys);
 	}
 
 	private static boolean checkForKeySets(EvalFunPathType keySet1, EvalFunPathType keySet2) {
@@ -204,7 +207,10 @@ public class ReadEFLfilesforPairCombination {
 				fname_Val_Temp.add(temp_Fname_Val1);
 				fname_Val_Temp.add(temp_Fname_Val2);
 				EFLType temp= new EFLType(false,false,"null", fname_Val_Temp);
-				pathTCfitness.put(String.valueOf(i), temp);
+				pathTCfitness.put(String.valueOf(i), temp);//put all the combination for backup
+				FitType FitTypeTemp= new FitType(false, false, false, "null", true, fname_Val_Temp);
+				String pairCom=param1.toString()+","+param2.toString();
+				files_PC_PairCom_FitnessVals.put(pairCom, FitTypeTemp);// put all combination for calculate fitness 
 				++i;
 			}	
 		}
@@ -219,7 +225,7 @@ public class ReadEFLfilesforPairCombination {
 		for (int i = 0; i < args2.length; i++) {
             for (int j = 0; j < args2[i].length; j++) {
                 for (int k = 0; k < args2[i][j].length; k++) {
-                    System.out.println("args2[" + i + "][" + j + "][" + k + "] = " + args2[i][j][k]);
+                	//  System.out.println("args2[" + i + "][" + j + "][" + k + "] = " + args2[i][j][k]);
                     argsList=argsList+args2[i][j][k].toString();
                     argsList=argsList+",";
                 }
@@ -256,22 +262,25 @@ public class ReadEFLfilesforPairCombination {
 				}*/
 				
 			}
-			else if((fnameVals.get(0).getFitnessVal()==0)|(fnameVals.get(1).getFitnessVal()==0)) {
+		}
+			/* if((fnameVals.get(0).getFitnessVal()==0)|(fnameVals.get(1).getFitnessVal()==0)) {
 				//fnameVals.get(0).setFitnessVal(Double.MAX_VALUE);
 				//fnameVals.get(1).setFitnessVal(Double.MAX_VALUE);
 				//CalculateFitnessFromEvalPC.filesWithFitnessVals.
 				for (Entry<String, FType> set : CalculateFitnessFromEvalPC.filesWithFitnessVals.entrySet()) {
 					FType temp = new FType(set.getValue().getFitnessValue(), false, set.getValue().isTestGenerated(),set.getValue().isFirst());
-					
-					if(set.getKey().contentEquals(fnameVals.get(0).getfName())){
+					if(set.getValue().isTestCovered()) {
+						
+					}	
+					if(set.getKey().contains(fnameVals.get(0).getfName())){
 						set.setValue(temp);
 					}
-					else if(set.getKey().contentEquals(fnameVals.get(1).getfName())) {
+					else if(set.getKey().contains(fnameVals.get(1).getfName())) {
 						set.setValue(temp);
 					}
 				}
 			}
-		}
+		}*/
 	}
 			
 			//System.out.println(entry.getValue());
