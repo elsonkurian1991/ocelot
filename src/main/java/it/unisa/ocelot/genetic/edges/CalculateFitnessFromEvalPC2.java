@@ -150,8 +150,8 @@ public class CalculateFitnessFromEvalPC2 {
 			if (!set.getValue().isTestGenerated()) {
 				FitType tempVal= set.getValue();
 				boolean testCovered=true;
-				for(FNameFitValType fnameVal: set.getValue().getFname_Val()){
-					if (Math.abs(fnameVal.getFitnessVal()) >= 2 * Double.MIN_VALUE) {//to check is >= 0.0
+				for(FNameFitValType fnameVal: tempVal.getFname_Val()){
+					if (Math.abs(fnameVal.getFitnessVal()) > 0) {//to check is >= 0.0
 					//if(fnameVal.getFitnessVal().equals("0.0")){
 						testCovered=false;
 						fitness+= fnameVal.getFitnessVal();						

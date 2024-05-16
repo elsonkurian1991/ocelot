@@ -157,7 +157,7 @@ public class DynamicMcCabeTestSuiteGenerator extends TestSuiteGenerator implemen
 				if(entry.getValue().getArgumentList().contains(params)) {
 					foundTCParams=true;
 				}
-				if(!entry.getValue().isTestGenerated()&foundTCParams) {
+				if(!entry.getValue().isTestGenerated()&&foundTCParams) {
 					entry.getValue().setTestCovered(false);
 					entry.getValue().setTestGenerated(true);
 					entry.getValue().setFirst(false);
