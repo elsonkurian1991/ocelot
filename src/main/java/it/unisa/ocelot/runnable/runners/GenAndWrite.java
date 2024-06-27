@@ -37,6 +37,7 @@ public class GenAndWrite {
 	
 			// Builds the CFG and sets the target
 			CFG cfg = CFGBuilder.build(config.getTestFilename(), config.getTestFunction());
+			CFG cfgExtend = CFGBuilder.build(config.getTestFilename(), config.getTestFunction());
 	
 			
 			CTypeHandler typeHandler = new CTypeHandler(cfg.getParameterTypes());

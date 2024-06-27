@@ -21,6 +21,7 @@ import it.unisa.ocelot.genetic.edges.DMCExperiment;
 import it.unisa.ocelot.genetic.edges.FType;
 import it.unisa.ocelot.genetic.edges.FitType;
 import it.unisa.ocelot.genetic.edges.ReadEFLfilesforPairCombination;
+import it.unisa.ocelot.runnable.Run;
 import it.unisa.ocelot.suites.TestSuiteGenerationException;
 import it.unisa.ocelot.suites.generators.CascadeableGenerator;
 import it.unisa.ocelot.suites.generators.TestSuiteGenerator;
@@ -82,113 +83,193 @@ public class DynamicMcCabeTestSuiteGenerator extends TestSuiteGenerator implemen
 		boolean finish = false;
 		int i=0;
 		String tempString ="";
-		while (currentTarget != null && !finish  )//!finish calculator.getBranchCoverage() < config.getRequiredCoverage()
-		{
-			DMCExperiment exp = new DMCExperiment(cfg, config, cfg.getParameterTypes(), currentTarget, 
-					seedPopulation, this.config.getDMCSeedSize());
-			
-			exp.initExperiment(this.budgetManager);
-			
-			exp.setSerendipitousPotentials(new HashSet<>(this.getUncoveredEdges(suite)));
-			
-			CFGNode departingNode = cfg.getEdgeSource(currentTarget);
-			this.printSeparator();
-			this.println("Current target: branch " + currentTarget.toString() + " of node " + departingNode);
-			try {
-				this.print("Running... ");
-				exp.basicRun(); // population and Ftype should come 
-				this.evaluations += exp.getNumberOfEvaluation();
+		if(Run.isExpWithEvalFun) {
+			while (currentTarget != null && !finish  )//!finish calculator.getBranchCoverage() < config.getRequiredCoverage()
+			{
+				DMCExperiment exp = new DMCExperiment(cfg, config, cfg.getParameterTypes(), currentTarget, 
+						seedPopulation, this.config.getDMCSeedSize());
 				
-				if (this.config.isDMCSeed())
-					seedPopulation = exp.getLastPopulation();
-				this.println("Done!");
-			} catch (JMException | ClassNotFoundException e) {
-				e.printStackTrace();
-				throw new TestSuiteGenerationException(e.getMessage());
-			}
-			
-			this.addSerendipitousTestCases(exp, suite);
+				exp.initExperiment(this.budgetManager);
+				
+				exp.setSerendipitousPotentials(new HashSet<>(this.getUncoveredEdges(suite)));
+				
+				CFGNode departingNode = cfg.getEdgeSource(currentTarget);
+				this.printSeparator();
+				this.println("Current target: branch " + currentTarget.toString() + " of node " + departingNode);
+				try {
+					this.print("Running... ");
+					exp.basicRun(); // population and Ftype should come 
+					this.evaluations += exp.getNumberOfEvaluation();
+					
+					if (this.config.isDMCSeed())
+						seedPopulation = exp.getLastPopulation();
+					this.println("Done!");
+				} catch (JMException | ClassNotFoundException e) {
+					e.printStackTrace();
+					throw new TestSuiteGenerationException(e.getMessage());
+				}
+				
+				this.addSerendipitousTestCases(exp, suite);
 
-			double fitnessValue = exp.getFitnessValue();
-			VariableTranslator translator = new VariableTranslator(exp.getSolution());
-			tempString+=i+":"+translator+"\n";
-			if (config.getSerendipitousCoverage())
-				for (Solution solution : exp.getSerendipitousSolutions()) {
-					VariableTranslator currentTranslator = new VariableTranslator(solution);
-					Object[][][] serendipitousParameters = currentTranslator.translateArray(cfg.getParameterTypes());
-					calculator.calculateCoverage(serendipitousParameters);
+				double fitnessValue = exp.getFitnessValue();
+				VariableTranslator translator = new VariableTranslator(exp.getSolution());
+				tempString+=i+":"+translator+"\n";
+				if (config.getSerendipitousCoverage())
+					for (Solution solution : exp.getSerendipitousSolutions()) {
+						VariableTranslator currentTranslator = new VariableTranslator(solution);
+						Object[][][] serendipitousParameters = currentTranslator.translateArray(cfg.getParameterTypes());
+						calculator.calculateCoverage(serendipitousParameters);
+						mcCabeCalculator.addPath(calculator.getCoveredPath());
+					}
+			
+				Object[][][] numericParams = translator.translateArray(cfg.getParameterTypes());
+
+				TestCase testCase = this.createTestCase(numericParams, suite.size());
+				
+
+				this.println("Fitness function: " + fitnessValue + ". ");
+				if (fitnessValue == 0.0) {
+					this.println("Target covered!");
+					calculator.calculateCoverage(numericParams);
 					mcCabeCalculator.addPath(calculator.getCoveredPath());
-				}
-		
-			Object[][][] numericParams = translator.translateArray(cfg.getParameterTypes());
-
-			TestCase testCase = this.createTestCase(numericParams, suite.size());
-			
-
-			this.println("Fitness function: " + fitnessValue + ". ");
-			if (fitnessValue == 0.0) {
-				this.println("Target covered!");
-				calculator.calculateCoverage(numericParams);
-				mcCabeCalculator.addPath(calculator.getCoveredPath());
-				suite.add(testCase);
-				this.measureBenchmarks("McCabe target", suite, exp.getNumberOfEvaluation());
-			} else {
-				this.println("Target not covered...");
-				this.println("Useless test case. Discarded.");
-			}
-			
-			this.println("Parameters found: " + Utils.printParameters(numericParams));
-			
-			/*currentTarget = mcCabeCalculator.getNextTarget();
-			if (currentTarget != null && !getUncoveredEdges(suite).contains(currentTarget)) {
-				System.out.println(this.cfg.getEdgeSource(currentTarget));
-				System.out.println("ERRORE");
-			}
-			*/
-			calculator.calculateCoverage(suite);
-			this.println("Partial coverage: " + calculator.getBranchCoverage());
-			this.budgetManager.updateTargets(mcCabeCalculator.extimateMissingTargets());
-			
-			for(Entry<String, FitType> entry:ReadEFLfilesforPairCombination.files_PC_PairCom_FitnessVals.entrySet()) {
-				String key = entry.getKey();
-				boolean isCovered= entry.getValue().isTestCovered() && entry.getValue().isFirst();
-				String params=CalculateFitnessFromEvalPC2.GetArguInString(numericParams);
-				boolean foundTCParams=false;
-				if(entry.getValue().getArgumentList().contains(params)) {
-					foundTCParams=true;
-				}
-				if(!entry.getValue().isTestGenerated()&&foundTCParams) {
-					entry.getValue().setTestCovered(false);
-					entry.getValue().setTestGenerated(true);
-					entry.getValue().setFirst(false);
-				}
-			}
-				
-			/*for(Entry<String, FType> fitnessGenVal : CalculateFitnessFromEvalPC.filesWithFitnessVals.entrySet()){
-				String key = fitnessGenVal.getKey();
-				boolean isCovered= fitnessGenVal.getValue().isTestCovered() && fitnessGenVal.getValue().isFirst();
-				if(!fitnessGenVal.getValue().isTestGenerated()) {
-					CalculateFitnessFromEvalPC.filesWithFitnessVals.put(key, new FType(Double.MAX_VALUE, false, isCovered,false));
+					suite.add(testCase);
+					this.measureBenchmarks("McCabe target", suite, exp.getNumberOfEvaluation());
+				} else {
+					this.println("Target not covered...");
+					this.println("Useless test case. Discarded.");
 				}
 				
+				this.println("Parameters found: " + Utils.printParameters(numericParams));
 				
-			}*/
-			finish = true;
-			for(FitType fitnessCovered: ReadEFLfilesforPairCombination.files_PC_PairCom_FitnessVals.values()) {
-				finish=finish && fitnessCovered.isTestGenerated();
-			}
-			/*for(FType fitnessCovered : CalculateFitnessFromEvalPC.filesWithFitnessVals.values()){
-				finish=finish && fitnessCovered.isTestGenerated();
-			}*/
-			//int maxEvaluations = this.getMaxEvaluations; 					((Integer) getInputParameter("maxEvaluations")).intValue();
-			i++;
-			int no= budgetManager.getConsumedBudget();
-			int nos= budgetManager.getExperimentBudget(exp);
-			System.out.println(no+":CONSUMED---------OUT OF:"+nos);
-			if(no >= nos) {
-				finish=true;// to stop the execution if not able to find the fitness.
+				/*currentTarget = mcCabeCalculator.getNextTarget();
+				if (currentTarget != null && !getUncoveredEdges(suite).contains(currentTarget)) {
+					System.out.println(this.cfg.getEdgeSource(currentTarget));
+					System.out.println("ERRORE");
+				}
+				*/
+				calculator.calculateCoverage(suite);
+				this.println("Partial coverage: " + calculator.getBranchCoverage());
+				this.budgetManager.updateTargets(mcCabeCalculator.extimateMissingTargets());
+				
+				for(Entry<String, FitType> entry:ReadEFLfilesforPairCombination.files_PC_PairCom_FitnessVals.entrySet()) {
+					String key = entry.getKey();
+					boolean isCovered= entry.getValue().isTestCovered() && entry.getValue().isFirst();
+					String params=CalculateFitnessFromEvalPC2.GetArguInString(numericParams);
+					boolean foundTCParams=false;
+					if(entry.getValue().getArgumentList().contains(params)) {
+						foundTCParams=true;
+					}
+					if(!entry.getValue().isTestGenerated()&&foundTCParams) {
+						entry.getValue().setTestCovered(false);
+						entry.getValue().setTestGenerated(true);
+						entry.getValue().setFirst(false);
+					}
+				}
+					
+				/*for(Entry<String, FType> fitnessGenVal : CalculateFitnessFromEvalPC.filesWithFitnessVals.entrySet()){
+					String key = fitnessGenVal.getKey();
+					boolean isCovered= fitnessGenVal.getValue().isTestCovered() && fitnessGenVal.getValue().isFirst();
+					if(!fitnessGenVal.getValue().isTestGenerated()) {
+						CalculateFitnessFromEvalPC.filesWithFitnessVals.put(key, new FType(Double.MAX_VALUE, false, isCovered,false));
+					}
+					
+					
+				}*/
+				finish = true;
+				for(FitType fitnessCovered: ReadEFLfilesforPairCombination.files_PC_PairCom_FitnessVals.values()) {
+					finish=finish && fitnessCovered.isTestGenerated();
+				}
+				/*for(FType fitnessCovered : CalculateFitnessFromEvalPC.filesWithFitnessVals.values()){
+					finish=finish && fitnessCovered.isTestGenerated();
+				}*/
+				//int maxEvaluations = this.getMaxEvaluations; 					((Integer) getInputParameter("maxEvaluations")).intValue();
+				if(finish){
+					//hope we reach all targets from the start!
+					currentTarget = mcCabeCalculator.getNextTarget();
+					if (currentTarget != null && !getUncoveredEdges(suite).contains(currentTarget)) {
+						System.out.println(this.cfg.getEdgeSource(currentTarget));
+						System.out.println("ERRORE");
+					}
+					System.out.println("reached finish for next target");
+				}
+				i++;
+				int no= budgetManager.getConsumedBudget();
+				int nos= budgetManager.getExperimentBudget(exp);
+				System.out.println(no+":CONSUMED---------OUT OF:"+nos);
+				if(no >= nos) {
+					finish=true;// to stop the execution if not able to find the fitness.
+				}
 			}
 		}
+		else {
+			while (currentTarget != null && calculator.getBranchCoverage() < config.getRequiredCoverage()) {
+				DMCExperiment exp = new DMCExperiment(cfg, config, cfg.getParameterTypes(), currentTarget, 
+						seedPopulation, this.config.getDMCSeedSize());
+				
+				exp.initExperiment(this.budgetManager);
+				
+				exp.setSerendipitousPotentials(new HashSet<>(this.getUncoveredEdges(suite)));
+				
+				CFGNode departingNode = cfg.getEdgeSource(currentTarget);
+				this.printSeparator();
+				this.println("Current target: branch " + currentTarget.toString() + " of node " + departingNode);
+				try {
+					this.print("Running... ");
+					exp.basicRun();
+					this.evaluations += exp.getNumberOfEvaluation();
+					
+					if (this.config.isDMCSeed())
+						seedPopulation = exp.getLastPopulation();
+					this.println("Done!");
+				} catch (JMException | ClassNotFoundException e) {
+					e.printStackTrace();
+					throw new TestSuiteGenerationException(e.getMessage());
+				}
+				
+				this.addSerendipitousTestCases(exp, suite);
+
+				double fitnessValue = exp.getFitnessValue();
+				VariableTranslator translator = new VariableTranslator(exp.getSolution());
+				
+				if (config.getSerendipitousCoverage())
+					for (Solution solution : exp.getSerendipitousSolutions()) {
+						VariableTranslator currentTranslator = new VariableTranslator(solution);
+						Object[][][] serendipitousParameters = currentTranslator.translateArray(cfg.getParameterTypes());
+						calculator.calculateCoverage(serendipitousParameters);
+						mcCabeCalculator.addPath(calculator.getCoveredPath());
+					}
+
+				Object[][][] numericParams = translator.translateArray(cfg.getParameterTypes());
+
+				TestCase testCase = this.createTestCase(numericParams, suite.size());
+				
+
+				this.println("Fitness function: " + fitnessValue + ". ");
+				if (fitnessValue == 0.0) {
+					this.println("Target covered!");
+					calculator.calculateCoverage(numericParams);
+					mcCabeCalculator.addPath(calculator.getCoveredPath());
+					suite.add(testCase);
+					this.measureBenchmarks("McCabe target", suite, exp.getNumberOfEvaluation());
+				} else {
+					this.println("Target not covered...");
+					this.println("Useless test case. Discarded.");
+				}
+				
+				this.println("Parameters found: " + Utils.printParameters(numericParams));
+				
+				currentTarget = mcCabeCalculator.getNextTarget();
+				if (currentTarget != null && !getUncoveredEdges(suite).contains(currentTarget)) {
+					System.out.println(this.cfg.getEdgeSource(currentTarget));
+					System.out.println("ERRORE");
+				}
+				
+				calculator.calculateCoverage(suite);
+				this.println("Partial coverage: " + calculator.getBranchCoverage());
+				this.budgetManager.updateTargets(mcCabeCalculator.extimateMissingTargets());
+			}
+		}
+
 		//System.out.println(tempString);
 	}
 	

@@ -137,7 +137,7 @@ public class ReadEFLfilesforPairCombination {
         //System.out.println(pathTCfitness);
 		//CheckTCisCovered(pathTCfitness);
 		
-		System.out.println(files_PC_PairCom_FitnessVals);
+		//System.out.println(files_PC_PairCom_FitnessVals);
 	}
 	
 	private static boolean checkHaveIntegrationRelation(EvalFunPathType keySet1, EvalFunPathType keySet2) {
