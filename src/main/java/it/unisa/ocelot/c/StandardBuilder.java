@@ -1,6 +1,11 @@
 package it.unisa.ocelot.c;
 
+import java.io.FileWriter;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.apache.commons.io.IOUtils;
 import org.eclipse.cdt.core.dom.ast.IASTNode;
@@ -12,6 +17,7 @@ import it.unisa.ocelot.c.compiler.GCC;
 import it.unisa.ocelot.c.instrumentor.ExternalReferencesVisitor;
 import it.unisa.ocelot.c.instrumentor.InstrumentorVisitor;
 import it.unisa.ocelot.c.instrumentor.MacroDefinerVisitor;
+import it.unisa.ocelot.c.instrumentor.UnitComponentInstrumentorVisitor;
 import it.unisa.ocelot.conf.ConfigManager;
 import it.unisa.ocelot.util.Utils;
 
@@ -19,6 +25,7 @@ public class StandardBuilder extends Builder {
 	private String testFilename;
 	private String testFunction;
 	private String[] testIncludes;
+	private List<String> unitLevelComponents;
 	
 	private String callMacro;
 	private String externDeclarations;
@@ -32,6 +39,18 @@ public class StandardBuilder extends Builder {
 		this.testFilename = pTestFilename;
 		this.testFunction = pTestFunction;
 		this.testIncludes = pTestIncludes;
+		this.unitLevelComponents = readUnitLevelComponents();
+	}
+	
+	private List<String> readUnitLevelComponents() {
+		List<String> unitLevelComponents = new ArrayList<String>();
+		try {
+			unitLevelComponents = Files.readAllLines(Paths.get("unitLevelComponents.txt"));
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		return unitLevelComponents;
 	}
 	
 	@Override
@@ -98,6 +117,19 @@ public class StandardBuilder extends Builder {
 		//NOTE: macroDefine MUST preceed instrumentor in visit
 		translationUnit.accept(macroDefiner);
 		translationUnit.accept(instrumentor);
+		
+		//Instruments unit-level components
+		for(String component: unitLevelComponents) {
+			ExternalReferencesVisitor referencesVisitor1 = new ExternalReferencesVisitor(component);
+			translationUnit.accept(referencesVisitor1);
+			
+			UnitComponentInstrumentorVisitor instrumentor1 = new UnitComponentInstrumentorVisitor(component);
+			MacroDefinerVisitor macroDefiner1 = new MacroDefinerVisitor(component, referencesVisitor1.getExternalReferences());
+			
+			//NOTE: macroDefine MUST preceed instrumentor in visit
+			translationUnit.accept(macroDefiner1);
+			translationUnit.accept(instrumentor1);
+		}
 		
 		it.unisa.ocelot.c.compiler.writer.ASTWriter writer = new it.unisa.ocelot.c.compiler.writer.ASTWriter();
 				

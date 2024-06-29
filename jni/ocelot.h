@@ -38,6 +38,12 @@ typedef struct {
 
 void _f_ocelot_init();
 void _f_ocelot_end();
+
+/*
+ * Track the branches
+ */
+int _f_ocelot_branch_out(char*,int,int,double,double);
+
 /*
  * Traces the branches
  */

@@ -6,6 +6,37 @@ extern _t_ocelot_array *_v_ocelot_pointers;
 _T_ocelot_list *_v_ocelot_events;
 _T_ocelot_list *_v_ocelot_fcalls;
 
+int _f_ocelot_branch_out(char* functionName, int count, int result, double distanceTrue, double distanceFalse) {
+	FILE *fptr;
+
+	// Open a file in writing mode
+	fptr = fopen("fitnessValues.txt", "a");
+
+	// Write some text to the file
+	fprintf(fptr, functionName);
+	fprintf(fptr, "-");
+	fprintf(fptr, "branch%d", count);
+	fprintf(fptr, "-");
+	fprintf(fptr, "1");
+	fprintf(fptr, ",");
+	fprintf(fptr, "%f", distanceTrue);
+	fprintf(fptr, "\n");
+
+	fprintf(fptr, functionName);
+	fprintf(fptr, "-");
+	fprintf(fptr, "branch%d", count);
+	fprintf(fptr, "-");
+	fprintf(fptr, "0");
+	fprintf(fptr, ",");
+	fprintf(fptr, "%f", distanceFalse);
+	fprintf(fptr, "\n");
+
+	// Close the file
+	fclose(fptr);
+
+	return result;
+}
+
 void _f_ocelot_init() {
 	_v_ocelot_events = OCLIST_ALLOC(_T_ocelot_event);
 	_v_ocelot_fcalls = OCLIST_ALLOC(double);
