@@ -14,7 +14,7 @@ int _f_ocelot_branch_out(char* functionName, int count, int result, double dista
 
 	// Write some text to the file
 	fprintf(fptr, functionName);
-	fprintf(fptr, "-");
+	fprintf(fptr, ";");
 	fprintf(fptr, "branch%d", count);
 	fprintf(fptr, "-");
 	fprintf(fptr, "1");
@@ -23,7 +23,7 @@ int _f_ocelot_branch_out(char* functionName, int count, int result, double dista
 	fprintf(fptr, "\n");
 
 	fprintf(fptr, functionName);
-	fprintf(fptr, "-");
+	fprintf(fptr, ";");
 	fprintf(fptr, "branch%d", count);
 	fprintf(fptr, "-");
 	fprintf(fptr, "0");

@@ -818,8 +818,8 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 	private void reportTestObjectives(int branch) {
 		try {
 			FileWriter myWriter = new FileWriter("testObjectives.txt", true);
-			myWriter.write(functionName + "-branch" + branch + "-" + 0 + System.lineSeparator());
-			myWriter.write(functionName + "-branch" + branch + "-" + 1 + System.lineSeparator());
+			myWriter.write(functionName + ";branch" + branch + "-" + 0 + System.lineSeparator());
+			myWriter.write(functionName + ";branch" + branch + "-" + 1 + System.lineSeparator());
 			myWriter.close();
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
