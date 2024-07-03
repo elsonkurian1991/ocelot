@@ -88,6 +88,13 @@ public class CDG_BasedProblem extends StandardProblem {
 //		solution.setFitness(1-l_e);
 		//Here we need to read the fitness values to detFitness from the files that we wrote before.
 		double fitnessEvalPC = 0.0;
+		System.out.println("if you see this msg: check and fix the::: CDG_BasedProblem.java  ");
+		System.out.println("if you see this msg: check and fix the::: CDG_BasedProblem.java  ");
+		System.out.println("if you see this msg: check and fix the::: CDG_BasedProblem.java  ");
+		System.out.println("if you see this msg: check and fix the::: CDG_BasedProblem.java  ");
+		System.out.println("if you see this msg: check and fix the::: CDG_BasedProblem.java  ");
+
+		
 		System.out.println("calling CalculateFitness in CDG_ before:"+fitnessEvalPC);
 		fitnessEvalPC = CalculateFitnessFromEvalPC2.CalculateFitness(arguments);
 		System.out.println("calling CalculateFitness in CDG_ after:"+fitnessEvalPC);

@@ -36,7 +36,7 @@ public class ReadEFLfilesforPairCombination {
 	public static void RunEFLfilesforPairCombination() throws IOException{ //RunEFLfilesforPairCombination
 		// TODO Auto-generated method stub
 
-		try (BufferedReader br1 = new BufferedReader(new FileReader("./evalFunList.efl"))) { // TODO this file should written while parseing KQuery files.
+		try (BufferedReader br1 = new BufferedReader(new FileReader("./testObjectives.to"))) { // TODO this file should written while parseing KQuery files.
 			String lineBr1;
 			while ((lineBr1 = br1.readLine()) != null) {
 				//System.out.println(lineBr1);
@@ -137,7 +137,7 @@ public class ReadEFLfilesforPairCombination {
         //System.out.println(pathTCfitness);
 		//CheckTCisCovered(pathTCfitness);
 		
-		//System.out.println(files_PC_PairCom_FitnessVals);
+		System.out.println(files_PC_PairCom_FitnessVals);
 	}
 	
 	private static boolean checkHaveIntegrationRelation(EvalFunPathType keySet1, EvalFunPathType keySet2) {
@@ -189,7 +189,7 @@ public class ReadEFLfilesforPairCombination {
 	public static int generatePairWiseCombinations(EvalFunPathType keySet1,EvalFunPathType keySet2, int i) {
 
 		//HashSet<EvalFunPathType> list= listofFunPaths.;
-		ArrayList<String> params1=keySet1.getEvalFunPathList();
+		ArrayList<String> params1=keySet1.getEvalFunPathList(); //TODO add the getName and add to params
 		ArrayList<String> params2= keySet2.getEvalFunPathList();
 		//EFLType temp= new EFLType(null, null);
 		for(String param1: params1) {
@@ -348,7 +348,8 @@ public class ReadEFLfilesforPairCombination {
 		String values[]=val.split(",");
 		ArrayList<String> valuesList= new ArrayList<String>();
 		for(int i=0;i<values.length;i++) {
-			valuesList.add(values[i]);
+			String tempValList=key+"_"+values[i];
+			valuesList.add(tempValList);
 		}
 		EvalFunPathType evalFunPathType = new EvalFunPathType(key, valuesList);
 		listofFunPaths.add(evalFunPathType);

@@ -21,6 +21,7 @@ import it.unisa.ocelot.c.makefile.LinuxMakefileGenerator;
 import it.unisa.ocelot.c.makefile.MacOSXMakefileGenerator;
 import it.unisa.ocelot.c.makefile.WindowsMakefileGenerator;
 import it.unisa.ocelot.conf.ConfigManager;
+import it.unisa.ocelot.genetic.edges.CalculateFitnessFromEvalPC3;
 import it.unisa.ocelot.genetic.edges.FitType;
 import it.unisa.ocelot.genetic.edges.ReadEFLfilesforPairCombination;
 import it.unisa.ocelot.runnable.runners.ExecuteExperiment;
@@ -47,31 +48,34 @@ public class Run {
 	private String configFilename;
 
 	private boolean forceNoBuild;
-	public static final boolean isExpWithEvalFun=false;
+	public static final boolean isExpWithEvalFun=true;// this will treat as our version of OCELOT
 	public static void main(String[] args) throws Exception {
 		if(isExpWithEvalFun) {
 			welcome();
-			System.out.println("Please update the files and then execute, thanks");
-		}
+			}
 
 		System.out.println("Now deleting old build file.... just for better debuging");
 		String filePathToDelete1 = "/home/lta/git/ocelot/.lastbuild.cks";
 		deleteFileIfExists(filePathToDelete1);
 		String filePathToDelete2 = "/home/lta/git/ocelot/libTest.so";
 		deleteFileIfExists(filePathToDelete2);
+		String filePathToDelete3 = "/home/lta/git/ocelot/fitnessValues.txt"; //do 
+		deleteFileIfExists(filePathToDelete3);
+		String filePathToDelete4 = "/home/lta/git/ocelot/testObjectives.to"; //do 
+		deleteFileIfExists(filePathToDelete4);
 		deleteOldEvalPCfiles("/home/lta/git/ocelot/");
-		if(isExpWithEvalFun) {
-			ReadEFLfilesforPairCombination.RunEFLfilesforPairCombination(); // run this to read the efl file and create pairwise combinations. find a best place to call this
-		}
+		
 		long startTime =System.currentTimeMillis();
 		Run runner = new Run(args);
 		if (runner.mustBuild())
 			runner.build();
 		runner.saveHash();
-
+		if(isExpWithEvalFun) {
+			ReadEFLfilesforPairCombination.RunEFLfilesforPairCombination(); // run this to read the efl file and create pairwise combinations. find a best place to call this
+		}
 		runner.run();
 		if(isExpWithEvalFun) {
-			//System.out.println(ReadEFLfilesforPairCombination.files_PC_PairCom_FitnessVals);
+			System.out.println(ReadEFLfilesforPairCombination.files_PC_PairCom_FitnessVals);
 			long endTime=System.currentTimeMillis();
 			long time=endTime-startTime;
 			long hours = time / 3600000;
@@ -80,16 +84,17 @@ public class Run {
 			System.out.println("Execution time: " + hours + " hours, " + minutes + " minutes, " + seconds + " seconds");
 			PrintNumOfPathCovered();
 		}
-
+		System.out.println(CalculateFitnessFromEvalPC3.linesFromFitnessFiles);
 
 	}
 	private static void welcome() throws InterruptedException {
 		System.out.println("WELCOME");
 		System.out.println("Did you update the filename, function name, parameter list ?");
-		System.out.println("Did you update the IntRelKeyList,evalFunList file in OCLEOT folder?");
+		System.out.println("Please update the UnitLevelComponemts.txt and IntRelKeyList.kl file and then execute, thanks");
 		System.out.println("Y/N");
-		TimeUnit.SECONDS.sleep(5);
+		TimeUnit.SECONDS.sleep(2);
 		System.out.println("Hope you updated the parameters... else....restart");
+		TimeUnit.SECONDS.sleep(3);
 	
 	}
 	private static void PrintNumOfPathCovered() {
