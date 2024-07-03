@@ -195,6 +195,7 @@ public class StandardBuilder extends Builder {
 				for (String testObjective : componentTestObjectives.getValue()) {
 					write = write + testObjective + ",";
 				}
+				write = write.substring(0, write.length() - 1);
 				write = write + "};" + System.lineSeparator();
 				myWriter.write(write);
 			}
