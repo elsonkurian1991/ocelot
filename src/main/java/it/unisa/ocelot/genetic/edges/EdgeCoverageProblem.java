@@ -2,6 +2,7 @@ package it.unisa.ocelot.genetic.edges;
 
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Paths;
 import java.util.Set;
 
@@ -90,6 +91,15 @@ public class EdgeCoverageProblem extends StandardProblem implements Serendipitou
 
 		simulator.addListener(bdalListener);
 
+		//Remove previously generated fitnessValues file
+		try {
+			Files.delete(Paths.get("./fitnessValues.txt"));
+			//System.out.println("File fitnessValues.txt deleted successfully: ");
+		} catch(NoSuchFileException er) {	
+		} catch (IOException e) {
+			System.err.println("Error deleting file fitnessValues.txt: " + e.getMessage());
+		}
+		
 		simulator.simulate();
 		
 		this.serendipitousCovered = bdalListener.getSerendipitousCovered();
