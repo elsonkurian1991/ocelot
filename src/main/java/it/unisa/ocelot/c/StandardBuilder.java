@@ -5,7 +5,9 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map.Entry;
 
 import org.apache.commons.io.IOUtils;
 import org.eclipse.cdt.core.dom.ast.IASTNode;
@@ -26,22 +28,22 @@ public class StandardBuilder extends Builder {
 	private String testFunction;
 	private String[] testIncludes;
 	private List<String> unitLevelComponents;
-	
+
 	private String callMacro;
 	private String externDeclarations;
-	
+
 	private ConfigManager config;
-		
+
 	public StandardBuilder(String pTestFilename, String pTestFunction, String[] pTestIncludes) {
 		super();
 		setOutput(System.out);
-		
+
 		this.testFilename = pTestFilename;
 		this.testFunction = pTestFunction;
 		this.testIncludes = pTestIncludes;
 		this.unitLevelComponents = readUnitLevelComponents();
 	}
-	
+
 	private List<String> readUnitLevelComponents() {
 		List<String> unitLevelComponents = new ArrayList<String>();
 		try {
@@ -52,16 +54,15 @@ public class StandardBuilder extends Builder {
 		}
 		return unitLevelComponents;
 	}
-	
+
 	@Override
 	public void build() throws IOException, BuildingException {
 		this.config = ConfigManager.getInstance();
 		if (this.makefileGenerator == null)
 			throw new BuildingException("No makefile generator specified");
 		if (this.stream == null)
-			throw new BuildingException("No output stream specified"
-					+ "");
-		//Insturments the code and copies it in main.c
+			throw new BuildingException("No output stream specified" + "");
+		// Insturments the code and copies it in main.c
 		try {
 			this.stream.print("Instrumenting C file... \n");
 			instrument();
@@ -70,23 +71,23 @@ public class StandardBuilder extends Builder {
 			e.printStackTrace();
 			throw new BuildingException(e.getMessage());
 		}
-		
-		//Adds extra macros in CBridge.c
+
+		// Adds extra macros in CBridge.c
 		this.stream.print("Defining test function call... ");
 		enrichJNICall();
 		this.stream.println("Done!");
-		
-		//Builds the library
+
+		// Builds the library
 		this.stream.print("Building library... ");
 		this.makefileGenerator.generate();
-		
+
 		Process proc = this.makefileGenerator.runCompiler();
-				
+
 		this.stream.println(IOUtils.toString(proc.getInputStream()));
-		
+
 		try {
 			int result;
-			if ((result=proc.waitFor()) == 0)
+			if ((result = proc.waitFor()) == 0)
 				this.stream.println("Done!");
 			else {
 				this.stream.println("ABORTED. An error occurred: " + result);
@@ -95,50 +96,55 @@ public class StandardBuilder extends Builder {
 		} catch (InterruptedException e) {
 			throw new BuildingException("Interrupted");
 		}
-		
+
 		this.stream.println("\nEverything done.");
 	}
-	
+
 	private void instrument() throws Exception {
 		String code = Utils.readFile(this.testFilename);
-		
-		IASTTranslationUnit translationUnit = GCC.getTranslationUnit(
-				this.testFilename,
-				this.testIncludes).copy();
-		
-		IASTPreprocessorStatement[] macros =  translationUnit.getAllPreprocessorStatements();
-		
+
+		IASTTranslationUnit translationUnit = GCC.getTranslationUnit(this.testFilename, this.testIncludes).copy();
+
+		IASTPreprocessorStatement[] macros = translationUnit.getAllPreprocessorStatements();
+
 		ExternalReferencesVisitor referencesVisitor = new ExternalReferencesVisitor(this.testFunction);
 		translationUnit.accept(referencesVisitor);
-		
+
 		InstrumentorVisitor instrumentor = new InstrumentorVisitor(this.testFunction);
-		MacroDefinerVisitor macroDefiner = new MacroDefinerVisitor(this.testFunction, referencesVisitor.getExternalReferences());
-		
-		//NOTE: macroDefine MUST preceed instrumentor in visit
+		MacroDefinerVisitor macroDefiner = new MacroDefinerVisitor(this.testFunction,
+				referencesVisitor.getExternalReferences());
+
+		// NOTE: macroDefine MUST preceed instrumentor in visit
 		translationUnit.accept(macroDefiner);
 		translationUnit.accept(instrumentor);
-		
-		//Instruments unit-level components
-		for(String component: unitLevelComponents) {
+
+		HashMap<String, ArrayList<String>> componentsTestObjectives = new HashMap<String, ArrayList<String>>();
+		// Instruments unit-level components
+		for (String component : unitLevelComponents) {
 			ExternalReferencesVisitor referencesVisitor1 = new ExternalReferencesVisitor(component);
 			translationUnit.accept(referencesVisitor1);
-			
-			UnitComponentInstrumentorVisitor instrumentor1 = new UnitComponentInstrumentorVisitor(component);
-			MacroDefinerVisitor macroDefiner1 = new MacroDefinerVisitor(component, referencesVisitor1.getExternalReferences());
-			
-			//NOTE: macroDefine MUST preceed instrumentor in visit
+
+			ArrayList<String> testObjectives = new ArrayList<String>();
+			UnitComponentInstrumentorVisitor instrumentor1 = new UnitComponentInstrumentorVisitor(component,
+					testObjectives);
+			componentsTestObjectives.put(component, testObjectives);
+			MacroDefinerVisitor macroDefiner1 = new MacroDefinerVisitor(component,
+					referencesVisitor1.getExternalReferences());
+
+			// NOTE: macroDefine MUST preceed instrumentor in visit
 			translationUnit.accept(macroDefiner1);
 			translationUnit.accept(instrumentor1);
 		}
-		
+		reportComponentsTestObjectives(componentsTestObjectives);
+
 		it.unisa.ocelot.c.compiler.writer.ASTWriter writer = new it.unisa.ocelot.c.compiler.writer.ASTWriter();
-				
+
 		String outputCode = writer.write(translationUnit);
-		
+
 		StringBuilder result = new StringBuilder();
 		for (IASTPreprocessorStatement macro : macros) {
 			if (macro instanceof IASTPreprocessorIncludeStatement) {
-				IASTPreprocessorIncludeStatement include = (IASTPreprocessorIncludeStatement)macro;
+				IASTPreprocessorIncludeStatement include = (IASTPreprocessorIncludeStatement) macro;
 				if (include.isSystemInclude())
 					result.append(macro.getRawSignature()).append("\n");
 			} else
@@ -146,9 +152,9 @@ public class StandardBuilder extends Builder {
 		}
 		result.append("#include \"ocelot.h\"\n");
 		result.append(outputCode);
-		
+
 		Utils.writeFile("jni/main.c", result.toString());
-		
+
 		StringBuilder mainHeader = new StringBuilder();
 		mainHeader.append("#include \"ocelot.h\"\n");
 		mainHeader.append("#include <stdio.h>\n");
@@ -161,27 +167,41 @@ public class StandardBuilder extends Builder {
 		mainHeader.append("#define OCELOT_TESTFUNCTION ").append(this.testFunction).append("\n");
 
 		Utils.writeFile("jni/main.h", mainHeader.toString());
-		
+
 		this.callMacro = macroDefiner.getCallMacro();
 		this.externDeclarations = referencesVisitor.getExternalDeclarations();
 	}
-	
+
 	private void enrichJNICall() throws IOException {
 		String metaJNI = Utils.readFile("jni/CBridge.c");
-		
-		metaJNI = callMacro + "\n\n" +
-				externDeclarations + "\n\n" +
-				metaJNI;
-		
+
+		metaJNI = callMacro + "\n\n" + externDeclarations + "\n\n" + metaJNI;
+
 		String pointersH = "/** DO NOT EDIT. THIS FILE IS AUTOMATICALLY GENERATED BY THE BUILDER **/\n";
-		pointersH += "#ifndef _Included_OcelotPointers\n"+
-				"#define _Included_OcelotPointers\n"+
-				"#define OCELOT_ARRAYS_SIZE " + this.config.getTestArraysSize() + "\n"+
-				"typedef double _t_ocelot_array[OCELOT_ARRAYS_SIZE];\n"+
-				"#endif\n";
-		
+		pointersH += "#ifndef _Included_OcelotPointers\n" + "#define _Included_OcelotPointers\n"
+				+ "#define OCELOT_ARRAYS_SIZE " + this.config.getTestArraysSize() + "\n"
+				+ "typedef double _t_ocelot_array[OCELOT_ARRAYS_SIZE];\n" + "#endif\n";
+
 		Utils.writeFile("jni/pointers.h", pointersH);
-		
+
 		Utils.writeFile("jni/EN_CBridge.c", metaJNI);
+	}
+
+	private void reportComponentsTestObjectives(HashMap<String, ArrayList<String>> componentsTestObjectives) {
+		try {
+			FileWriter myWriter = new FileWriter("testObjectives.to", false);
+			for (Entry<String, ArrayList<String>> componentTestObjectives : componentsTestObjectives.entrySet()) {
+				String write = "{" + componentTestObjectives.getKey() + "=";
+				for (String testObjective : componentTestObjectives.getValue()) {
+					write = write + testObjective + ",";
+				}
+				write = write + "};" + System.lineSeparator();
+				myWriter.write(write);
+			}
+			myWriter.close();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 	}
 }

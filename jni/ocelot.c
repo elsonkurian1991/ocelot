@@ -17,7 +17,7 @@ int _f_ocelot_branch_out(char* functionName, int count, int result, double dista
 	fprintf(fptr, ";");
 	fprintf(fptr, "branch%d", count);
 	fprintf(fptr, "-");
-	fprintf(fptr, "1");
+	fprintf(fptr, "true");
 	fprintf(fptr, ";");
 	fprintf(fptr, "%f", distanceTrue);
 	fprintf(fptr, "\n");
@@ -26,7 +26,7 @@ int _f_ocelot_branch_out(char* functionName, int count, int result, double dista
 	fprintf(fptr, ";");
 	fprintf(fptr, "branch%d", count);
 	fprintf(fptr, "-");
-	fprintf(fptr, "0");
+	fprintf(fptr, "false");
 	fprintf(fptr, ";");
 	fprintf(fptr, "%f", distanceFalse);
 	fprintf(fptr, "\n");

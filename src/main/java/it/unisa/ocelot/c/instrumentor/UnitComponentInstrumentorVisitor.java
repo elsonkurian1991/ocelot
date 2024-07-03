@@ -1,7 +1,5 @@
 package it.unisa.ocelot.c.instrumentor;
 
-import java.io.FileWriter;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Stack;
@@ -57,10 +55,11 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 	private String functionName;
 	private List<IASTNode> typedefs;
 	private List<IASTExpression> functionCallsInExpressions;
+	private ArrayList<String> testObjectives;
 
 	private Integer branchNumber;
 
-	public UnitComponentInstrumentorVisitor(String pInstrumentFunction) {
+	public UnitComponentInstrumentorVisitor(String pInstrumentFunction, ArrayList<String> testObjectives) {
 		this.shouldVisitExpressions = true;
 		this.shouldVisitStatements = true;
 		this.shouldVisitDeclarations = true;
@@ -76,6 +75,7 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 		this.functionCallsInExpressions = new ArrayList<>();
 
 		this.branchNumber = 0;
+		this.testObjectives = testObjectives;
 	}
 
 	public List<IASTNode> getTypedefs() {
@@ -398,7 +398,7 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 
 		statement.setConditionExpression(resultExpression);
 
-		reportTestObjectives(branchNumber);
+		addTestObjectives(branchNumber);
 		branchNumber++;
 	}
 
@@ -473,7 +473,7 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 
 			substitute.addStatement(new CASTExpressionStatement(makeFunctionCall("_f_ocelot_branch_out", arguments)));
 
-			reportTestObjectives(branchNumber);
+			addTestObjectives(branchNumber);
 			branchNumber++;
 		}
 
@@ -494,7 +494,7 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 			substitute.addStatement(new CASTExpressionStatement(makeFunctionCall("_f_ocelot_branch_out", arguments)));
 
 			branchNumber++;
-			reportTestObjectives(branchNumber);
+			addTestObjectives(branchNumber);
 		}
 
 		IASTNode parent = statement.getParent();
@@ -547,7 +547,7 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 		IASTExpression resultExpression = this.buildFcallExpression(instrFunction);
 		statement.setCondition(resultExpression);
 
-		reportTestObjectives(branchNumber);
+		addTestObjectives(branchNumber);
 		branchNumber++;
 	}
 
@@ -565,7 +565,7 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 		IASTExpression resultExpression = this.buildFcallExpression(instrFunction);
 		statement.setCondition(resultExpression);
 
-		reportTestObjectives(branchNumber);
+		addTestObjectives(branchNumber);
 		branchNumber++;
 	}
 
@@ -585,7 +585,7 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 		IASTExpression resultExpression = this.buildFcallExpression(instrFunction);
 		statement.setConditionExpression(resultExpression);
 
-		reportTestObjectives(branchNumber);
+		addTestObjectives(branchNumber);
 		branchNumber++;
 	}
 
@@ -815,15 +815,8 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 		return type;
 	}
 
-	private void reportTestObjectives(int branch) {
-		try {
-			FileWriter myWriter = new FileWriter("testObjectives.txt", true);
-			myWriter.write(functionName + ";branch" + branch + "-" + 0 + System.lineSeparator());
-			myWriter.write(functionName + ";branch" + branch + "-" + 1 + System.lineSeparator());
-			myWriter.close();
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
+	private void addTestObjectives(int branch) {
+		testObjectives.add("branch" + branch + "-true");
+		testObjectives.add("branch" + branch + "-false");
 	}
 }
