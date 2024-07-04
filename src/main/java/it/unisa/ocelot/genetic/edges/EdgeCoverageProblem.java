@@ -74,6 +74,13 @@ public class EdgeCoverageProblem extends StandardProblem implements Serendipitou
 	}
 
 	public double evaluateSolution(Solution solution) throws JMException, SimulationException {
+		// Remove previously generated fitnessValues file
+		File file = new File("fitnessValues.txt");
+		try {
+			Files.deleteIfExists(file.toPath());
+		} catch (IOException e) {
+			System.err.println("Error deleting file fitnessValues.txt: " + e.getMessage());
+		}
 		Object[][][] arguments = this.getParameters(solution);
 
 		CBridge bridge = getCurrentBridge(); // calling the JNI interface to execute the code!!
@@ -92,14 +99,6 @@ public class EdgeCoverageProblem extends StandardProblem implements Serendipitou
 		Simulator simulator = new Simulator(cfg, handler.getEvents());
 
 		simulator.addListener(bdalListener);
-
-		// Remove previously generated fitnessValues file
-		File file = new File("fitnessValues.txt");
-		try {
-			Files.deleteIfExists(file.toPath());
-		} catch (IOException e) {
-			System.err.println("Error deleting file fitnessValues.txt: " + e.getMessage());
-		}
 
 		simulator.simulate();
 

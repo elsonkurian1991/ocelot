@@ -70,13 +70,13 @@ public class CalculateFitnessFromEvalPC3 {
 		} catch (IOException e) {
 			System.err.println("Error reading fitnessValues.txt file: " + e.getMessage());
 		}
-		Path pathTodel = Paths.get("./fitnessValues.txt");// delete the file every iteration
+		/*Path pathTodel = Paths.get("./fitnessValues.txt");// delete the file every iteration
 		try {
 			Files.delete(pathTodel);
 			// System.out.println("File fitnessValues.txt deleted successfully: ");
 		} catch (IOException e) {
 			System.err.println("Error deleting file fitnessValues.txt: " + e.getMessage());
-		}
+		}*/
 		linesFromFitnessFiles.append("next iteration...\n");
 		// System.out.println(ReadEFLfilesforPairCombination.files_PC_PairCom_FitnessVals);
 
