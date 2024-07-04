@@ -13,6 +13,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
+import org.apache.commons.math3.analysis.function.Max;
+
 import io.github.pavelicii.allpairs4j.AllPairs;
 import io.github.pavelicii.allpairs4j.Parameter;
 
@@ -22,9 +24,15 @@ public class CalculateFitnessFromEvalPC3 {
 	public static StringBuilder linesFromFitnessFiles = new StringBuilder();
 
 	public static double CalculateFitness(Object[][][] arguments) {
-
+		//System.out.println(ReadEFLfilesforPairCombination.files_PC_PairCom_FitnessVals);
 		double fitness = 0.0;
-
+		//  to rest the fitness value for each iterations.
+		for (Entry<String, FitType> entry : ReadEFLfilesforPairCombination.files_PC_PairCom_FitnessVals.entrySet()) {
+			for (FNameFitValType fnameVal : entry.getValue().getFname_Val()) {
+				fnameVal.setFitnessVal(Double.MAX_VALUE);
+			}
+		}
+		//System.out.println(ReadEFLfilesforPairCombination.files_PC_PairCom_FitnessVals);
 		try (BufferedReader fiValFile = new BufferedReader(new FileReader("./fitnessValues.txt"))) { // TODO this file
 																										// should
 																										// written while
@@ -80,61 +88,7 @@ public class CalculateFitnessFromEvalPC3 {
 		linesFromFitnessFiles.append("next iteration...\n");
 		// System.out.println(ReadEFLfilesforPairCombination.files_PC_PairCom_FitnessVals);
 
-		/*
-		 * 
-		 * //System.out.println(entry);
-		 * 
-		 * 
-		 * }
-		 * 
-		 * }
-		 * 
-		 * //List<Parameter> parameterList = new ArrayList<>(); //copy the list of
-		 * combination to filesWithFitnessVals //boolean isFillPairCom =false;
-		 * 
-		 * //AllPairs listPairs=ReadEFLfilesforPairCombination.generateAllPairs(
-		 * ReadEFLfilesforPairCombination.genParameterListEFL(parameterList));
-		 * //ReadEFLfilesforPairCombination.pathTCfitness.
-		 * //ReadEFLfilesforPairCombination.listofFunPaths.toString();
-		 * //ReadEFLfilesforPairCombination.generateAllPairs(null) // Check if the
-		 * directory exists if (directory.exists() && directory.isDirectory()) { // Get
-		 * all files in the directory File[] files = directory.listFiles();
-		 * 
-		 * // Iterate through the files and select only the .epc files
-		 * //ReadEFLfilesforPairCombination.pathTCfitness // make it sort by type of
-		 * files if (files != null) { for (File file : files) { if (file.isFile() &&
-		 * file.getName().endsWith(".epc")) { try { double currFitness = Double
-		 * .parseDouble(new String(Files.readAllBytes(Paths.get(file.toURI())))); String
-		 * fileNameWOepc=extractFileNameOnly(file); //System.out.println(fileNameWOepc);
-		 * // System.out.println(file + " fitnessEvalPC is :" + currFitness);
-		 * ArrayList<String> keySetsToCheck=new ArrayList<>(); boolean alreadyFound
-		 * =false;
-		 * 
-		 * for(Entry<String, FitType>
-		 * entry:ReadEFLfilesforPairCombination.files_PC_PairCom_FitnessVals.entrySet())
-		 * { if(entry.getKey().contains(fileNameWOepc)) { //System.out.println(entry);
-		 * if(!checkIfKeySet(keySetsToCheck,fileNameWOepc)) { FitType tempFitness =
-		 * entry.getValue(); // if (!tempFitness.isTestGenerated()) { alreadyFound=
-		 * alreadyFound||tempFitness.isFirst();
-		 * 
-		 * if(currFitness==0){
-		 * Fill_Files_PC_PairCom_FitnessVals(fileNameWOepc,currFitness,true,false,!
-		 * alreadyFound); } else {
-		 * 
-		 * Fill_Files_PC_PairCom_FitnessVals(fileNameWOepc,currFitness,false,false,
-		 * tempFitness.isFirst()); }
-		 * 
-		 * keySetsToCheck.add(fileNameWOepc); }
-		 * 
-		 * }
-		 * 
-		 * }
-		 * 
-		 * 
-		 * } catch (IOException e) { // TODO Auto-generated catch block
-		 * e.printStackTrace(); } } } } } else {
-		 * System.out.println("Invalid directory path."); }
-		 */
+		
 		// till here.....................................
 		// System.out.println(filesWithFitnessVals);
 		boolean isCoveredThisTime = false;
@@ -142,19 +96,19 @@ public class CalculateFitnessFromEvalPC3 {
 
 			if (!set.getValue().isTestGenerated()) {
 				FitType tempVal = set.getValue();
-				boolean testCovered = true;
+				boolean pairCovered = true;
 				for (FNameFitValType fnameVal : tempVal.getFname_Val()) {
 					if (Math.abs(fnameVal.getFitnessVal()) > 0) {// to check is >= 0.0
 						// if(fnameVal.getFitnessVal().equals("0.0")){
-						testCovered = false;
+						pairCovered = false;
 						fitness = fitness + fnameVal.getFitnessVal();
 						if (fitness == Double.POSITIVE_INFINITY)
 							fitness = Double.MAX_VALUE;
 					}
 				}
-				if (testCovered) {
+				if (pairCovered) {
 					isCoveredThisTime = true;
-					tempVal.setTestCovered(testCovered);
+					tempVal.setTestCovered(pairCovered);
 					String tempArgs = tempVal.getArgumentList();
 					tempArgs = tempArgs.replaceAll("null", "");
 					String args = GetArguInString(arguments);
@@ -163,7 +117,7 @@ public class CalculateFitnessFromEvalPC3 {
 					}
 					tempVal.setArgumentList(tempArgs);
 				} else {
-					tempVal.setTestCovered(testCovered);
+					tempVal.setTestCovered(pairCovered);
 				}
 
 			}
@@ -180,7 +134,7 @@ public class CalculateFitnessFromEvalPC3 {
 		}
 		// ReadEFLfilesforPairCombination.CheckTCisCovered(ReadEFLfilesforPairCombination.pathTCfitness);//to
 		// update the combinations
-
+		//System.out.println(ReadEFLfilesforPairCombination.files_PC_PairCom_FitnessVals);
 		if (isCoveredThisTime) {
 			return 0;
 		} else {
