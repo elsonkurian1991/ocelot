@@ -25,6 +25,7 @@ import org.eclipse.cdt.core.dom.ast.IType;
 import org.eclipse.cdt.internal.core.dom.parser.c.CASTFunctionDeclarator;
 import org.eclipse.cdt.internal.core.dom.parser.c.CASTFunctionDefinition;
 import org.eclipse.cdt.internal.core.dom.parser.c.CASTKnRFunctionDeclarator;
+import org.eclipse.cdt.internal.core.dom.parser.c.CEnumeration;
 import org.eclipse.cdt.internal.core.dom.parser.c.CPointerType;
 import org.eclipse.cdt.internal.core.dom.parser.c.CQualifierType;
 import org.eclipse.cdt.internal.core.dom.parser.c.CStructure;
@@ -206,7 +207,7 @@ public class MacroDefinerVisitor extends ASTVisitor {
 				return PROCESS_CONTINUE;
 
 			for (String stringName : parametersStringNames) {
-				if (stringName.contains("*")) {
+				if (stringName.contains("*")) {//TODO need to add statements for this case
 				}
 			}
 			
@@ -334,7 +335,15 @@ public class MacroDefinerVisitor extends ASTVisitor {
 						this.functionParameters.add(var.type);
 						String fieldType = var.type.toString().replaceAll("\\*\\s*", "");
 						
-						if (!var.isPointer()) {
+						if(var.type instanceof CEnumeration) { //added a case to handle enum
+							macro +="enum "+ fieldType;
+							macro += " __str"+inputArgument;
+							macro += " = (enum " + fieldType +")OCELOT_NUM(OCELOT_ARGUMENT_VALUE(" + inputArgument + "));\\\n"; //Assign
+							macro += var.getCompleteNameWithPointers() + " = __str" + inputArgument + ";\\\n";
+						
+							inputArgument++;
+						}
+						else if (!var.isPointer()) {
 							macro += fieldType;
 							macro += " __str"+inputArgument;
 							macro += " = (" + fieldType +")OCELOT_NUM(OCELOT_ARGUMENT_VALUE(" + inputArgument + "));\\\n"; //Assign

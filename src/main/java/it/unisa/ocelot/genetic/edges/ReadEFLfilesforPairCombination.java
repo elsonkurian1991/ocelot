@@ -39,8 +39,9 @@ public class ReadEFLfilesforPairCombination {
 		try (BufferedReader br1 = new BufferedReader(new FileReader("./testObjectives.to"))) { // TODO this file should written while parseing KQuery files.
 			String lineBr1;
 			while ((lineBr1 = br1.readLine()) != null) {
-				//System.out.println(lineBr1);
+				System.out.println(lineBr1);
 				AddFunPath(lineBr1);
+				System.out.println("next");
 				// You can process the line here as needed
 			}
 		} catch (IOException e) {

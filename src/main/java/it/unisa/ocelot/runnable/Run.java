@@ -84,7 +84,7 @@ public class Run {
 			System.out.println("Execution time: " + hours + " hours, " + minutes + " minutes, " + seconds + " seconds");
 			PrintNumOfPathCovered();
 		}
-		System.out.println(CalculateFitnessFromEvalPC3.linesFromFitnessFiles);
+		//System.out.println(CalculateFitnessFromEvalPC3.linesFromFitnessFiles);
 
 	}
 	private static void welcome() throws InterruptedException {

@@ -80,7 +80,7 @@ public class StandardBuilder extends Builder {
 		// Builds the library
 		this.stream.print("Building library... ");
 		this.makefileGenerator.generate();
-
+		this.stream.print("........... ");
 		Process proc = this.makefileGenerator.runCompiler();
 
 		this.stream.println(IOUtils.toString(proc.getInputStream()));
@@ -96,13 +96,13 @@ public class StandardBuilder extends Builder {
 		} catch (InterruptedException e) {
 			throw new BuildingException("Interrupted");
 		}
-
+		
 		this.stream.println("\nEverything done.");
 	}
 
 	private void instrument() throws Exception {
 		String code = Utils.readFile(this.testFilename);
-
+		
 		IASTTranslationUnit translationUnit = GCC.getTranslationUnit(this.testFilename, this.testIncludes).copy();
 
 		IASTPreprocessorStatement[] macros = translationUnit.getAllPreprocessorStatements();
@@ -119,6 +119,7 @@ public class StandardBuilder extends Builder {
 		translationUnit.accept(instrumentor);
 
 		HashMap<String, ArrayList<String>> componentsTestObjectives = new HashMap<String, ArrayList<String>>();
+		
 		// Instruments unit-level components
 		for (String component : unitLevelComponents) {
 			ExternalReferencesVisitor referencesVisitor1 = new ExternalReferencesVisitor(component);
