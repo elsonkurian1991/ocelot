@@ -64,7 +64,9 @@ public class StandardBuilder extends Builder {
 			throw new BuildingException("No output stream specified" + "");
 		// Insturments the code and copies it in main.c
 		try {
-			this.stream.print("Instrumenting C file... \n");
+			this.stream.print("Instrumenting Unit-Level Components: C file... \n");
+			instrumentUnitComponents();
+			this.stream.print("Instrumenting Target C file... \n");
 			instrument();
 			this.stream.println("Done!");
 		} catch (Exception e) {
@@ -96,13 +98,108 @@ public class StandardBuilder extends Builder {
 		} catch (InterruptedException e) {
 			throw new BuildingException("Interrupted");
 		}
-		
+
 		this.stream.println("\nEverything done.");
+	}
+
+	private void instrumentUnitComponents() throws Exception {
+		int arr=0;
+		String[] testIncludesTemp= new String[1];
+		//System.out.println("hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh");
+		for(String unitComponent:this.testIncludes) {
+			int lastIndex=unitComponent.lastIndexOf('/');
+			String testFunName=unitComponent.substring(lastIndex+1);
+			System.out.println(testFunName);
+			//System.out.println("llllllllllllllllllllllllllllllllllllll");
+			String tempUnitComponent=testFunName.substring(0, testFunName.length()-2);
+			System.out.println(tempUnitComponent);
+			if(unitLevelComponents.contains(tempUnitComponent)) {
+				
+				//System.out.println("kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk");
+
+				String nameofComponent="jni/"+unitComponent.substring(lastIndex+1);
+				System.out.println(nameofComponent);
+
+				testIncludesTemp[0]=unitComponent;
+				IASTTranslationUnit translationUnit = GCC.getTranslationUnit(unitComponent, testIncludesTemp).copy();
+
+				/*IASTPreprocessorStatement[] macros = translationUnit.getAllPreprocessorStatements();
+
+				ExternalReferencesVisitor referencesVisitor = new ExternalReferencesVisitor(testFunName);
+				translationUnit.accept(referencesVisitor);
+
+				InstrumentorVisitor instrumentor = new InstrumentorVisitor(testFunName);
+				MacroDefinerVisitor macroDefiner = new MacroDefinerVisitor(testFunName,
+						referencesVisitor.getExternalReferences());
+
+				// NOTE: macroDefine MUST preceed instrumentor in visit
+				translationUnit.accept(macroDefiner);
+				translationUnit.accept(instrumentor);
+                */
+				HashMap<String, ArrayList<String>> componentsTestObjectives = new HashMap<String, ArrayList<String>>();
+
+				// Instruments unit-level components
+				//for (String component : unitLevelComponents) {
+					ExternalReferencesVisitor referencesVisitor1 = new ExternalReferencesVisitor(tempUnitComponent);
+					translationUnit.accept(referencesVisitor1);
+
+					ArrayList<String> testObjectives = new ArrayList<String>();
+					UnitComponentInstrumentorVisitor instrumentor1 = new UnitComponentInstrumentorVisitor(tempUnitComponent,
+							testObjectives);
+					//if(testObjectives.isEmpty()) continue;
+					componentsTestObjectives.put(tempUnitComponent, testObjectives);
+					MacroDefinerVisitor macroDefiner1 = new MacroDefinerVisitor(tempUnitComponent,
+							referencesVisitor1.getExternalReferences());
+
+					// NOTE: macroDefine MUST preceed instrumentor in visit
+					translationUnit.accept(macroDefiner1);
+					translationUnit.accept(instrumentor1);
+				//}
+				reportComponentsTestObjectives(componentsTestObjectives);
+
+				it.unisa.ocelot.c.compiler.writer.ASTWriter writer = new it.unisa.ocelot.c.compiler.writer.ASTWriter();
+
+				String outputCode = writer.write(translationUnit);
+
+				StringBuilder result = new StringBuilder();
+				/*for (IASTPreprocessorStatement macro : macros) {
+					if (macro instanceof IASTPreprocessorIncludeStatement) {
+						IASTPreprocessorIncludeStatement include = (IASTPreprocessorIncludeStatement) macro;
+						if (include.isSystemInclude())
+							result.append(macro.getRawSignature()).append("\n");
+					} else
+						result.append(macro.getRawSignature()).append("\n");
+				}*/
+				result.append("#include \"ocelot.h\"\n");
+				result.append(outputCode);
+				//Utils.writeFile(code, outputCode);
+				//FileWriter writer = new FileWriter(filePath)
+
+				Utils.writeFile(nameofComponent, result.toString());
+
+				StringBuilder mainHeader = new StringBuilder();
+				mainHeader.append("#include \"ocelot.h\"\n");
+				mainHeader.append("#include <stdio.h>\n");
+				mainHeader.append("#include <math.h>\n");
+				/*for (IASTNode typedef : instrumentor.getTypedefs()) {
+					mainHeader.append(writer.write(typedef));
+					mainHeader.append("\n");
+				}*/
+
+				mainHeader.append("#define OCELOT_TESTFUNCTION ").append(testFunName).append("\n");
+
+				Utils.writeFile("jni/main.h", mainHeader.toString());
+
+				//this.callMacro = macroDefiner.getCallMacro();
+				//this.externDeclarations = referencesVisitor.getExternalDeclarations();
+			}
+
+		}
 	}
 
 	private void instrument() throws Exception {
 		String code = Utils.readFile(this.testFilename);
-		
+
 		IASTTranslationUnit translationUnit = GCC.getTranslationUnit(this.testFilename, this.testIncludes).copy();
 
 		IASTPreprocessorStatement[] macros = translationUnit.getAllPreprocessorStatements();
@@ -119,7 +216,7 @@ public class StandardBuilder extends Builder {
 		translationUnit.accept(instrumentor);
 
 		HashMap<String, ArrayList<String>> componentsTestObjectives = new HashMap<String, ArrayList<String>>();
-		
+
 		// Instruments unit-level components
 		for (String component : unitLevelComponents) {
 			ExternalReferencesVisitor referencesVisitor1 = new ExternalReferencesVisitor(component);
@@ -190,15 +287,17 @@ public class StandardBuilder extends Builder {
 
 	private void reportComponentsTestObjectives(HashMap<String, ArrayList<String>> componentsTestObjectives) {
 		try {
-			FileWriter myWriter = new FileWriter("testObjectives.to", false);
+			FileWriter myWriter = new FileWriter("testObjectives.to", true);//false?
 			for (Entry<String, ArrayList<String>> componentTestObjectives : componentsTestObjectives.entrySet()) {
-				String write = "{" + componentTestObjectives.getKey() + "=";
-				for (String testObjective : componentTestObjectives.getValue()) {
-					write = write + testObjective + ",";
+				if(!componentTestObjectives.getValue().isEmpty()) {
+					String write = "{" + componentTestObjectives.getKey() + "=";
+					for (String testObjective : componentTestObjectives.getValue()) {
+						write = write + testObjective + ",";
+					}
+					write = write.substring(0, write.length() - 1);
+					write = write + "};" + System.lineSeparator();
+					myWriter.write(write);
 				}
-				write = write.substring(0, write.length() - 1);
-				write = write + "};" + System.lineSeparator();
-				myWriter.write(write);
 			}
 			myWriter.close();
 		} catch (IOException e) {

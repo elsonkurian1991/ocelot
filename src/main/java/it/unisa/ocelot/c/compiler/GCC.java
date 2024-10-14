@@ -64,6 +64,7 @@ public class GCC implements Compiler {
 		return GCCLanguage.getDefault().getASTTranslationUnit(
 				fileContent, scannerInfo, includeContentProvider, index, options, log);
 	}
+
 	
 	public static IASTTranslationUnit getTranslationUnit(String pSourceFilename)
 			throws IOException, CoreException {		

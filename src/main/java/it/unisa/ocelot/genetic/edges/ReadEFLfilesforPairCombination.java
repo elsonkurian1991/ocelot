@@ -59,7 +59,8 @@ public class ReadEFLfilesforPairCombination {
 			System.err.println("Error reading the file: " + e.getMessage());
 		}
 		//System.out.println(listofIntRelationKeys.toString());
-		//System.out.println(listofFunPaths);
+		System.out.println("listofFunPaths::");
+		System.out.println(listofFunPaths);
 		int i=0;
 		int j=0;
 		for(EvalFunPathType keySet1: listofFunPaths) {
@@ -134,11 +135,14 @@ public class ReadEFLfilesforPairCombination {
 			pathTCfitness.put(String.valueOf(i), temp);
 			++i;
 		}
-*/
-        //System.out.println(pathTCfitness);
+*/      
+        System.out.println("pathTCfitness::");
+        System.out.println(pathTCfitness);
 		//CheckTCisCovered(pathTCfitness);
 		
+        System.out.println("files_PC_PairCom_FitnessVals::");
 		System.out.println(files_PC_PairCom_FitnessVals);
+	
 	}
 	
 	private static boolean checkHaveIntegrationRelation(EvalFunPathType keySet1, EvalFunPathType keySet2) {

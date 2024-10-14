@@ -1,11 +1,15 @@
 package it.unisa.ocelot.runnable;
 
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Map.Entry;
 import java.util.Scanner;
 import java.util.concurrent.TimeUnit;
@@ -46,9 +50,10 @@ public class Run {
 	private String[] experimentGenerators;
 	private boolean forceBuild;
 	private String configFilename;
-
+	
 	private boolean forceNoBuild;
 	public static final boolean isExpWithEvalFun=true;// this will treat as our version of OCELOT
+	public static StringBuilder logWriter = new StringBuilder();
 	public static void main(String[] args) throws Exception {
 		if(isExpWithEvalFun) {
 			welcome();
@@ -71,7 +76,18 @@ public class Run {
 			runner.build();
 		runner.saveHash();
 		if(isExpWithEvalFun) {
+			logWriter.append("\n");
+			logWriter.append("Info:");
+			logWriter.append("\n");
 			ReadEFLfilesforPairCombination.RunEFLfilesforPairCombination(); // run this to read the efl file and create pairwise combinations. find a best place to call this
+			logWriter.append("\n");
+			logWriter.append("List of PC PairCombinations:");
+			logWriter.append("\n");
+			for(Entry<String, FitType> entry:ReadEFLfilesforPairCombination.files_PC_PairCom_FitnessVals.entrySet()) {
+				logWriter.append(entry.getKey().toString());
+				logWriter.append("\n");
+			}
+			logWriter.append("\n");
 		}
 		runner.run();
 		if(isExpWithEvalFun) {
@@ -82,27 +98,50 @@ public class Run {
 			long minutes = (time / 60000) % 60;
 			long seconds = (time / 1000) % 60;
 			System.out.println("Execution time: " + hours + " hours, " + minutes + " minutes, " + seconds + " seconds");
+			logWriter.append("Execution time: " + hours + " hours, " + minutes + " minutes, " + seconds + " seconds");
+			logWriter.append("\n");
 			PrintNumOfPathCovered();
+			logWriter.append("\n");
+			logWriter.append("files_PC_PairCom_FitnessVals");
+			logWriter.append("\n");
+			logWriter.append(ReadEFLfilesforPairCombination.files_PC_PairCom_FitnessVals.toString());
+			
+			
 		}
+		createLogFile(logWriter);
 		//System.out.println(CalculateFitnessFromEvalPC3.linesFromFitnessFiles);
 
 	}
 	private static void welcome() throws InterruptedException {
 		System.out.println("WELCOME");
 		System.out.println("Did you update the filename, function name, parameter list ?");
-		System.out.println("Please update the UnitLevelComponemts.txt and IntRelKeyList.kl file and then execute, thanks");
+		System.out.println("Please update the UnitLevelComponemts.txt and IntRelKeyList.kl file, IMP: update: JNIMakefileGenerator-> gcc -> support files and then execute, thanks");
 		System.out.println("Y/N");
-		TimeUnit.SECONDS.sleep(2);
+		TimeUnit.SECONDS.sleep(1);
 		System.out.println("Hope you updated the parameters... else....restart");
-		TimeUnit.SECONDS.sleep(3);
+		TimeUnit.SECONDS.sleep(1);
 	
+	}
+	private static void createLogFile(StringBuilder logWriter) throws IOException {
+		LocalDateTime now = LocalDateTime.now();
+		DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss");
+		String formatedDateTime = now.format(formatter);
+		String fileName= "Log_"+formatedDateTime+".txt";
+		String dir_FileName ="/home/lta/git/ocelot/ocelot_logs/"+fileName;
+		try (BufferedWriter writer = new BufferedWriter(new FileWriter(dir_FileName))){
+			writer.write(logWriter.toString());
+		}
+		
 	}
 	private static void PrintNumOfPathCovered() {
 
 		int totalPairCombination= ReadEFLfilesforPairCombination.files_PC_PairCom_FitnessVals.size();
 		int totalPairTestGenerated = 0;
 		String pairList="";
+		logWriter.append("\n");
 		System.out.println("Test case NOT generated for following pair combination: ");
+		logWriter.append("Test case NOT generated for following pair combination: ");
+		logWriter.append("\n");logWriter.append("\n");
 		for (Entry<String, FitType> set : ReadEFLfilesforPairCombination.files_PC_PairCom_FitnessVals.entrySet()) {	
 
 			if(set.getValue().isTestGenerated()) {
@@ -111,11 +150,20 @@ public class Run {
 			}
 			else {
 				System.out.println(set.getKey());
+				logWriter.append(set.getKey().toString());
+				logWriter.append("\n");
 			}
 		}
+		logWriter.append("\n");logWriter.append("\n");
 		System.out.println(totalPairTestGenerated+" out of "+totalPairCombination+" pair combination  covered in the generated test suite ");
+		logWriter.append(totalPairTestGenerated+" out of "+totalPairCombination+" pair combination  covered in the generated test suite ");
+		logWriter.append("\n");logWriter.append("\n");
 		System.out.println("The covered pair combinations are: ");
+		logWriter.append("The covered pair combinations are: ");
+		logWriter.append("\n");logWriter.append("\n");
 		System.out.print(pairList);
+		logWriter.append(pairList.toString());
+		logWriter.append("\n");
 	}
 	private static void deleteOldEvalPCfiles(String directoryPath) {
 		File directory = new File(directoryPath);

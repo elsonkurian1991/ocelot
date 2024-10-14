@@ -33,6 +33,20 @@ public abstract class JNIMakefileGenerator {
 	public abstract String getLibName();
 	
 	public void generate() throws IOException {
+		String supportFiles= 
+				  " CheckLinkingConsistency_LMC_Lib_DM_TIM_BaliseMM_LMC.c"
+				+ " ControlExpectationWindow_LMC_Lib_DM_TIM_BaliseMM_LMC.c"
+				+ " BaliseGroupMonitoringWhenLinkingInfoIsUsed_LMC_Lib_DM_TIM_BaliseMM_LMC.c"
+				+ " ExpectationWindow_Calculator_LMC_Lib_DM_TIM_BaliseMM_LMC.c"
+				+ " RAMS_LinkingConsistency_LMC_Lib_DM_TIM_BaliseMM_LMC.c"
+				+ " ErrorReport_LMC_Lib_DM_TIM_BaliseMM_LMC.c"
+				+ " UnexpectedDirection_LMC_Lib_DM_TIM_BaliseMM_LMC.c"
+				+ " DMI_Msg_LinkingConsistency_LMC_Lib_DM_TIM_BaliseMM_LMC.c"
+				+ " kcg_types.c"
+				+ " kcg_consts.c" ;
+				
+		
+		
 		String glib2paths = "";
 		for (String temp : this.getGlib2Paths())
 			glib2paths += "-I"+temp+" ";
@@ -46,7 +60,7 @@ public abstract class JNIMakefileGenerator {
 			libspath += "-l"+temp+" ";
 		
 		String moreOptions = this.getMoreOptions();
-		
+	
 		String result = "CC = " + this.getCCompiler() + "\n\n" +
 		"JAVA_HOME = " + this.getJavaHome() + "\n\n" +
 		"SYSTEM_INCLUDE = " + this.getSystemInclude() + "\n\n" +
@@ -55,8 +69,8 @@ public abstract class JNIMakefileGenerator {
 		"CFLAGS = " + this.getCFlags() + "\n\n" + 
 		"INCLUDES = $(GLIB2_INCUDE) $(JAVA_INCLUDE)\n" +
 		"LIBS = " + libspath + "\n" +
-		"SRCS = lists.c ocelot.c EN_CBridge.c main.c" + "\n\n" +
-		"MOREOPTS = " + moreOptions + "\n\n"+
+		"SRCS = lists.c ocelot.c EN_CBridge.c main.c "+supportFiles+" \n\n"
+				+"MOREOPTS = " + moreOptions + "\n\n"+
 		"MAIN = ../" + this.getLibName() + "\n\n" +
 		".PHONY: clean all\n" +
 		"all:\n"+

@@ -22,7 +22,7 @@ public class CalculateFitnessFromEvalPC3 {
 
 	public static boolean isFirsttime = false;
 	public static StringBuilder linesFromFitnessFiles = new StringBuilder();
-
+	public static int fileReadingCount=0;
 	public static double CalculateFitness(Object[][][] arguments) {
 		//System.out.println(ReadEFLfilesforPairCombination.files_PC_PairCom_FitnessVals);
 		double fitness = 0.0;
@@ -36,8 +36,8 @@ public class CalculateFitnessFromEvalPC3 {
 		try (BufferedReader fiValFile = new BufferedReader(new FileReader("./fitnessValues.txt"))) { // TODO this file
 																										// should
 																										// written while
-																										// parseing
-																										// KQuery files.
+			//++fileReadingCount;																						// parseing
+			//System.out.println("fitnessValues-----open to read");																						// KQuery files.
 			String lineBr;
 			ArrayList<String> keySetsToCheck = new ArrayList<>();
 			boolean alreadyFound = false;
@@ -73,6 +73,7 @@ public class CalculateFitnessFromEvalPC3 {
 						}
 					}
 				}
+				//System.out.println(lineBr);
 				linesFromFitnessFiles.append(lineBr + "\n");
 			}
 		} catch (IOException e) {
@@ -88,7 +89,7 @@ public class CalculateFitnessFromEvalPC3 {
 		linesFromFitnessFiles.append("next iteration...\n");
 		// System.out.println(ReadEFLfilesforPairCombination.files_PC_PairCom_FitnessVals);
 
-		
+		//System.out.println("fileReadingCount::"+fileReadingCount);	
 		// till here.....................................
 		// System.out.println(filesWithFitnessVals);
 		boolean isCoveredThisTime = false;

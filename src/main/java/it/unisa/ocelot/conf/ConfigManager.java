@@ -240,19 +240,22 @@ public class ConfigManager {
 
 	/**
 	 * Returns the array of paths in which the include headers will be searched.
+	 * In new version, we use this to get the list of unit level components
 	 * @return
 	 */
 	public String[] getTestIncludePaths() {
 		String includeStrings = this.properties.getProperty("test.includes", "");
 		String[] includes = StringUtils.split(includeStrings, ",");
 		String basedir = this.getTestBasedir();
-		
+		System.out.println("List of Unit-level components used are as follows: ");
 		for (int i = 0; i < includes.length; i++) {
 			if (!includes[i].startsWith("/"))
 				includes[i] = basedir + includes[i];
+			System.out.println(includes[i]);
 		}
 		
 		return includes;
+		
 	}
 	
 	/**
