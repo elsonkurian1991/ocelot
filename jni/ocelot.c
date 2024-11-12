@@ -11,6 +11,9 @@ int _f_ocelot_branch_out(char* functionName, int count, int result, double dista
 
 	// Open a file in writing mode
 	fptr = fopen("fitnessValues.txt", "a");
+	if (distanceTrue==0.0 & distanceFalse==0.0){//for infeasible conditions eg: default case for switch cases involving enum with only two values.
+	   distanceTrue=1.0;
+	}  
 
 	// Write some text to the file
 	fprintf(fptr, functionName);

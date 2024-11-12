@@ -52,6 +52,7 @@ public class Run {
 	private String configFilename;
 	
 	private boolean forceNoBuild;
+	public static final String localOcelotDir=System.getProperty("user.dir"); 
 	public static final boolean isExpWithEvalFun=true;// this will treat as our version of OCELOT
 	public static StringBuilder logWriter = new StringBuilder();
 	public static void main(String[] args) throws Exception {
@@ -60,15 +61,15 @@ public class Run {
 			}
 
 		System.out.println("Now deleting old build file.... just for better debuging");
-		String filePathToDelete1 = "/home/lta/git/ocelot/.lastbuild.cks";
+		String filePathToDelete1 = localOcelotDir+"/.lastbuild.cks";
 		deleteFileIfExists(filePathToDelete1);
-		String filePathToDelete2 = "/home/lta/git/ocelot/libTest.so";
+		String filePathToDelete2 = localOcelotDir+"/libTest.so";
 		deleteFileIfExists(filePathToDelete2);
-		String filePathToDelete3 = "/home/lta/git/ocelot/fitnessValues.txt"; //do 
+		String filePathToDelete3 = localOcelotDir+"/fitnessValues.txt"; //do 
 		deleteFileIfExists(filePathToDelete3);
-		String filePathToDelete4 = "/home/lta/git/ocelot/testObjectives.to"; //do 
+		String filePathToDelete4 = localOcelotDir+"/testObjectives.to"; //do 
 		deleteFileIfExists(filePathToDelete4);
-		deleteOldEvalPCfiles("/home/lta/git/ocelot/");
+		deleteOldEvalPCfiles(localOcelotDir);
 		
 		long startTime =System.currentTimeMillis();
 		Run runner = new Run(args);
@@ -102,9 +103,9 @@ public class Run {
 			logWriter.append("\n");
 			PrintNumOfPathCovered();
 			logWriter.append("\n");
-			logWriter.append("files_PC_PairCom_FitnessVals");
+			//logWriter.append("files_PC_PairCom_FitnessVals");
 			logWriter.append("\n");
-			logWriter.append(ReadEFLfilesforPairCombination.files_PC_PairCom_FitnessVals.toString());
+			//logWriter.append(ReadEFLfilesforPairCombination.files_PC_PairCom_FitnessVals.toString());
 			
 			
 		}
@@ -114,7 +115,7 @@ public class Run {
 	}
 	private static void welcome() throws InterruptedException {
 		System.out.println("WELCOME");
-		System.out.println("Did you update the filename, function name, parameter list ?");
+		System.out.println("Did you update the localOcelotDir, function name, parameter list ?");
 		System.out.println("Please update the UnitLevelComponemts.txt and IntRelKeyList.kl file, IMP: update: JNIMakefileGenerator-> gcc -> support files and then execute, thanks");
 		System.out.println("Y/N");
 		TimeUnit.SECONDS.sleep(1);
@@ -127,7 +128,7 @@ public class Run {
 		DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss");
 		String formatedDateTime = now.format(formatter);
 		String fileName= "Log_"+formatedDateTime+".txt";
-		String dir_FileName ="/home/lta/git/ocelot/ocelot_logs/"+fileName;
+		String dir_FileName =localOcelotDir+"/ocelot_logs/"+fileName;
 		try (BufferedWriter writer = new BufferedWriter(new FileWriter(dir_FileName))){
 			writer.write(logWriter.toString());
 		}
@@ -316,7 +317,7 @@ public class Run {
 	}
 
 	public void run() throws Exception {
-		System.load("/home/lta/git/ocelot/libTest.so");
+		System.load(localOcelotDir+"/libTest.so");
 		switch (this.runnerType) {
 		case RUNNER_SIMPLE_EXECUTE:
 			System.out.println("Running simple coverage test");

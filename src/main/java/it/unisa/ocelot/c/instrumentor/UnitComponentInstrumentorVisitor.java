@@ -316,12 +316,12 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 						new CASTLiteralExpression(IASTLiteralExpression.lk_integer_constant, new char[] { '1' }));
 
 				return this.transformDistanceExpression(distanceExpression, pNegation, pTransPerformed);
-//			} else if (realExpression.getOperator() == IASTUnaryExpression.op_star) {				
-//				CASTCastExpression cast = new CASTCastExpression(type, this.cloneExpression(realExpression.getOperand()));
-//				realExpression.setOperand(cast);
-//				
-//				System.out.println(new ASTWriter().write(realExpression));
-//				return realExpression;
+				//			} else if (realExpression.getOperator() == IASTUnaryExpression.op_star) {				
+				//				CASTCastExpression cast = new CASTCastExpression(type, this.cloneExpression(realExpression.getOperand()));
+				//				realExpression.setOperand(cast);
+				//				
+				//				System.out.println(new ASTWriter().write(realExpression));
+				//				return realExpression;
 			} else {
 				IASTExpression operand = realExpression.getOperand();
 				return this.transformDistanceExpression(operand, pNegation, pTransPerformed);
@@ -438,7 +438,7 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 			IASTExpression distanceCalculation;
 			String label;
 
-			if (aCase instanceof IASTCaseStatement) {
+			if (aCase instanceof IASTCaseStatement && !(aCase instanceof IASTDefaultStatement)) {
 				IASTCaseStatement realCase = (IASTCaseStatement) aCase;
 
 				label = new ASTWriter().write(realCase.getExpression());
@@ -468,9 +468,17 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 					branchNumber.toString().toCharArray());
 			arguments[2] = new CASTLiteralExpression(CASTLiteralExpression.lk_integer_constant,
 					String.valueOf(CaseEdge.retrieveUniqueId(label)).toCharArray());
-			arguments[3] = this.transformDistanceExpression(distanceCalculation, false, false);
-			arguments[4] = distanceCalculation.copy();
-
+			//aCase.getChildren. find the list of children.
+			System.out.println(aCase.getChildren().length);
+			if(aCase.getChildren().length==0) {
+				arguments[3] = distanceCalculation.copy(); // 1 return
+				arguments[4] = distanceCalculation.copy(); // 0 return
+				// true= !=0, false= 1
+			}
+			else {
+				arguments[3] = this.transformDistanceExpression(distanceCalculation, false, false);
+				arguments[4] = this.transformDistanceExpression(distanceCalculation, true, false);
+			}
 			substitute.addStatement(new CASTExpressionStatement(makeFunctionCall("_f_ocelot_branch_out", arguments)));
 
 			addTestObjectives(branchNumber);
@@ -642,8 +650,8 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 		operationArgs[0] = instrumentedOp1;
 		operationArgs[1] = instrumentedOp2;
 
-//		System.out.println("FROM:" + new ASTWriter().write(pExpression));
-//		System.out.println("TO:" + new ASTWriter().write(operationArgs[0]) + " " + pOperator +" " + new ASTWriter().write(operationArgs[1]));
+		//		System.out.println("FROM:" + new ASTWriter().write(pExpression));
+		//		System.out.println("TO:" + new ASTWriter().write(operationArgs[0]) + " " + pOperator +" " + new ASTWriter().write(operationArgs[1]));
 
 		IASTFunctionCallExpression operationFunction = makeFunctionCall("_f_ocelot_" + pOperator, operationArgs);
 
@@ -696,8 +704,8 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 		operationArgs[0] = this.castToDouble(this.transformDistanceExpression(operand1, false, true));
 		operationArgs[1] = this.castToDouble(this.transformDistanceExpression(operand2, false, true));
 
-//		System.out.println("FROM:" + new ASTWriter().write(pExpression));
-//		System.out.println("TO:" + new ASTWriter().write(operationArgs[0]) + " " + pOperator +" " + new ASTWriter().write(operationArgs[1]));
+		//		System.out.println("FROM:" + new ASTWriter().write(pExpression));
+		//		System.out.println("TO:" + new ASTWriter().write(operationArgs[0]) + " " + pOperator +" " + new ASTWriter().write(operationArgs[1]));
 
 		IASTFunctionCallExpression operationFunction;
 		if (op1Type instanceof IBasicType && op2Type instanceof IBasicType
@@ -731,7 +739,7 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 		} else {
 			ASTWriter writer = new ASTWriter();
 			System.err.println("I can't handle this type situation: " + type.toString()
-					+ ". Assuming numeric. Please, manually check.");
+			+ ". Assuming numeric. Please, manually check.");
 			System.err.println("Error node: " + writer.write(expression.getParent()));
 
 			this.functionCallsInExpressions.add(makeFunctionCall("_f_ocelot_reg_fcall_numeric", arguments));
@@ -801,7 +809,7 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 	}
 
 	private IType getType(IASTExpression pExpression) {
-//		System.out.println(pExpression.getRawSignature());
+		//		System.out.println(pExpression.getRawSignature());
 		return getType(pExpression.getExpressionType());
 	}
 
