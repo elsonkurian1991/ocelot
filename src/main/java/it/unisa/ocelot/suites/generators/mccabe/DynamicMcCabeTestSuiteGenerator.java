@@ -17,10 +17,13 @@ import it.unisa.ocelot.conf.ConfigManager;
 import it.unisa.ocelot.genetic.VariableTranslator;
 import it.unisa.ocelot.genetic.edges.CalculateFitnessFromEvalPC;
 import it.unisa.ocelot.genetic.edges.CalculateFitnessFromEvalPC2;
+import it.unisa.ocelot.genetic.edges.CalculateFitnessFromEvalPC4;
 import it.unisa.ocelot.genetic.edges.DMCExperiment;
 import it.unisa.ocelot.genetic.edges.FType;
 import it.unisa.ocelot.genetic.edges.FitType;
 import it.unisa.ocelot.genetic.edges.ReadEFLfilesforPairCombination;
+import it.unisa.ocelot.genetic.edges.ReadEFLfilesforPairCombination_V2;
+import it.unisa.ocelot.genetic.edges.TestObjStateMachine;
 import it.unisa.ocelot.runnable.Run;
 import it.unisa.ocelot.suites.TestSuiteGenerationException;
 import it.unisa.ocelot.suites.generators.CascadeableGenerator;
@@ -151,19 +154,16 @@ public class DynamicMcCabeTestSuiteGenerator extends TestSuiteGenerator implemen
 				this.println("Partial coverage: " + calculator.getBranchCoverage());
 				this.budgetManager.updateTargets(mcCabeCalculator.extimateMissingTargets());
 				
-				for(Entry<String, FitType> entry:ReadEFLfilesforPairCombination.files_PC_PairCom_FitnessVals.entrySet()) {
-					String key = entry.getKey();
-					boolean isCovered= entry.getValue().isTestCovered() && entry.getValue().isFirst();
-					String params=CalculateFitnessFromEvalPC2.GetArguInString(numericParams);
+				for(TestObjStateMachine sm:ReadEFLfilesforPairCombination_V2.files_SM_PC_FitVals) {
+					String params=CalculateFitnessFromEvalPC4.GetArguInString(numericParams);
 					boolean foundTCParams=false;
-					if(entry.getValue().getArgumentList().contains(params)) {
+					if(sm.getArgumentList().contains(params)) {
 						foundTCParams=true;
 					}
-					if(!entry.getValue().isTestGenerated()&&foundTCParams) {
-						entry.getValue().setTestCovered(false);
-						entry.getValue().setTestGenerated(true);
-						entry.getValue().setFirst(false);
+					if(!sm.isGenerated() && foundTCParams) {
+						sm.setGenerated(true);
 					}
+				
 				}
 					
 				/*for(Entry<String, FType> fitnessGenVal : CalculateFitnessFromEvalPC.filesWithFitnessVals.entrySet()){
@@ -176,8 +176,8 @@ public class DynamicMcCabeTestSuiteGenerator extends TestSuiteGenerator implemen
 					
 				}*/
 				finish = true;
-				for(FitType fitnessCovered: ReadEFLfilesforPairCombination.files_PC_PairCom_FitnessVals.values()) {
-					finish=finish && fitnessCovered.isTestGenerated();
+				for(TestObjStateMachine sm: ReadEFLfilesforPairCombination_V2.files_SM_PC_FitVals) {
+					finish=finish && sm.isGenerated();
 				}
 				/*for(FType fitnessCovered : CalculateFitnessFromEvalPC.filesWithFitnessVals.values()){
 					finish=finish && fitnessCovered.isTestGenerated();
