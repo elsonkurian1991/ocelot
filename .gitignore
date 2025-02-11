@@ -2,6 +2,8 @@
 *.class
 .lastbuild.cks
 
+ocelot_logs/
+
 # idea project files
 ocelot.iml
 .idea/*
