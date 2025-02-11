@@ -34,6 +34,7 @@ int _f_ocelot_branch_out(char* functionName, int count, int result, double dista
 	fprintf(fptr, "%f", distanceFalse);
 	fprintf(fptr, "\n");
 
+	//fflush(fptr);
 	// Close the file
 	fclose(fptr);
 
@@ -48,7 +49,7 @@ void _f_ocelot_init() {
 void _f_ocelot_end() {
 	OCLIST_FREE(_v_ocelot_events);
 	OCLIST_FREE(_v_ocelot_fcalls);
-
+	//printf("free:ocelot_pointers\n");
 	free(_v_ocelot_pointers);
 }
 

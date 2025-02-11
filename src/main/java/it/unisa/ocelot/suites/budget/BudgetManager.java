@@ -64,4 +64,8 @@ public abstract class BudgetManager {
 		this.budget = pBudget;
 		this.totalBudget = pBudget;
 	}
+	
+	public int getBudget() {
+		return this.budget;
+	}
 }

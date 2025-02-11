@@ -45,4 +45,5 @@ public class BasicBudgetManager extends BudgetManager {
 		this.numberOfExperiments = pNumberOfExperiments;
 		System.err.println("BBH: Now the targets are " + pNumberOfExperiments);
 	}
+
 }

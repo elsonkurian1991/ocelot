@@ -704,8 +704,8 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 		operationArgs[0] = this.castToDouble(this.transformDistanceExpression(operand1, false, true));
 		operationArgs[1] = this.castToDouble(this.transformDistanceExpression(operand2, false, true));
 
-		//		System.out.println("FROM:" + new ASTWriter().write(pExpression));
-		//		System.out.println("TO:" + new ASTWriter().write(operationArgs[0]) + " " + pOperator +" " + new ASTWriter().write(operationArgs[1]));
+				System.out.println("FROM:" + new ASTWriter().write(pExpression));
+				System.out.println("TO:" + new ASTWriter().write(operationArgs[0]) + " " + pOperator +" " + new ASTWriter().write(operationArgs[1]));
 
 		IASTFunctionCallExpression operationFunction;
 		if (op1Type instanceof IBasicType && op2Type instanceof IBasicType

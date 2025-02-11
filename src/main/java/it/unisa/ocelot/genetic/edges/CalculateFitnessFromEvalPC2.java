@@ -17,7 +17,7 @@ public class CalculateFitnessFromEvalPC2 {
 	
 	public static boolean isFirsttime = false;
 
-	public static double CalculateFitness(Object[][][] arguments) {
+	public static double CalculateFitness_old1(Object[][][] arguments) {
 	//	ReadEFLfilesforPairCombination.RunEFLfilesforPairCombination(); // run this to read the efl file and create pairwise combinations. find a best place to call this
 		double fitness = 0.0;
 		File directory = new File("./");// ocelot

@@ -89,10 +89,11 @@ public class Run {
 				logWriter.append("\n");
 			}
 			logWriter.append("\n");
+			
 		}
 		runner.run();
 		if(isExpWithEvalFun) {
-			System.out.println(ReadEFLfilesforPairCombination.files_PC_PairCom_FitnessVals);
+			//System.out.println(ReadEFLfilesforPairCombination.files_PC_PairCom_FitnessVals);
 			long endTime=System.currentTimeMillis();
 			long time=endTime-startTime;
 			long hours = time / 3600000;
@@ -103,9 +104,9 @@ public class Run {
 			logWriter.append("\n");
 			PrintNumOfPathCovered();
 			logWriter.append("\n");
-			//logWriter.append("files_PC_PairCom_FitnessVals");
+			logWriter.append("files_PC_PairCom_FitnessVals");
 			logWriter.append("\n");
-			//logWriter.append(ReadEFLfilesforPairCombination.files_PC_PairCom_FitnessVals.toString());
+			logWriter.append(ReadEFLfilesforPairCombination.files_PC_PairCom_FitnessVals.toString());
 			
 			
 		}
@@ -123,7 +124,7 @@ public class Run {
 		TimeUnit.SECONDS.sleep(1);
 	
 	}
-	private static void createLogFile(StringBuilder logWriter) throws IOException {
+	public static void createLogFile(StringBuilder logWriter) throws IOException {
 		LocalDateTime now = LocalDateTime.now();
 		DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss");
 		String formatedDateTime = now.format(formatter);
@@ -150,7 +151,7 @@ public class Run {
 				pairList=pairList+set.getKey()+"\n";
 			}
 			else {
-				System.out.println(set.getKey());
+				//System.out.println(set.getKey());
 				logWriter.append(set.getKey().toString());
 				logWriter.append("\n");
 			}
@@ -159,10 +160,10 @@ public class Run {
 		System.out.println(totalPairTestGenerated+" out of "+totalPairCombination+" pair combination  covered in the generated test suite ");
 		logWriter.append(totalPairTestGenerated+" out of "+totalPairCombination+" pair combination  covered in the generated test suite ");
 		logWriter.append("\n");logWriter.append("\n");
-		System.out.println("The covered pair combinations are: ");
+		//System.out.println("The covered pair combinations are: ");
 		logWriter.append("The covered pair combinations are: ");
 		logWriter.append("\n");logWriter.append("\n");
-		System.out.print(pairList);
+		//System.out.print(pairList);
 		logWriter.append(pairList.toString());
 		logWriter.append("\n");
 	}

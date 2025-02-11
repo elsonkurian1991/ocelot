@@ -34,16 +34,25 @@ public abstract class JNIMakefileGenerator {
 	
 	public void generate() throws IOException {
 		String supportFiles= 
-				  " CheckLinkingConsistency_LMC_Lib_DM_TIM_BaliseMM_LMC.c"
-				+ " ControlExpectationWindow_LMC_Lib_DM_TIM_BaliseMM_LMC.c"
-				+ " BaliseGroupMonitoringWhenLinkingInfoIsUsed_LMC_Lib_DM_TIM_BaliseMM_LMC.c"
-				+ " ExpectationWindow_Calculator_LMC_Lib_DM_TIM_BaliseMM_LMC.c"
-				+ " RAMS_LinkingConsistency_LMC_Lib_DM_TIM_BaliseMM_LMC.c"
-				+ " ErrorReport_LMC_Lib_DM_TIM_BaliseMM_LMC.c"
-				+ " UnexpectedDirection_LMC_Lib_DM_TIM_BaliseMM_LMC.c"
-				+ " DMI_Msg_LinkingConsistency_LMC_Lib_DM_TIM_BaliseMM_LMC.c"
+				" BaliseGroupMonitoringWhenLinkingInfoIsUsed_BCAL_Lib_DM_TIM_BaliseMM_LIU.c"
+				+ " LinkingWindowConsistencyAndManagement_LMC_Lib_DM_TIM_BaliseMM_LMC.c"
+				+ " CheckLinkingConsistency_DC_Lib_DM_TIM_BaliseMM_LMC.c"
+				+ " LMC_Root_LMC_Lib_DM_TIM_BaliseMM_LMC.c"
+				+ " ControlExpectationWindow_BCAL_Lib_DM_TIM_BaliseMM_LMC.c"
+				+ " ObtainLocationReferenceBalise_DC_Lib_DM_TIM_BaliseMM_LMC.c"
+				+ " DMI_Msg_LinkingConsistency_DC_Lib_DM_TIM_BaliseMM_DC_Balise.c"
+				+ " ErrorReport_DC_Lib_DM_TIM_ErrorReporting.c"
+				+ " ExpectationWindow_Calculator_BCAL_Lib_DM_TIM_BaliseMM_LMC.c"
+				+ " RAMS_CrossTalkMitigation_DC_Lib_DM_TIM_BaliseMM_LMC.c"
+				+ " RAMS_LinkingConsistency_DC_Lib_DM_TIM_BaliseMM_LMC.c"
+				+ " LinkingConsistencyAndManagement_LMC_Lib_DM_TIM_BaliseMM_LMC.c"
+				+ " UnexpectedDirection_DC_Lib_DM_TIM_BaliseMM_LMC.c"
+				+ " dataBaseForOcelot.c"
+				+ " kcg_consts.c"
 				+ " kcg_types.c"
-				+ " kcg_consts.c" ;
+				+ " initDataBase.c"
+				+ " genericDataBase.c ";
+
 				
 		
 		

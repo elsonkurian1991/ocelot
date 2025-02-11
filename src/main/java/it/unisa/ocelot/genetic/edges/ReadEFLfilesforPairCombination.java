@@ -137,12 +137,13 @@ public class ReadEFLfilesforPairCombination {
 		}
 */      
         System.out.println("pathTCfitness::");
-        System.out.println(pathTCfitness);
+        //System.out.println(pathTCfitness);
 		//CheckTCisCovered(pathTCfitness);
 		
         System.out.println("files_PC_PairCom_FitnessVals::");
-		System.out.println(files_PC_PairCom_FitnessVals);
-	
+		//System.out.println(files_PC_PairCom_FitnessVals);
+		System.out.println("files_PC_PairCom_FitnessVals::SIZE::");
+		System.out.println(files_PC_PairCom_FitnessVals.size());
 	}
 	
 	private static boolean checkHaveIntegrationRelation(EvalFunPathType keySet1, EvalFunPathType keySet2) {

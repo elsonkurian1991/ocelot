@@ -3,6 +3,7 @@
 .lastbuild.cks
 
 ocelot_logs/
+jni_(copy)/
 
 # idea project files
 ocelot.iml
@@ -61,3 +62,6 @@ testobject/
 *.epc
 *.efl
 *.kl
+fitnessValues.txt
+testObjectives.to
+unitLevelComponents.txt

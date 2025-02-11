@@ -78,6 +78,7 @@ public class CalculateFitnessFromEvalPC3 {
 			}
 		} catch (IOException e) {
 			System.err.println("Error reading fitnessValues.txt file: " + e.getMessage());
+			//e.printStackTrace();
 		}
 		/*Path pathTodel = Paths.get("./fitnessValues.txt");// delete the file every iteration
 		try {

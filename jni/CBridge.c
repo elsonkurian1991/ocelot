@@ -96,6 +96,7 @@ JNIEXPORT void JNICALL Java_it_unisa_ocelot_simulator_CBridge_privInit
 		_f_ocelot_throw_runtimeexception(env, message);
 		goto fail;
 	} else {
+		printf("PID: %d\n", pid);
 		_f_ocelot_debug("PID: %d", pid);
 
 		child_processes = pid;
@@ -585,9 +586,9 @@ void _f_ocelot_throw_runtimeexception(JNIEnv* env, char* message) {
 void _f_ocelot_debug(char* info, int num) {
 	return;
 	if (num != NODEBUGINFO)
-		fprintf(stderr, info, num);
+		fprintf(stdout, info, num);
 	else
-		fprintf(stderr, info);
+		fprintf(stdout, info);//stderr
 }
 
 void _f_ocelot_lock(int fd) {

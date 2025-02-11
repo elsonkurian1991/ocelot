@@ -150,7 +150,7 @@ public class Simulator {
 		}
 		
 		if (!this.isSimulationCorrect())
-			throw new SimulationException("Simulation not ended!!");
+			throw new SimulationException("Simulation not ended!! " + this.currentEventIndex + " in " + this.events.size());
 	}
 	
 	/**

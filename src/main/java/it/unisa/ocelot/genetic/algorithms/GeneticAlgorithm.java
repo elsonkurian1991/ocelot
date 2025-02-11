@@ -153,17 +153,26 @@ public class GeneticAlgorithm extends OcelotAlgorithm
 			evaluations++;
 
 		}
-
+		
+		boolean targetCovered = false;
+		
 		for (Solution solution : solutionList) {
 			prepareSerendipitous();
 			problem_.evaluate(solution);
 			checkSerendipitous(solution);
 
 			population.add(solution);
+
 			evaluations++;
+			
+			if (solution.getObjective(0) == 0.0) {
+				targetCovered = true;//we cover once we find the fitness.
+				break;
+			}
 		}
 
 		population.sort(comparator);
+		/*
 		boolean targetCovered = false;
 		
 		for (int i = 0; i < populationSize; i++) {
@@ -171,7 +180,7 @@ public class GeneticAlgorithm extends OcelotAlgorithm
 				targetCovered = true;//we cover once we find the fitness.
 				break;
 			}
-		}
+		}*/
 
 		// Generations
 		while (evaluations < maxEvaluations && !targetCovered) {
@@ -200,14 +209,18 @@ public class GeneticAlgorithm extends OcelotAlgorithm
 				checkSerendipitous(solution);
 
 				offspringPopulation.add(solution);
-				if (solution.getObjective(0) == 0.0)
-					targetCovered = true;
+				
 				evaluations++;
+				
+				if (solution.getObjective(0) == 0.0) {
+					targetCovered = true;
+					break;
+				}
 			}
 
 			// The offspring population becomes the new current population
 			population.clear();
-			for (int i = 0; i < populationSize; i++) {
+			for (int i = 0; i < offspringPopulation.size(); i++) {
 				population.add(offspringPopulation.get(i));
 			}
 			offspringPopulation.clear();

@@ -3,6 +3,8 @@ package it.unisa.ocelot.runnable.runners;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.PrintStream;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Set;
 
 import org.apache.commons.io.output.TeeOutputStream;
@@ -30,7 +32,10 @@ public class GenAndWrite {
 			// Sets up the output file
 			File outputDirectory = new File(config.getOutputFolder());
 			outputDirectory.mkdirs();
-			FileOutputStream fos = new FileOutputStream(config.getOutputFolder() + "exp_res.txt");
+			LocalDateTime now = LocalDateTime.now();
+			DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss");
+			String formatedDateTime = now.format(formatter);
+			FileOutputStream fos = new FileOutputStream(config.getOutputFolder() + "exp_res_"+formatedDateTime+".txt");
 			TeeOutputStream myOut = new TeeOutputStream(System.out, fos);
 			PrintStream ps = new PrintStream(myOut);
 			System.setOut(ps);

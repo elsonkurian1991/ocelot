@@ -105,18 +105,13 @@ public class StandardBuilder extends Builder {
 	private void instrumentUnitComponents() throws Exception {
 		int arr=0;
 		String[] testIncludesTemp= new String[1];
-		//System.out.println("hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh");
 		for(String unitComponent:this.testIncludes) {
 			int lastIndex=unitComponent.lastIndexOf('/');
 			String testFunName=unitComponent.substring(lastIndex+1);
 			System.out.println(testFunName);
-			//System.out.println("llllllllllllllllllllllllllllllllllllll");
 			String tempUnitComponent=testFunName.substring(0, testFunName.length()-2);
-			System.out.println(tempUnitComponent);
+			//System.out.println(tempUnitComponent);
 			if(unitLevelComponents.contains(tempUnitComponent)) {
-				
-				//System.out.println("kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk");
-
 				String nameofComponent="jni/"+unitComponent.substring(lastIndex+1);
 				System.out.println(nameofComponent);
 
@@ -155,6 +150,13 @@ public class StandardBuilder extends Builder {
 					translationUnit.accept(macroDefiner1);
 					translationUnit.accept(instrumentor1);
 				//}
+					if (componentsTestObjectives.containsKey(tempUnitComponent) && componentsTestObjectives.get(tempUnitComponent) != null && componentsTestObjectives.get(tempUnitComponent).isEmpty()) {
+
+				//	if(componentsTestObjectives.computeIfAbsent(tempUnitComponent, null) == null) {
+						System.out.println(tempUnitComponent);
+						System.out.println("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%");
+					}
+					//if(componentsTestObjectives.containsValue(tempUnitComponent))
 				reportComponentsTestObjectives(componentsTestObjectives);
 
 				it.unisa.ocelot.c.compiler.writer.ASTWriter writer = new it.unisa.ocelot.c.compiler.writer.ASTWriter();
@@ -263,7 +265,7 @@ public class StandardBuilder extends Builder {
 		}
 
 		mainHeader.append("#define OCELOT_TESTFUNCTION ").append(this.testFunction).append("\n");
-
+//TODO mainHeader.append("int main(/*list of all parameter's data types*/);\n"
 		Utils.writeFile("jni/main.h", mainHeader.toString());
 
 		this.callMacro = macroDefiner.getCallMacro();

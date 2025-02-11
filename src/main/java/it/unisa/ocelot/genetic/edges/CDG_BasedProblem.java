@@ -96,7 +96,7 @@ public class CDG_BasedProblem extends StandardProblem {
 
 		
 		System.out.println("calling CalculateFitness in CDG_ before:"+fitnessEvalPC);
-		fitnessEvalPC = CalculateFitnessFromEvalPC2.CalculateFitness(arguments);
+		fitnessEvalPC = CalculateFitnessFromEvalPC3.CalculateFitness(arguments);
 		System.out.println("calling CalculateFitness in CDG_ after:"+fitnessEvalPC);
 		/*double fitnessPC1 = 0.0;
 		double fitnessPC2 = 0.0;

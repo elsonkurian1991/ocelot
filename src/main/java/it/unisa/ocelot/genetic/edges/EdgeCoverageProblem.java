@@ -80,7 +80,7 @@ public class EdgeCoverageProblem extends StandardProblem implements Serendipitou
 			Files.deleteIfExists(file.toPath());
 			//System.out.println("fitnessValues-----deleted");	
 		} catch (IOException e) {
-			System.err.println("Error deleting file fitnessValues.txt: " + e.getMessage());
+			System.err.println("Error deleting file fitnessValues.txt: from::>evaluateSolution () " + e.getMessage());
 		}
 		Object[][][] arguments = this.getParameters(solution);
 
