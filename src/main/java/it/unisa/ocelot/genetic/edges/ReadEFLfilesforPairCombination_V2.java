@@ -24,40 +24,39 @@ import io.github.pavelicii.allpairs4j.Case;
 import io.github.pavelicii.allpairs4j.Parameter;
 import javassist.expr.NewArray;
 
-public class ReadEFLfilesforPairCombination {
-	public static HashSet<EvalFunPathType> listofFunPaths = new HashSet<>();
-	public static HashSet<FunctionPair> listofIntRelationKeys = new HashSet<>();
-	public static Map<String, ArrayList<String>> listofKeys = new HashMap<>();
-	public static Map<String, EFLType> pathTCfitness = new HashMap<>();
-	public static Map<String, FitType> files_PC_PairCom_FitnessVals = new HashMap<>();
-	//public static Map<String, TestObjStateMachine> files_SM_PC_FitVals= new HashMap<>();
-	/*public static void main(String[] args) throws IOException {
-		RunEFLfilesforPairCombination();
-	}*/
+public class ReadEFLfilesforPairCombination_V2 {
+	public static HashSet<EvalFunPathType> listofFunPaths = new HashSet<>();//ok
+	public static HashSet<FunctionPair> listofIntRelationKeys = new HashSet<>();//ok
+	public static Map<String, ArrayList<String>> listofKeys = new HashMap<>();//ok
+	//public static Map<String, EFLType> pathTCfitness = new HashMap<>();
+	//public static Map<String, FitType> files_PC_PairCom_FitnessVals = new HashMap<>();
+	public static ArrayList<TestObjStateMachine> files_SM_PC_FitVals= new ArrayList<>();//ok make to list todo
+	
 	public static void RunEFLfilesforPairCombination() throws IOException{ //RunEFLfilesforPairCombination
-		
+		// read the test objectives file
 		try (BufferedReader br1 = new BufferedReader(new FileReader("./testObjectives.to"))) { 
 			String lineBr1;
 			while ((lineBr1 = br1.readLine()) != null) {
 				System.out.println(lineBr1);
-				AddFunPath(lineBr1);
+				AddFunPath(lineBr1); // add to the listofFunPaths??
 				System.out.println("next");
 			}
 		} catch (IOException e) {
 			System.err.println("Error reading testObjectives.to file: " + e.getMessage());
 		}
-			
-		try (BufferedReader br2 = new BufferedReader(new FileReader("./IntRelKeyList.kl"))) { // TODO somehow .
+		
+		// read the integration key relationship list from file	
+		try (BufferedReader br2 = new BufferedReader(new FileReader("./IntRelKeyList.kl"))) { 
 			String lineBr2;
 			while ((lineBr2 = br2.readLine()) != null) {
-				AddIntegrationKeyList(lineBr2);
+				AddIntegrationKeyList(lineBr2); // add to this listofIntRelationKeys??
 			}
 		} catch (IOException e) {
 			System.err.println("Error reading IntRelKeyList.kl file: " + e.getMessage());
 		}
-		//System.out.println(listofIntRelationKeys.toString());
-		System.out.println("listofFunPaths::");
-		System.out.println(listofFunPaths);
+
+		System.out.println("listofFunPaths::"+listofFunPaths);
+
 		int i=0;
 		int j=0;
 		for(EvalFunPathType keySet1: listofFunPaths) {
@@ -72,12 +71,12 @@ public class ReadEFLfilesforPairCombination {
 						listofKeys.put(String.valueOf(j), keySets);
 						j++;
 						i=generatePairWiseCombinations(keySet1,keySet2,i);
-						//System.out.println(pathTCfitness);
 					}
 
 				}
 			}
 		}
+		/*
 		//System.out.println(pathTCfitness);
         // Copy the entries of the map into a list
         List<Map.Entry<String, EFLType>> tempListforSort = new ArrayList<>(pathTCfitness.entrySet());
@@ -105,13 +104,16 @@ public class ReadEFLfilesforPairCombination {
         pathTCfitness = sortedMap;
      
         System.out.println("pathTCfitness::");
-        //System.out.println(pathTCfitness);
+        System.out.println(pathTCfitness);
 		//CheckTCisCovered(pathTCfitness);
 		
         System.out.println("files_PC_PairCom_FitnessVals::");
-		//System.out.println(files_PC_PairCom_FitnessVals);
-		System.out.println("files_PC_PairCom_FitnessVals::SIZE::");
-		System.out.println(files_PC_PairCom_FitnessVals.size());
+		System.out.println(files_PC_PairCom_FitnessVals);
+		
+		*/
+		 System.out.println("files_SM_PC_FitVals::");
+		 System.out.println(files_SM_PC_FitVals);
+	
 	}
 	
 	private static boolean checkHaveIntegrationRelation(EvalFunPathType keySet1, EvalFunPathType keySet2) {
@@ -168,18 +170,14 @@ public class ReadEFLfilesforPairCombination {
 		//EFLType temp= new EFLType(null, null);
 		for(String param1: params1) {
 			for(String param2: params2) {
-				List<FNameFitValType> fname_Val_Temp= new ArrayList<FNameFitValType>();
-				FNameFitValType temp_Fname_Val1 = new FNameFitValType(param1.toString(),Double.MAX_VALUE);
-				FNameFitValType temp_Fname_Val2 = new FNameFitValType(param2.toString(),Double.MAX_VALUE);
-				fname_Val_Temp.add(temp_Fname_Val1);
-				fname_Val_Temp.add(temp_Fname_Val2);
-				EFLType temp= new EFLType(false,false,"null", fname_Val_Temp);
-				pathTCfitness.put(String.valueOf(i), temp);//put all the combination for backup
-				//TestObjStateMachine testobjSM= new TestObjStateMachine(param1.toString(),Double.MAX_VALUE,param2.toString(),Double.MAX_VALUE);
-				//testObj SM for each pair.
-				FitType FitTypeTemp= new FitType(false, false, false, "null", true, fname_Val_Temp);//, testobjSM);
-				String pairCom=param1.toString()+","+param2.toString();
-				files_PC_PairCom_FitnessVals.put(pairCom, FitTypeTemp);// put all combination for calculate fitness 
+				String testObjOne=param1.toString() ;
+				double fitValOne=Double.MAX_VALUE;
+				String testObjTwo=param2.toString();
+				double fitValTwo=Double.MAX_VALUE;
+				TestObjStateMachine testobjSM= new TestObjStateMachine(testObjOne,fitValOne,testObjTwo,fitValTwo);
+				//String pairCom=param1.toString()+","+param2.toString();
+				files_SM_PC_FitVals.add(testobjSM); 
+				//files_SM_PC_FitVals.put(pairCom, testobjSM);
 				++i;
 			}	
 		}
@@ -187,7 +185,7 @@ public class ReadEFLfilesforPairCombination {
 		return i; 
 	}
 
-	public static void CheckTCisCovered(Map<String, EFLType> pathTCfitness2, Object[][][] args2) {
+	/*public static void CheckTCisCovered(Map<String, EFLType> pathTCfitness2, Object[][][] args2) {
 		//System.out.println(tempPathTCfitness);
 		//Object[][][] arguments = this.getParameters(solution);
 		String argsList="";
@@ -206,8 +204,8 @@ public class ReadEFLfilesforPairCombination {
 		argsList=argsList+";";
 		
 		System.out.println(argsList);
-		for(Entry<String, EFLType> entry:pathTCfitness.entrySet()) {
-			EFLType valueList= entry.getValue();
+		for(Entry<String, TestObjStateMachine> entry:files_SM_PC_FitVals.entrySet()) {
+			TestObjStateMachine valueList= entry.getValue();
 			
 			List<FNameFitValType> fnameVals=valueList.getFname_Val(); 
 			if((fnameVals.get(0).getFitnessVal()==0)&&(fnameVals.get(1).getFitnessVal()==0)){
@@ -226,7 +224,7 @@ public class ReadEFLfilesforPairCombination {
 		}
 			
 	}
-		
+	*/	
 	public static void AddFunPath(String line) {
 		// TODO Auto-generated method stub
 		//HashSet<EvalFunPathType> evalFunPaths = new HashSet<>();

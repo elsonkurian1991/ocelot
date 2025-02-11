@@ -16,10 +16,12 @@ import it.unisa.ocelot.c.cfg.nodes.CFGNode;
 import it.unisa.ocelot.conf.ConfigManager;
 import it.unisa.ocelot.genetic.VariableTranslator;
 import it.unisa.ocelot.genetic.edges.CalculateFitnessFromEvalPC2;
-import it.unisa.ocelot.genetic.edges.CalculateFitnessFromEvalPC3;
+import it.unisa.ocelot.genetic.edges.CalculateFitnessFromEvalPC4;
 import it.unisa.ocelot.genetic.edges.DMCExperiment;
 import it.unisa.ocelot.genetic.edges.FitType;
 import it.unisa.ocelot.genetic.edges.ReadEFLfilesforPairCombination;
+import it.unisa.ocelot.genetic.edges.ReadEFLfilesforPairCombination_V2;
+import it.unisa.ocelot.genetic.edges.TestObjStateMachine;
 import it.unisa.ocelot.runnable.Run;
 import it.unisa.ocelot.suites.TestSuiteGenerationException;
 import it.unisa.ocelot.suites.generators.CascadeableGenerator;
@@ -144,7 +146,7 @@ public class DynamicMcCabeTestSuiteGenerator extends TestSuiteGenerator implemen
 						// String key = entry.getKey();
 						// boolean isCovered= entry.getValue().isTestCovered() &&
 						// entry.getValue().isFirst();
-						String params = CalculateFitnessFromEvalPC3.GetArguInString(numericParams);
+						String params = CalculateFitnessFromEvalPC4.GetArguInString(numericParams);
 						boolean foundTCParams = false;
 						if (entry.getValue().getArgumentList().contains(params)) {
 							foundTCParams = true;
@@ -184,11 +186,34 @@ public class DynamicMcCabeTestSuiteGenerator extends TestSuiteGenerator implemen
 				 * System.out.println("ERRORE"); }
 				 */
 				calculator.calculateCoverage(suite);
-				// this.println("Partial coverage: " + calculator.getBranchCoverage());
 
+				this.println("Partial coverage: " + calculator.getBranchCoverage());
+				this.budgetManager.updateTargets(mcCabeCalculator.extimateMissingTargets());
+				
+				for(TestObjStateMachine sm:ReadEFLfilesforPairCombination_V2.files_SM_PC_FitVals) {
+					String params=CalculateFitnessFromEvalPC4.GetArguInString(numericParams);
+					boolean foundTCParams=false;
+					if(sm.getArgumentList().contains(params)) {
+						foundTCParams=true;
+					}
+					if(!sm.isGenerated() && foundTCParams) {
+						sm.setGenerated(true);
+					}
+				
+				}
+					
+				/*for(Entry<String, FType> fitnessGenVal : CalculateFitnessFromEvalPC.filesWithFitnessVals.entrySet()){
+					String key = fitnessGenVal.getKey();
+					boolean isCovered= fitnessGenVal.getValue().isTestCovered() && fitnessGenVal.getValue().isFirst();
+					if(!fitnessGenVal.getValue().isTestGenerated()) {
+						CalculateFitnessFromEvalPC.filesWithFitnessVals.put(key, new FType(Double.MAX_VALUE, false, isCovered,false));
+					}
+					
+					
+				}*/
 				finish = true;
-				for (FitType fitnessCovered : ReadEFLfilesforPairCombination.files_PC_PairCom_FitnessVals.values()) {
-					finish = finish && fitnessCovered.isTestGenerated();
+				for(TestObjStateMachine sm: ReadEFLfilesforPairCombination_V2.files_SM_PC_FitVals) {
+					finish=finish && sm.isGenerated();
 				}
 				/*
 				 * for(FType fitnessCovered :

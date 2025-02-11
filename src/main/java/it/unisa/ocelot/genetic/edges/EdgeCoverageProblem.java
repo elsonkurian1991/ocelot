@@ -113,7 +113,7 @@ public class EdgeCoverageProblem extends StandardProblem implements Serendipitou
 			double fitnessEvalPC = 0.0;
 			// System.out.println("calling CalculateFitness in EdgeCov_
 			// before:"+fitnessEvalPC);
-			fitnessEvalPC = CalculateFitnessFromEvalPC3.CalculateFitness(arguments);
+			fitnessEvalPC = CalculateFitnessFromEvalPC4.CalculateFitness(arguments);
 
 			objective = bdalListener.getNormalizedBranchDistance() + bdalListener.getApproachLevel() + fitnessEvalPC;
 

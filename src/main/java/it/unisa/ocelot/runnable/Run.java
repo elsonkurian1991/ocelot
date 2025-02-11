@@ -28,6 +28,8 @@ import it.unisa.ocelot.conf.ConfigManager;
 import it.unisa.ocelot.genetic.edges.CalculateFitnessFromEvalPC3;
 import it.unisa.ocelot.genetic.edges.FitType;
 import it.unisa.ocelot.genetic.edges.ReadEFLfilesforPairCombination;
+import it.unisa.ocelot.genetic.edges.ReadEFLfilesforPairCombination_V2;
+import it.unisa.ocelot.genetic.edges.TestObjStateMachine;
 import it.unisa.ocelot.runnable.runners.ExecuteExperiment;
 import it.unisa.ocelot.runnable.runners.ExecuteWholeCoverage;
 import it.unisa.ocelot.runnable.runners.GenAndWrite;
@@ -80,13 +82,13 @@ public class Run {
 			logWriter.append("\n");
 			logWriter.append("Info:");
 			logWriter.append("\n");
-			ReadEFLfilesforPairCombination.RunEFLfilesforPairCombination(); // run this to read the efl file and create pairwise combinations. find a best place to call this
+			ReadEFLfilesforPairCombination_V2.RunEFLfilesforPairCombination(); // run this to read the efl file and create pairwise combinations. find a best place to call this
 			logWriter.append("\n");
 			logWriter.append("List of PC PairCombinations:");
 			logWriter.append("\n");
-			for(Entry<String, FitType> entry:ReadEFLfilesforPairCombination.files_PC_PairCom_FitnessVals.entrySet()) {
-				logWriter.append(entry.getKey().toString());
-				logWriter.append("\n");
+			for(TestObjStateMachine sm:ReadEFLfilesforPairCombination_V2.files_SM_PC_FitVals) {
+				logWriter.append(sm.getSMPairName().toString());
+				//logWriter.append("\n");
 			}
 			logWriter.append("\n");
 			
@@ -137,23 +139,23 @@ public class Run {
 	}
 	private static void PrintNumOfPathCovered() {
 
-		int totalPairCombination= ReadEFLfilesforPairCombination.files_PC_PairCom_FitnessVals.size();
+		int totalPairCombination= ReadEFLfilesforPairCombination_V2.files_SM_PC_FitVals.size();
 		int totalPairTestGenerated = 0;
 		String pairList="";
 		logWriter.append("\n");
 		System.out.println("Test case NOT generated for following pair combination: ");
 		logWriter.append("Test case NOT generated for following pair combination: ");
 		logWriter.append("\n");logWriter.append("\n");
-		for (Entry<String, FitType> set : ReadEFLfilesforPairCombination.files_PC_PairCom_FitnessVals.entrySet()) {	
+		for (TestObjStateMachine sm : ReadEFLfilesforPairCombination_V2.files_SM_PC_FitVals) {	
 
-			if(set.getValue().isTestGenerated()) {
+			if(sm.isGenerated()) {
 				totalPairTestGenerated=totalPairTestGenerated+1;
-				pairList=pairList+set.getKey()+"\n";
+				pairList=pairList+sm.getSMPairName();
 			}
 			else {
-				//System.out.println(set.getKey());
-				logWriter.append(set.getKey().toString());
-				logWriter.append("\n");
+				System.out.println(sm.getSMPairName());
+				logWriter.append(sm.getSMPairName().toString());
+				//logWriter.append("\n");
 			}
 		}
 		logWriter.append("\n");logWriter.append("\n");

@@ -11,6 +11,7 @@ public class FitType {
 	private String argumentList;
 	private boolean fillFnameVal;
     private List<FNameFitValType> Fname_Val= new ArrayList<FNameFitValType>();
+    //private TestObjStateMachine testobjSM= new TestObjStateMachine();
     
 	public FitType(boolean testCovered,boolean testGenerated,boolean first,String argumentList,boolean fillFnameVal,List<FNameFitValType> Fname_Val) {
 		// TODO Auto-generated constructor stub
@@ -20,6 +21,7 @@ public class FitType {
 		this.argumentList=argumentList;
 		this.fillFnameVal=fillFnameVal;
 		this.Fname_Val=Fname_Val;
+		//this.testobjSM=testobjSM;
 	}
 	public FitType(boolean testCovered,boolean testGenerated,boolean first,String argumentList,boolean fillFnameVal) {
 		// TODO Auto-generated constructor stub
@@ -43,7 +45,7 @@ public class FitType {
 	public String toString() {
 		return "FitType [testCovered=" + testCovered + ", testGenerated=" + testGenerated + ", first=" + first
 				+ ", argumentList=" + argumentList + ", fillFnameVal=" + fillFnameVal + ", Fname_Val=" + Fname_Val
-				+ "]"+System.lineSeparator();
+				+ "]";
 	}
 
 	@Override
@@ -104,6 +106,7 @@ public class FitType {
 	public void setFname_Val(List<FNameFitValType> fname_Val) {
 		Fname_Val = fname_Val;
 	}
+	
 
 
 
