@@ -65,3 +65,5 @@ testobject/
 fitnessValues.txt
 testObjectives.to
 unitLevelComponents.txt
+
+config.properties
