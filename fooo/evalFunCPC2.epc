@@ -1,1 +1,0 @@
-(0 <= resultB % 2 && resultB % 2 <= 1) ? (resultB % 2)  : (2 - (resultB % 2))
