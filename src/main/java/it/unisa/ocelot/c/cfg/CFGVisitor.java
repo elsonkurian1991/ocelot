@@ -85,10 +85,10 @@ public class CFGVisitor extends ASTVisitor {
 		CType[] parameterTypes = new CType[typesDefiner.getFunctionParameters().size()];
 		for (int i = 0; i < typesDefiner.getFunctionParameters().size(); i++) {
 			String type = typesDefiner.getFunctionParameters().get(i).toString();
-			if (type.startsWith("int"))
-				parameterTypes[i] = new CInteger(type.contains("*"));
-			else
+			if (type.startsWith("double")||type.startsWith("float"))
 				parameterTypes[i] = new CDouble(type.contains("*"));
+			else
+				parameterTypes[i] = new CInteger(type.contains("*"));
 		}
 		
 		this.graph.setParameterTypes(parameterTypes);

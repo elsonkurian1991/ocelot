@@ -88,7 +88,7 @@ public class Run {
 			logWriter.append("\n");
 			for(TestObjStateMachine sm:ReadEFLfilesforPairCombination_V2.files_SM_PC_FitVals) {
 				logWriter.append(sm.getSMPairName().toString());
-				//logWriter.append("\n");
+				logWriter.append("\n");
 			}
 			logWriter.append("\n");
 			
@@ -153,9 +153,9 @@ public class Run {
 				pairList=pairList+sm.getSMPairName();
 			}
 			else {
-				System.out.println(sm.getSMPairName());
+				//System.out.println(sm.getSMPairName());
 				logWriter.append(sm.getSMPairName().toString());
-				//logWriter.append("\n");
+				logWriter.append("\n");
 			}
 		}
 		logWriter.append("\n");logWriter.append("\n");
