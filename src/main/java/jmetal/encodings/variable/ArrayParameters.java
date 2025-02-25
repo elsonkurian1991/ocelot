@@ -73,6 +73,7 @@ public class ArrayParameters extends ArrayReal {
 		this.id = id;
 
 		for (int i = 0; i < size_; i++) {
+			//array_[i] = (double) PseudoRandom.randInt((int)problem_.getLowerLimit(id,i),(int)problem_.getUpperLimit(id, i));
 			array_[i] = PseudoRandom.randDouble()
 					* (problem_.getUpperLimit(id, i) - problem_.getLowerLimit(id, i))
 					+ problem_.getLowerLimit(id, i);
