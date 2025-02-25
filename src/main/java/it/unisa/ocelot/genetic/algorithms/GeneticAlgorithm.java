@@ -137,33 +137,17 @@ public class GeneticAlgorithm extends OcelotAlgorithm
 		} else {
 			population = lastPopulation;
 		}
-
-		Solution newSolution;
-		List<Solution> solutionList = new ArrayList<>();
-		for (int i = 0; i < population.getCapacity() - population.size(); i++) {
-			newSolution = new Solution(problem_);
-			solutionList.add(newSolution);
-		}
-
+		
+		boolean targetCovered = false;
+		
 		for (int i = 0; i < population.size(); i++) {
+			// this is checking already ext pop...
 			Solution solution = population.get(i);
 			prepareSerendipitous();
 			problem_.evaluate(solution);
 			checkSerendipitous(solution);
 			evaluations++;
-
-		}
-		
-		boolean targetCovered = false;
-		
-		for (Solution solution : solutionList) {
-			prepareSerendipitous();
-			problem_.evaluate(solution);
-			checkSerendipitous(solution);
-
-			population.add(solution);
-
-			evaluations++;
+			// put break?
 			
 			if (solution.getObjective(0) == 0.0) {
 				targetCovered = true;//we cover once we find the fitness.
@@ -171,61 +155,110 @@ public class GeneticAlgorithm extends OcelotAlgorithm
 			}
 		}
 
-		population.sort(comparator);
-		/*
-		boolean targetCovered = false;
-		
-		for (int i = 0; i < populationSize; i++) {
-			if (population.get(i).getObjective(0) == 0.0) {
-				targetCovered = true;//we cover once we find the fitness.
-				break;
+		if(!targetCovered) {
+			Solution newSolution;
+			List<Solution> solutionList = new ArrayList<>();
+			for (int i = 0; i < population.getCapacity() - population.size(); i++) {
+				newSolution = new Solution(problem_);
+				solutionList.add(newSolution);
 			}
-		}*/
-
-		// Generations
-		while (evaluations < maxEvaluations && !targetCovered) {
-			// Copy the best two individuals to the offspring population
-			offspringPopulation.add(new Solution(population.get(0)));
-			offspringPopulation.add(new Solution(population.get(1)));
-
-			Solution[] parents = new Solution[2];
-			List<Solution> solutions = new ArrayList<>();
-			for (int i = 0; i < (populationSize / 2) - 1; i++) {
-				if (evaluations < maxEvaluations) {
-					// obtain parents
-					parents[0] = (Solution) selectionOperator.execute(population);
-					parents[1] = (Solution) selectionOperator.execute(population);
-					Solution[] offSpring = (Solution[]) crossoverOperator.execute(parents);
-					mutationOperator.execute(offSpring[0]);
-					mutationOperator.execute(offSpring[1]);
-					solutions.add(offSpring[0]);
-					solutions.add(offSpring[1]);
-				} // if
-			} // for
-
-			for (Solution solution : solutions) {
+			
+			/*
+			for (int i = 0; i < population.size(); i++) {
+				// this is checking already ext pop...
+				Solution solution = population.get(i);
 				prepareSerendipitous();
 				problem_.evaluate(solution);
 				checkSerendipitous(solution);
-
-				offspringPopulation.add(solution);
-				
+				evaluations++;
+				// put break?
+			}
+			*/
+			
+			for (Solution solution : solutionList) {
+				// this checking new gen pop....
+				prepareSerendipitous();
+				problem_.evaluate(solution);
+				checkSerendipitous(solution);
+	
+				population.add(solution);
+	
 				evaluations++;
 				
 				if (solution.getObjective(0) == 0.0) {
-					targetCovered = true;
+					targetCovered = true;//we cover once we find the fitness.
 					break;
 				}
 			}
-
-			// The offspring population becomes the new current population
-			population.clear();
-			for (int i = 0; i < offspringPopulation.size(); i++) {
-				population.add(offspringPopulation.get(i));
-			}
-			offspringPopulation.clear();
+	
 			population.sort(comparator);
-		} // while
+			/*
+			boolean targetCovered = false;
+			
+			for (int i = 0; i < populationSize; i++) {
+				if (population.get(i).getObjective(0) == 0.0) {
+					targetCovered = true;//we cover once we find the fitness.
+					break;
+				}
+			}*/
+	
+			// Generations
+			System.out.println("GA maxEvaluations before offspring generation: "+maxEvaluations);
+			while (evaluations < maxEvaluations && !targetCovered) {
+				System.out.println("GA evaluations performed before current offspring generation:" + evaluations);
+				// Copy the best two individuals to the offspring population
+				offspringPopulation.add(new Solution(population.get(0)));
+				offspringPopulation.add(new Solution(population.get(1)));
+	
+				Solution[] parents = new Solution[2];
+				List<Solution> solutions = new ArrayList<>();
+				for (int i = 0; i < (populationSize / 2) - 1; i++) {
+					if (evaluations < maxEvaluations) {
+						// obtain parents
+						parents[0] = (Solution) selectionOperator.execute(population);
+						parents[1] = (Solution) selectionOperator.execute(population);
+						Solution[] offSpring = (Solution[]) crossoverOperator.execute(parents);
+						mutationOperator.execute(offSpring[0]);
+						mutationOperator.execute(offSpring[1]);
+						solutions.add(offSpring[0]);
+						solutions.add(offSpring[1]);
+					} // if
+				} // for
+	
+				for (Solution solution : solutions) {
+					prepareSerendipitous();
+					problem_.evaluate(solution);
+					checkSerendipitous(solution);
+	
+					offspringPopulation.add(solution);
+					
+					evaluations++;
+					
+					if (solution.getObjective(0) == 0.0) {
+						targetCovered = true;
+						break;
+					}
+				}
+	
+				int popSize = population.getCapacity();
+				population.setCapacity(population.size()+offspringPopulation.size());
+				
+				// The offspring population becomes the new current population
+				//population.clear(); //clear after the off spring population is added
+				for (int i = 0; i < offspringPopulation.size(); i++) {
+					population.add(offspringPopulation.get(i));
+				}
+				offspringPopulation.clear();
+				population.sort(comparator);
+				
+				for (int i = population.getCapacity() - 1; i >= popSize; i--) {
+					population.remove(i);
+				}
+				population.setCapacity(popSize);
+				
+			} // while
+		}
+		population.sort(comparator);
 
 		// Return a population with the best individual
 		SolutionSet resultPopulation = new SolutionSet(1);
