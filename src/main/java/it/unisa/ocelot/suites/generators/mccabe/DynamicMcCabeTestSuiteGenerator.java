@@ -74,8 +74,10 @@ public class DynamicMcCabeTestSuiteGenerator extends TestSuiteGenerator implemen
 
 		LabeledEdge currentTarget = cfg.getStart().navigate(cfg).goFlow().edge();
 
-		System.out.println("Number of experiments: " + config.getMaxEvaluations() / (config.getPopulationSize() * 10));
-		this.setupBudgetManager(config.getMaxEvaluations() / (config.getPopulationSize() * 10));
+		//System.out.println("Number of experiments: " + config.getMaxEvaluations() / (config.getPopulationSize() * 10));
+		//this.setupBudgetManager(config.getMaxEvaluations() / (config.getPopulationSize() * 10));
+		this.setupBudgetManager(1);
+		
 		// this.setupBudgetManager(mcCabeCalculator.extimateMissingTargets());
 
 		SolutionSet seedPopulation = null;
@@ -232,12 +234,16 @@ public class DynamicMcCabeTestSuiteGenerator extends TestSuiteGenerator implemen
 					System.out.println("reached finish for next target");
 				}
 				i++;
-
+				/*
 				System.out.println(
 						"Number of experiments: " + (((config.getMaxEvaluations() - budgetManager.getConsumedBudget())
 								/ (config.getPopulationSize() * 10)) + 1));
 				this.budgetManager.updateTargets(((config.getMaxEvaluations() - budgetManager.getConsumedBudget())
 						/ (config.getPopulationSize() * 10)) + 1);
+				*/
+				System.out.println(
+						"Number of experiments: 1");
+				this.budgetManager.updateTargets(1);
 
 				int no = budgetManager.getConsumedBudget();
 				int nos = budgetManager.getExperimentBudget(exp);
