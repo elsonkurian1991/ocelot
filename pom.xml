@@ -4,7 +4,7 @@
     <groupId>ocelot</groupId>
     <artifactId>ocelot</artifactId>
     <version>0.0.1-SNAPSHOT</version>
-
+	<packaging>jar</packaging>
     <build>
         <sourceDirectory>src/main/java</sourceDirectory>
         <testSourceDirectory>src/test/java</testSourceDirectory>
@@ -16,11 +16,39 @@
                 <configuration>
                     <source>1.8</source>
                     <target>1.8</target>
-                    <encoding>UTF-8</encoding>
+                    <encoding>UTF-8</encoding>                 
+                </configuration>
+            </plugin>
+            <plugin>
+    			<groupId>org.springframework.boot</groupId>
+    			<artifactId>spring-boot-maven-plugin</artifactId>
+    			 <version>2.6.15</version>
+    			<configuration>
+        			<includeSystemScope>true</includeSystemScope>
+   				 </configuration>
+   				 <executions>
+				<execution>
+					<goals>
+						<goal>repackage</goal>
+					</goals>
+				</execution>
+			</executions>
+			</plugin>         
+			<plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <configuration>
+                    <archive>
+                        <manifest>
+                            <mainClass>
+                                it.unisa.ocelot.runnable.Run
+                            </mainClass>
+                        </manifest>
+                    </archive>
                 </configuration>
             </plugin>
         </plugins>
-
+		
         <resources>
             <resource>
                 <directory>src/test/resources</directory>
@@ -41,7 +69,6 @@
             <artifactId>commons-lang3</artifactId>
             <version>3.5</version>
         </dependency>
-
         <!-- https://mvnrepository.com/artifact/org.jgrapht/jgrapht-core -->
         <dependency>
             <groupId>org.jgrapht</groupId>
@@ -111,13 +138,12 @@
 		    <artifactId>allpairs4j</artifactId>
 		    <version>1.0.1</version>
 		</dependency>
-		
-        <dependency>
+		<dependency>
             <groupId>org.eclipse.cdt</groupId>
             <artifactId>core</artifactId>
             <version>5.9.1</version>
-            <scope>system</scope>
-            <systemPath>${basedir}/libs/org.eclipse.cdt.core_5.9.1.201502131403.jar</systemPath>
+            <scope>system</scope> 
+             <systemPath>${basedir}/libs/org.eclipse.cdt.core_5.9.1.201502131403.jar</systemPath>
         </dependency>
 
         <dependency>
