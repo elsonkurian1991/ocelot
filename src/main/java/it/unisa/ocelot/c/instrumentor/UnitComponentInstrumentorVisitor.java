@@ -469,7 +469,7 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 			arguments[2] = new CASTLiteralExpression(CASTLiteralExpression.lk_integer_constant,
 					String.valueOf(CaseEdge.retrieveUniqueId(label)).toCharArray());
 			//aCase.getChildren. find the list of children.
-			System.out.println(aCase.getChildren().length);
+			//System.out.println(aCase.getChildren().length);
 			if(aCase.getChildren().length==0) {
 				arguments[3] = distanceCalculation.copy(); // 1 return
 				arguments[4] = distanceCalculation.copy(); // 0 return
@@ -607,7 +607,6 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 
 	public int visit(IASTStatement statement) {
 		this.functionCallsInExpressions.clear();
-
 		if (statement instanceof IASTIfStatement)
 			this.visit((IASTIfStatement) statement);
 		else if (statement instanceof IASTSwitchStatement) {
@@ -704,8 +703,8 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 		operationArgs[0] = this.castToDouble(this.transformDistanceExpression(operand1, false, true));
 		operationArgs[1] = this.castToDouble(this.transformDistanceExpression(operand2, false, true));
 
-				System.out.println("FROM:" + new ASTWriter().write(pExpression));
-				System.out.println("TO:" + new ASTWriter().write(operationArgs[0]) + " " + pOperator +" " + new ASTWriter().write(operationArgs[1]));
+				//System.out.println("FROM:" + new ASTWriter().write(pExpression));
+				//System.out.println("TO:" + new ASTWriter().write(operationArgs[0]) + " " + pOperator +" " + new ASTWriter().write(operationArgs[1]));
 
 		IASTFunctionCallExpression operationFunction;
 		if (op1Type instanceof IBasicType && op2Type instanceof IBasicType
