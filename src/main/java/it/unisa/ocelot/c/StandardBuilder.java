@@ -108,12 +108,12 @@ public class StandardBuilder extends Builder {
 		for(String unitComponent:this.testIncludes) {
 			int lastIndex=unitComponent.lastIndexOf('/');
 			String testFunName=unitComponent.substring(lastIndex+1);
-			System.out.println(testFunName);
+			//System.out.println(testFunName);
 			String tempUnitComponent=testFunName.substring(0, testFunName.length()-2);
 			//System.out.println(tempUnitComponent);
 			if(unitLevelComponents.contains(tempUnitComponent)) {
 				String nameofComponent="jni/"+unitComponent.substring(lastIndex+1);
-				System.out.println(nameofComponent);
+				//System.out.println(nameofComponent);
 
 				testIncludesTemp[0]=unitComponent;
 				IASTTranslationUnit translationUnit = GCC.getTranslationUnit(unitComponent, testIncludesTemp).copy();
@@ -130,39 +130,32 @@ public class StandardBuilder extends Builder {
 				// NOTE: macroDefine MUST preceed instrumentor in visit
 				translationUnit.accept(macroDefiner);
 				translationUnit.accept(instrumentor);
-                */
+				 */
 				HashMap<String, ArrayList<String>> componentsTestObjectives = new HashMap<String, ArrayList<String>>();
 
 				// Instruments unit-level components
 				//for (String component : unitLevelComponents) {
-					ExternalReferencesVisitor referencesVisitor1 = new ExternalReferencesVisitor(tempUnitComponent);
-					translationUnit.accept(referencesVisitor1);
+				ExternalReferencesVisitor referencesVisitor1 = new ExternalReferencesVisitor(tempUnitComponent);
+				translationUnit.accept(referencesVisitor1);
 
-					ArrayList<String> testObjectives = new ArrayList<String>();
-					UnitComponentInstrumentorVisitor instrumentor1 = new UnitComponentInstrumentorVisitor(tempUnitComponent,
-							testObjectives);
-					//if(testObjectives.isEmpty()) continue;
-					componentsTestObjectives.put(tempUnitComponent, testObjectives);
-					MacroDefinerVisitor macroDefiner1 = new MacroDefinerVisitor(tempUnitComponent,
-							referencesVisitor1.getExternalReferences());
+				ArrayList<String> testObjectives = new ArrayList<String>();
+				UnitComponentInstrumentorVisitor instrumentor1 = new UnitComponentInstrumentorVisitor(tempUnitComponent,
+						testObjectives);
+				//if(testObjectives.isEmpty()) continue;
+				componentsTestObjectives.put(tempUnitComponent, testObjectives);
+				MacroDefinerVisitor macroDefiner1 = new MacroDefinerVisitor(tempUnitComponent,
+						referencesVisitor1.getExternalReferences());
 
-					// NOTE: macroDefine MUST preceed instrumentor in visit
-					translationUnit.accept(macroDefiner1);
-					translationUnit.accept(instrumentor1);
+				// NOTE: macroDefine MUST preceed instrumentor in visit
+				translationUnit.accept(macroDefiner1);
+				translationUnit.accept(instrumentor1);
 				//}
-					if (componentsTestObjectives.containsKey(tempUnitComponent) && componentsTestObjectives.get(tempUnitComponent) != null && componentsTestObjectives.get(tempUnitComponent).isEmpty()) {
-
-				//	if(componentsTestObjectives.computeIfAbsent(tempUnitComponent, null) == null) {
-						System.out.println(tempUnitComponent);
-						System.out.println("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%");
-					}
-					//if(componentsTestObjectives.containsValue(tempUnitComponent))
-				reportComponentsTestObjectives(componentsTestObjectives);
+				
 
 				it.unisa.ocelot.c.compiler.writer.ASTWriter writer = new it.unisa.ocelot.c.compiler.writer.ASTWriter();
 
 				String outputCode = writer.write(translationUnit);
-
+				
 				StringBuilder result = new StringBuilder();
 				/*for (IASTPreprocessorStatement macro : macros) {
 					if (macro instanceof IASTPreprocessorIncludeStatement) {
@@ -191,7 +184,33 @@ public class StandardBuilder extends Builder {
 				mainHeader.append("#define OCELOT_TESTFUNCTION ").append(testFunName).append("\n");
 
 				Utils.writeFile("jni/main.h", mainHeader.toString());
-
+				//TODO here we consider only true branch. need a false branch also!!
+				if (componentsTestObjectives.containsKey(tempUnitComponent) && componentsTestObjectives.get(tempUnitComponent) != null && componentsTestObjectives.get(tempUnitComponent).isEmpty()) {
+					// add a temp branch because there is no branch in the function. 
+					//System.out.println(tempUnitComponent);
+					
+					ArrayList<String> tempTestObj= new ArrayList<String>();
+					tempTestObj.add("branch0-true");
+					componentsTestObjectives.replace(tempUnitComponent, tempTestObj);
+					String tempBranchInfo="if(_f_ocelot_branch_out(\""+tempUnitComponent+"\",0,true,0,1)){"
+							+ "\n}\n";
+					try {// Read that C file, and temp branch
+						String filePath="jni/"+tempUnitComponent+".c";
+						//System.out.println(filePath);
+						String content = new String(Files.readAllBytes(Paths.get(filePath)));
+						// Find the position of the last '}'
+						int lastBraceIndex = content.lastIndexOf('}');
+						if (lastBraceIndex != -1) {
+							// Insert the string before the last '}'
+							String modifiedContent = content.substring(0, lastBraceIndex) + tempBranchInfo + content.substring(lastBraceIndex);
+							Files.write(Paths.get(filePath), modifiedContent.getBytes());
+							System.out.println(tempUnitComponent+" File is modified successfully with temp branch.");
+						} 
+					} catch (IOException e) {
+						e.printStackTrace();
+					}
+				}
+				reportComponentsTestObjectives(componentsTestObjectives);
 				//this.callMacro = macroDefiner.getCallMacro();
 				//this.externDeclarations = referencesVisitor.getExternalDeclarations();
 			}
@@ -217,7 +236,7 @@ public class StandardBuilder extends Builder {
 		translationUnit.accept(macroDefiner);
 		translationUnit.accept(instrumentor);
 
-		HashMap<String, ArrayList<String>> componentsTestObjectives = new HashMap<String, ArrayList<String>>();
+		/*HashMap<String, ArrayList<String>> componentsTestObjectives = new HashMap<String, ArrayList<String>>();
 
 		// Instruments unit-level components
 		for (String component : unitLevelComponents) {
@@ -234,9 +253,11 @@ public class StandardBuilder extends Builder {
 			// NOTE: macroDefine MUST preceed instrumentor in visit
 			translationUnit.accept(macroDefiner1);
 			translationUnit.accept(instrumentor1);
+			
 		}
+		System.out.println(componentsTestObjectives.toString());
 		reportComponentsTestObjectives(componentsTestObjectives);
-
+		*/
 		it.unisa.ocelot.c.compiler.writer.ASTWriter writer = new it.unisa.ocelot.c.compiler.writer.ASTWriter();
 
 		String outputCode = writer.write(translationUnit);
@@ -265,7 +286,7 @@ public class StandardBuilder extends Builder {
 		}
 
 		mainHeader.append("#define OCELOT_TESTFUNCTION ").append(this.testFunction).append("\n");
-//TODO mainHeader.append("int main(/*list of all parameter's data types*/);\n"
+		//TODO mainHeader.append("int main(/*list of all parameter's data types*/);\n"
 		Utils.writeFile("jni/main.h", mainHeader.toString());
 
 		this.callMacro = macroDefiner.getCallMacro();
