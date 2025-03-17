@@ -29,8 +29,8 @@ public class CalculateFitnessFromEvalPC4 {
 		double fitness = 0.0;
 		//  to reset the fitness value for each iterations.
 		for (TestObjStateMachine sm : ReadEFLfilesforPairCombination_V2.files_SM_PC_FitVals) {
-			sm.setFitValOne(Double.MAX_VALUE);
-			sm.setFitValTwo(Double.MAX_VALUE);
+			sm.setFitValOne(1);
+			sm.setFitValTwo(1);
 		}
 		// read the fitness values from the file.
 		try (BufferedReader f_Val_File = new BufferedReader(new FileReader("./fitnessValues.txt"))) { 
@@ -55,6 +55,8 @@ public class CalculateFitnessFromEvalPC4 {
 				boolean pairCovered = true;
 				if(!sm.isCovered()) {//is SM is covered?
 					pairCovered = false;
+					if(sm.fitValOne>1 || sm.fitValTwo>1)
+						System.err.println("Wrong fitness value! Val1:"+sm.fitValOne+" Val2:"+sm.fitValTwo);
 					fitness += sm.fitValOne+sm.fitValTwo; //add the fitness values
 					if(fitness == Double.POSITIVE_INFINITY) {
 						fitness= Double.MAX_VALUE;
@@ -95,20 +97,20 @@ public class CalculateFitnessFromEvalPC4 {
 	}
 
 	public static String GetArguInString(Object[][][] args2) {
-		String argsList = "";
+		StringBuilder argsList = new StringBuilder();
 		for (int i = 0; i < args2.length; i++) {
 			for (int j = 0; j < args2[i].length; j++) {
 				for (int k = 0; k < args2[i][j].length; k++) {
-					argsList = argsList + args2[i][j][k].toString();
-					argsList = argsList + ",";
+					argsList.append(args2[i][j][k]);
+					argsList.append(",");
 				}
 
 			}
 
 		}
-		argsList = argsList.substring(0, argsList.length() - 1);
-		argsList = argsList + ";";
-		return argsList;
+		argsList.deleteCharAt(argsList.length() - 1);
+		argsList.append(";");
+		return argsList.toString();
 	}
 
 	/*private static boolean checkIfKeySet(ArrayList<String> keySetsToCheck, String fileNameWOepc) {
