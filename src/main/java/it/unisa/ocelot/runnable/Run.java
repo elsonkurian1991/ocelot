@@ -10,6 +10,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.Map.Entry;
 import java.util.Scanner;
 import java.util.concurrent.TimeUnit;
@@ -57,6 +58,13 @@ public class Run {
 	public static final String localOcelotDir=System.getProperty("user.dir"); 
 	public static final boolean isExpWithEvalFun=true;// this will treat as our version of OCELOT
 	public static StringBuilder logWriter = new StringBuilder();
+	public static int population_size;
+	public static int evaluations_max;
+	enum State{
+		zeroCover,
+		oneCover,
+		twoCover
+	}
 	public static void main(String[] args) throws Exception {
 		if(isExpWithEvalFun) {
 			welcome();
@@ -79,18 +87,18 @@ public class Run {
 			runner.build();
 		runner.saveHash();
 		if(isExpWithEvalFun) {
-			logWriter.append("\n");
-			logWriter.append("Info:");
-			logWriter.append("\n");
+			//logWriter.append("\n");
+			//logWriter.append("Info:");
+			//logWriter.append("\n");
 			ReadEFLfilesforPairCombination_V2.RunEFLfilesforPairCombination(); // run this to read the efl file and create pairwise combinations. find a best place to call this
-			logWriter.append("\n");
-			logWriter.append("List of PC PairCombinations:");
-			logWriter.append("\n");
-			for(TestObjStateMachine sm:ReadEFLfilesforPairCombination_V2.files_SM_PC_FitVals) {
-				logWriter.append(sm.getSMPairName().toString());
-				logWriter.append("\n");
-			}
-			logWriter.append("\n");
+			//logWriter.append("\n");
+			//logWriter.append("List of PC PairCombinations:");
+			//logWriter.append("\n{\n");
+			//for(TestObjStateMachine sm:ReadEFLfilesforPairCombination_V2.files_SM_PC_FitVals) {
+				//logWriter.append(sm.getSMPairName().toString());
+				//logWriter.append("\n");
+			//}
+			//logWriter.append("}\n");
 			
 		}
 		runner.run();
@@ -101,15 +109,19 @@ public class Run {
 			long hours = time / 3600000;
 			long minutes = (time / 60000) % 60;
 			long seconds = (time / 1000) % 60;
+
+			PrintNumOfPathCovered();
 			System.out.println("Execution time: " + hours + " hours, " + minutes + " minutes, " + seconds + " seconds");
 			logWriter.append("Execution time: " + hours + " hours, " + minutes + " minutes, " + seconds + " seconds");
 			logWriter.append("\n");
-			PrintNumOfPathCovered();
+			//logWriter.append("\n");
+			/*logWriter.append("files_PC_PairCom_FitnessVals");*/
 			logWriter.append("\n");
-			logWriter.append("files_PC_PairCom_FitnessVals");
-			logWriter.append("\n");
-			logWriter.append(ReadEFLfilesforPairCombination.files_PC_PairCom_FitnessVals.toString());
+			logWriter.append(ReadEFLfilesforPairCombination_V2.files_SM_PC_FitVals.toString());
 			
+			/*for (TestObjStateMachine sm : ReadEFLfilesforPairCombination_V2.files_SM_PC_FitVals) {
+				
+			}*/
 			
 		}
 		createLogFile(logWriter);
@@ -142,32 +154,53 @@ public class Run {
 		int totalPairCombination= ReadEFLfilesforPairCombination_V2.files_SM_PC_FitVals.size();
 		int totalPairTestGenerated = 0;
 		String pairList="";
+		
 		logWriter.append("\n");
-		System.out.println("Test case NOT generated for following pair combination: ");
-		logWriter.append("Test case NOT generated for following pair combination: ");
-		logWriter.append("\n");logWriter.append("\n");
+		//System.out.println("Test case NOT generated for following pair combination: ");
+		//logWriter.append("Test case NOT generated for following pair combination: ");
+		//logWriter.append("\n");logWriter.append("\n");
+		ArrayList<String> listofObjNotCov=new ArrayList<String>();
 		for (TestObjStateMachine sm : ReadEFLfilesforPairCombination_V2.files_SM_PC_FitVals) {	
-
 			if(sm.isGenerated()) {
 				totalPairTestGenerated=totalPairTestGenerated+1;
 				pairList=pairList+sm.getSMPairName();
 			}
 			else {
+				if(sm.getFitValOne()!=0.0) {
+					if(!listofObjNotCov.contains(sm.getTestObjOne())){
+						listofObjNotCov.add(sm.getTestObjOne());
+					}
+				}
+				if(sm.getFitValTwo()!=0.0) {
+					if(!listofObjNotCov.contains(sm.getTestObjTwo())) {
+						listofObjNotCov.add(sm.getTestObjTwo());
+					}
+				}
+				
 				//System.out.println(sm.getSMPairName());
-				logWriter.append(sm.getSMPairName().toString());
-				logWriter.append("\n");
+				//logWriter.append(sm.getSMPairName().toString());
+				//logWriter.append("\n");
 			}
 		}
+		System.out.println(listofObjNotCov);
+		logWriter.append("\n");
+		logWriter.append("The covered pair combinations are: ");
+		logWriter.append("\n");logWriter.append("{\n");
+		//System.out.print(pairList);
+		logWriter.append(pairList.toString());
+		logWriter.append("}\n");
 		logWriter.append("\n");logWriter.append("\n");
+		logWriter.append("population.size:"+population_size);
+		logWriter.append("\n");logWriter.append("\n");
+		logWriter.append("evaluations.max:"+evaluations_max);
+		logWriter.append("\n");logWriter.append("\n");
+		System.out.println("population.size:"+population_size);
+		System.out.println("evaluations.max:"+evaluations_max);
 		System.out.println(totalPairTestGenerated+" out of "+totalPairCombination+" pair combination  covered in the generated test suite ");
 		logWriter.append(totalPairTestGenerated+" out of "+totalPairCombination+" pair combination  covered in the generated test suite ");
 		logWriter.append("\n");logWriter.append("\n");
 		//System.out.println("The covered pair combinations are: ");
-		logWriter.append("The covered pair combinations are: ");
-		logWriter.append("\n");logWriter.append("\n");
-		//System.out.print(pairList);
-		logWriter.append(pairList.toString());
-		logWriter.append("\n");
+		
 	}
 	private static void deleteOldEvalPCfiles(String directoryPath) {
 		File directory = new File(directoryPath);
@@ -227,6 +260,7 @@ public class Run {
 		if (this.runnerType == RUNNER_ILLEGAL) {
 			throw new IllegalArgumentException("Please, specify the type of runner (simple, experiment or write)");
 		}
+
 	}
 
 	public boolean mustBuild() {
@@ -317,6 +351,9 @@ public class Run {
 		builder.setOutput(System.out);
 
 		builder.build();
+		/*update the population.size and evaluations.max value to a var*/
+		evaluations_max= config.getMaxEvaluations();
+		population_size= config.getPopulationSize();
 	}
 
 	public void run() throws Exception {

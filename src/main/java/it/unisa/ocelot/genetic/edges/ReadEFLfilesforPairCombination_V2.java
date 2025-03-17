@@ -37,9 +37,9 @@ public class ReadEFLfilesforPairCombination_V2 {
 		try (BufferedReader br1 = new BufferedReader(new FileReader("./testObjectives.to"))) { 
 			String lineBr1;
 			while ((lineBr1 = br1.readLine()) != null) {
-				System.out.println(lineBr1);
+				//System.out.println(lineBr1);
 				AddFunPath(lineBr1); // add to the listofFunPaths??
-				System.out.println("next");
+				//System.out.println("next");
 			}
 		} catch (IOException e) {
 			System.err.println("Error reading testObjectives.to file: " + e.getMessage());
@@ -55,7 +55,7 @@ public class ReadEFLfilesforPairCombination_V2 {
 			System.err.println("Error reading IntRelKeyList.kl file: " + e.getMessage());
 		}
 
-		System.out.println("listofFunPaths::"+listofFunPaths);
+		//System.out.println("listofFunPaths::"+listofFunPaths);
 
 		int i=0;
 		int j=0;
@@ -111,8 +111,8 @@ public class ReadEFLfilesforPairCombination_V2 {
 		System.out.println(files_PC_PairCom_FitnessVals);
 		
 		*/
-		 System.out.println("files_SM_PC_FitVals::");
-		 System.out.println(files_SM_PC_FitVals);
+		 //System.out.println("files_SM_PC_FitVals::");
+		 //System.out.println(files_SM_PC_FitVals);
 	
 	}
 	
