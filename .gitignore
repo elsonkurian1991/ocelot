@@ -24,7 +24,19 @@ hs_err_pid*
 .classpath
 experiments/
 output/
+# jni files
 jni/
+!jni/pointers.h
+!jni/EN_CBridge.c
+!jni/ocelot.c
+!jni/CBridge.c
+!jni/ocelot.h
+!jni/nativelists.h
+!jni/nativelists.c
+!jni/lists.h
+!jni/lists.c
+!jni/CBridge.h
+
 libTest.so
 libTest.jnilib
 
@@ -36,11 +48,6 @@ outputs/
 
 /nbproject/private/
 /build/
-
-# jni files
-jni/main.c
-jni/main.h
-jni/makefile
 
 # netbeans file
 build.xml
