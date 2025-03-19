@@ -25,7 +25,7 @@ hs_err_pid*
 experiments/
 output/
 # jni files
-jni/
+jni/*
 !jni/pointers.h
 !jni/EN_CBridge.c
 !jni/ocelot.c
