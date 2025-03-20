@@ -34,14 +34,21 @@ public class CalculateFitnessFromEvalPC4 {
 		}
 		// read the fitness values from the file.
 		try (BufferedReader f_Val_File = new BufferedReader(new FileReader("./fitnessValues.txt"))) { 
-			String lineBr;
-			while ((lineBr = f_Val_File.readLine()) != null) {
-				FunBranchNameAndFitness infoFromLinebr= new FunBranchNameAndFitness();
-				infoFromLinebr= readInfoFromLine(infoFromLinebr,lineBr);
-				for (TestObjStateMachine sm : ReadEFLfilesforPairCombination_V2.files_SM_PC_FitVals) {
-					//update the fitness values for each state machine (considering each pair as a SM).
-					sm.transition(infoFromLinebr);
-				}
+			String lineBr  = f_Val_File.readLine();
+			HashMap<String, Double> fitnessHashMap = new HashMap<String, Double>();
+			while (lineBr  != null) {
+				FunBranchNameAndFitness infoFromLinebr =  readInfoFromLine(lineBr);
+				fitnessHashMap.put(infoFromLinebr.getFunBranchName(), infoFromLinebr.getCurrFitnessVal());
+				lineBr  = f_Val_File.readLine();
+			}
+			for (TestObjStateMachine sm : ReadEFLfilesforPairCombination_V2.files_SM_PC_FitVals) {
+				//update the fitness values for each state machine (considering each pair as a SM).
+				if (fitnessHashMap.get(sm.getTestObjOne()) != null) {
+					FunBranchNameAndFitness infoFromLinebr= new FunBranchNameAndFitness(sm.getTestObjOne(), fitnessHashMap.get(sm.getTestObjOne()));
+					sm.transition(infoFromLinebr);}
+				if (fitnessHashMap.get(sm.getTestObjTwo()) != null) {
+					FunBranchNameAndFitness infoFromLinebr= new FunBranchNameAndFitness(sm.getTestObjTwo(), fitnessHashMap.get(sm.getTestObjTwo()));
+					sm.transition(infoFromLinebr);}
 			}
 		}
 		catch (IOException e) {
@@ -83,13 +90,14 @@ public class CalculateFitnessFromEvalPC4 {
 
 	}
 
-	private static FunBranchNameAndFitness readInfoFromLine(FunBranchNameAndFitness infoFromLinebr, String lineBr) {
+	private static FunBranchNameAndFitness readInfoFromLine(String lineBr) {
+		FunBranchNameAndFitness infoFromLinebr = new FunBranchNameAndFitness();
 		String listOfItems[] = lineBr.split(";");
 		String fName = listOfItems[0];
 		String branchName = listOfItems[1];
 		String fitnessVal = listOfItems[2];
 		String fun_BranchName = fName + "_" + branchName;
-		fitnessVal = fitnessVal.replaceAll(",", ".");
+		fitnessVal = fitnessVal.replace(",", ".");
 		double currFitness = Double.parseDouble(fitnessVal);
 		infoFromLinebr.setFunBranchName(fun_BranchName);
 		infoFromLinebr.setCurrFitnessVal(currFitness);
