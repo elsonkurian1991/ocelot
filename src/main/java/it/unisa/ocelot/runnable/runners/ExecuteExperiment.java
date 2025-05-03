@@ -5,6 +5,7 @@ import it.unisa.ocelot.c.cfg.CFG;
 import it.unisa.ocelot.c.cfg.CFGBuilder;
 import it.unisa.ocelot.c.types.CTypeHandler;
 import it.unisa.ocelot.conf.ConfigManager;
+import it.unisa.ocelot.genetic.objectives.GenericObjective;
 import it.unisa.ocelot.simulator.CBridge;
 import it.unisa.ocelot.suites.benchmarks.BenchmarkCalculator;
 import it.unisa.ocelot.suites.benchmarks.BranchCoverageBenchmarkCalculator;
@@ -79,8 +80,10 @@ public class ExecuteExperiment implements Runnable {
 					typeHandler.getPointers().size(),
 					typeHandler.getPointers().size());
 	
+			//TODO:LUCA: define objectives here
+			List<GenericObjective> objectives = new ArrayList<GenericObjective>();
 			for (int i = 0; i < config.getExperimentRuns(); i++) {
-				runOnce(i);
+				runOnce(i, objectives);
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -89,15 +92,16 @@ public class ExecuteExperiment implements Runnable {
 	}
 	
 	@SuppressWarnings("rawtypes")
-	private void runOnce(int pTime) throws Exception {
+	private void runOnce(int pTime, List<GenericObjective> objectives) throws Exception {
 		String folderPath = this.config.getResultsFolder() + "/" + config.getTestFunction() + "/";
 		File folder = new File(folderPath);
 		folder.mkdirs();
 		
 		for (String generatorName : this.experimentGenerators) {
 			System.out.println("RUNNING " + generatorName);
+
 			TestSuiteGenerator generator = TestSuiteGeneratorHandler.getInstance(
-					generatorName, config, cfg);
+					generatorName, config, cfg, objectives);
 			
 			if (this.config.isExperimentMinimization()) {
 				CascadeTestSuiteGenerator realGenerator = new CascadeTestSuiteGenerator(config, cfg);

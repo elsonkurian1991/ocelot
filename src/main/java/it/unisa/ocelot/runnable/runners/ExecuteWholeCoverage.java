@@ -53,7 +53,8 @@ public class ExecuteWholeCoverage implements Runnable {
 			if (config.getUI())
 				showUI(cfg);
 	
-			TestSuiteGenerator generator = TestSuiteGeneratorHandler.getInstance(config, cfg);
+			//TODO: LUCA add objectives here if used
+			TestSuiteGenerator generator = TestSuiteGeneratorHandler.getInstance(config, cfg, null);
 			TestSuiteMinimizer minimizer = TestSuiteMinimizerHandler.getInstance(config);
 			
 			System.out.println("Generator: " + generator.getClass().getSimpleName());

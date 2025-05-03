@@ -1,28 +1,14 @@
-package it.unisa.ocelot.genetic.edges;
-
-import static org.mockito.Mockito.RETURNS_SMART_NULLS;
+package it.unisa.ocelot.genetic.fitness_functions;
 
 import java.io.BufferedReader;
-import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
+import it.unisa.ocelot.genetic.edges.FunBranchNameAndFitness;
+import it.unisa.ocelot.genetic.edges.ReadEFLfilesforPairCombination_V2;
+import it.unisa.ocelot.genetic.edges.TestObjStateMachine;
 
-import javax.swing.text.StyleContext.SmallAttributeSet;
-
-import org.apache.commons.math3.analysis.function.Max;
-
-import io.github.pavelicii.allpairs4j.AllPairs;
-import io.github.pavelicii.allpairs4j.Parameter;
-
-public class CalculateFitnessFromEvalPC4 {
+public class FitnessPC_Pair {
 
 	
 	public static double CalculateFitness(Object[][][] arguments) {

@@ -55,7 +55,8 @@ public class GenAndWrite {
 			int mcCabePaths = cfg.edgeSet().size() - cfg.vertexSet().size() + 1;
 			System.out.println("Cyclomatic complexity: " + mcCabePaths);
 	
-			TestSuiteGenerator generator = TestSuiteGeneratorHandler.getInstance(config, cfg);
+			//TODO: LUCA add objectives here if used
+			TestSuiteGenerator generator = TestSuiteGeneratorHandler.getInstance(config, cfg, null);
 			TestSuiteMinimizer minimizer = TestSuiteMinimizerHandler.getInstance(config);
 			
 			System.out.println("Generator: " + generator.getClass().getSimpleName());

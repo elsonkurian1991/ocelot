@@ -12,11 +12,11 @@ enum State{
 }
 
 public class TestObjStateMachine {
-	String testObjOne;
-	double fitValOne;
-	String testObjTwo;
-	double fitValTwo;
-	State currState;
+	private String testObjOne;
+	private double fitValOne;
+	private String testObjTwo;
+	private double fitValTwo;
+	private State currState;
 
 	boolean isGenerated;
 	String argumentList;
