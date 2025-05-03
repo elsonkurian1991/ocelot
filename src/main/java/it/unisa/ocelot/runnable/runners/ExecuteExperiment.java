@@ -6,6 +6,7 @@ import it.unisa.ocelot.c.cfg.CFGBuilder;
 import it.unisa.ocelot.c.types.CTypeHandler;
 import it.unisa.ocelot.conf.ConfigManager;
 import it.unisa.ocelot.genetic.objectives.GenericObjective;
+import it.unisa.ocelot.genetic.objectives.PC_PairsManager;
 import it.unisa.ocelot.simulator.CBridge;
 import it.unisa.ocelot.suites.benchmarks.BenchmarkCalculator;
 import it.unisa.ocelot.suites.benchmarks.BranchCoverageBenchmarkCalculator;
@@ -80,8 +81,9 @@ public class ExecuteExperiment implements Runnable {
 					typeHandler.getPointers().size(),
 					typeHandler.getPointers().size());
 	
-			//TODO:LUCA: define objectives here
-			List<GenericObjective> objectives = new ArrayList<GenericObjective>();
+			//LUCA: load list of objectives
+			List<GenericObjective> objectives = PC_PairsManager.loadObjectives();	
+			
 			for (int i = 0; i < config.getExperimentRuns(); i++) {
 				runOnce(i, objectives);
 			}

@@ -50,6 +50,6 @@ public abstract class GenericObjective {
 		return "GenericObjective [isCovered=" + isCovered + ", objectiveID=" + objectiveID + "]";
 	}
 	
-	public abstract double getFitness();
+	public abstract double getFitness(Object[][][] arguments);
 
 }

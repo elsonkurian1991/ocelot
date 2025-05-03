@@ -10,7 +10,6 @@ import it.unisa.ocelot.c.cfg.CFG;
 import it.unisa.ocelot.genetic.OcelotAlgorithm;
 import it.unisa.ocelot.genetic.many_objective.MOSAGenericCoverageProblem;
 import it.unisa.ocelot.genetic.objectives.GenericObjective;
-import it.unisa.ocelot.genetic.objectives.ObjectivesLoader;
 import it.unisa.ocelot.util.Front;
 import jmetal.core.Operator;
 import jmetal.core.Solution;

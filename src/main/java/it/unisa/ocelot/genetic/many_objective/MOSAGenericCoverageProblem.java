@@ -7,6 +7,7 @@ import it.unisa.ocelot.c.cfg.CFG;
 import it.unisa.ocelot.c.types.CType;
 import it.unisa.ocelot.genetic.StandardProblem;
 import it.unisa.ocelot.genetic.VariableTranslator;
+import it.unisa.ocelot.genetic.objectives.BranchDistanceCache;
 import it.unisa.ocelot.genetic.objectives.GenericObjective;
 import it.unisa.ocelot.simulator.CBridge;
 import it.unisa.ocelot.simulator.EventsHandler;
@@ -69,11 +70,12 @@ public class MOSAGenericCoverageProblem extends StandardProblem {
 		
 		simulator.simulate();
 		
+		//LUCA: read fitnessValues.txt (branch fitnesses) file and store it. More efficient than reading it for every objective.
+		BranchDistanceCache.cacheFitnessValues();
 		for (GenericObjective objective : objectives) {
 			if (objective.isCovered())
 				continue;
-			double fitness = objective.getFitness();
-
+			double fitness = objective.getFitness(arguments);
 			solution.setObjective(objective.getObjectiveID(), fitness);
 		}
 		
