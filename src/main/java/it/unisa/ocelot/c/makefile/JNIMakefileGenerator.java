@@ -47,7 +47,7 @@ public abstract class JNIMakefileGenerator {
 				+ " RAMS_LinkingConsistency_DC_Lib_DM_TIM_BaliseMM_LMC.c"
 				+ " LinkingConsistencyAndManagement_LMC_Lib_DM_TIM_BaliseMM_LMC.c"
 				+ " UnexpectedDirection_DC_Lib_DM_TIM_BaliseMM_LMC.c"
-				+ " dataBaseForOcelot.c"
+				+ " dataBaseForKcg.c"
 				+ " kcg_consts.c"
 				+ " kcg_types.c"
 				+ " initDataBase.c"
@@ -70,7 +70,7 @@ public abstract class JNIMakefileGenerator {
 		
 		String moreOptions = this.getMoreOptions();
 	
-		String result = "CC = gcc-9 \n\n" +
+		String result = "CC ="+this.getCCompiler()+" \n\n" +
 		"JAVA_HOME = " + this.getJavaHome() + "\n\n" +
 		"SYSTEM_INCLUDE = " + this.getSystemInclude() + "\n\n" +
 		"GLIB2_INCUDE = " + glib2paths + "\n" +

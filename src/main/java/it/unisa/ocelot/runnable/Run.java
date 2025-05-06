@@ -132,7 +132,7 @@ public class Run {
 	private static void welcome() throws InterruptedException {
 		System.out.println("WELCOME");
 		System.out.println("Did you update the localOcelotDir, function name, parameter list ?");
-		System.out.println("Please update the UnitLevelComponemts.txt and IntRelKeyList.kl file,\n IMP: update: JNIMakefileGenerator-> gcc -> support files and then execute, thanks");
+		System.out.println("Please update the UnitLevelComponemts.txt and IntRelKeyList.kl file,\n IMP: update: it.unisa.ocelot.c.makefile.JNIMakefileGenerator-> gcc -> support files and then execute, thanks");
 		System.out.println("Y/N");
 		TimeUnit.SECONDS.sleep(1);
 		System.out.println("Hope you updated the parameters... else...update the files and then...restart...");
