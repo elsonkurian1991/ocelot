@@ -8,23 +8,22 @@ import java.util.HashMap;
 import it.unisa.ocelot.genetic.edges.FunBranchNameAndFitness;
 
 public class BranchDistanceCache {
-	
+
 	private static HashMap<String, Double> fitnessHashMap = new HashMap<String, Double>();
 
 	public static void cacheFitnessValues() {
-		try (BufferedReader f_Val_File = new BufferedReader(new FileReader("./fitnessValues.txt"))) { 
-			String lineBr  = f_Val_File.readLine();
-			while (lineBr  != null) {
-				FunBranchNameAndFitness infoFromLinebr =  readInfoFromLine(lineBr);
+		try (BufferedReader f_Val_File = new BufferedReader(new FileReader("./fitnessValues.txt"))) {
+			String lineBr = f_Val_File.readLine();
+			while (lineBr != null) {
+				FunBranchNameAndFitness infoFromLinebr = readInfoFromLine(lineBr);
 				fitnessHashMap.put(infoFromLinebr.getFunBranchName(), infoFromLinebr.getCurrFitnessVal());
-				lineBr  = f_Val_File.readLine();
+				lineBr = f_Val_File.readLine();
 			}
-		}
-		catch (IOException e) {
+		} catch (IOException e) {
 			System.err.println("Error reading fitnessValues.txt file: " + e.getMessage());
 		}
 	}
-	
+
 	private static FunBranchNameAndFitness readInfoFromLine(String lineBr) {
 		FunBranchNameAndFitness infoFromLinebr = new FunBranchNameAndFitness();
 		String listOfItems[] = lineBr.split(";");
@@ -34,6 +33,8 @@ public class BranchDistanceCache {
 		String fun_BranchName = fName + "_" + branchName;
 		fitnessVal = fitnessVal.replace(",", ".");
 		double currFitness = Double.parseDouble(fitnessVal);
+		if (currFitness > 1)
+			System.err.println("Wrong fitness value! Branch:" + fun_BranchName + " Fitness:" + currFitness);
 		infoFromLinebr.setFunBranchName(fun_BranchName);
 		infoFromLinebr.setCurrFitnessVal(currFitness);
 		return infoFromLinebr;
