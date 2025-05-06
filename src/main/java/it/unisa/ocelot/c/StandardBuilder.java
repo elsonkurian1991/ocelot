@@ -1,13 +1,21 @@
 package it.unisa.ocelot.c;
 
+import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.ObjectOutputStream;
+import java.lang.reflect.Field;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.apache.commons.io.IOUtils;
 import org.eclipse.cdt.core.dom.ast.IASTNode;
@@ -19,9 +27,11 @@ import it.unisa.ocelot.c.compiler.GCC;
 import it.unisa.ocelot.c.instrumentor.ExternalReferencesVisitor;
 import it.unisa.ocelot.c.instrumentor.InstrumentorVisitor;
 import it.unisa.ocelot.c.instrumentor.MacroDefinerVisitor;
+import it.unisa.ocelot.c.instrumentor.StatementTreePrinter;
 import it.unisa.ocelot.c.instrumentor.UnitComponentInstrumentorVisitor;
 import it.unisa.ocelot.conf.ConfigManager;
 import it.unisa.ocelot.util.Utils;
+import it.unisa.ocelot.genetic.edges.TestObjStateMachine;
 
 public class StandardBuilder extends Builder {
 	private String testFilename;
@@ -33,6 +43,11 @@ public class StandardBuilder extends Builder {
 	private String externDeclarations;
 
 	private ConfigManager config;
+	private HashMap<String, ArrayList<String>> componentsTestObjectives;
+	
+	// Maps the caller function to an hashmap, that maps the called function 
+	// to the braches required to take that function
+	private Map<String, Map<String, List<String>>> nodeBranchMap;
 
 	public StandardBuilder(String pTestFilename, String pTestFunction, String[] pTestIncludes) {
 		super();
@@ -42,6 +57,8 @@ public class StandardBuilder extends Builder {
 		this.testFunction = pTestFunction;
 		this.testIncludes = pTestIncludes;
 		this.unitLevelComponents = readUnitLevelComponents();
+		this.componentsTestObjectives = new HashMap<String, ArrayList<String>>();
+		this.nodeBranchMap = new HashMap<String, Map<String, List<String>>>();
 	}
 
 	private List<String> readUnitLevelComponents() {
@@ -105,6 +122,11 @@ public class StandardBuilder extends Builder {
 	private void instrumentUnitComponents() throws Exception {
 		int arr=0;
 		String[] testIncludesTemp= new String[1];
+		
+		// This function maps the caller function to an hashmap, that maps the called function 
+		// to the braches required to take that function
+
+		
 		for(String unitComponent:this.testIncludes) {
 			int lastIndex=unitComponent.lastIndexOf('/');
 			String testFunName=unitComponent.substring(lastIndex+1);
@@ -117,7 +139,13 @@ public class StandardBuilder extends Builder {
 
 				testIncludesTemp[0]=unitComponent;
 				IASTTranslationUnit translationUnit = GCC.getTranslationUnit(unitComponent, testIncludesTemp).copy();
-
+				
+				/*System.out.println(translationUnit);
+				Field[] fields = translationUnit.getClass().getDeclaredFields();
+				for (Field field: fields) {
+					System.out.println(field);
+				}*/
+				
 				/*IASTPreprocessorStatement[] macros = translationUnit.getAllPreprocessorStatements();
 
 				ExternalReferencesVisitor referencesVisitor = new ExternalReferencesVisitor(testFunName);
@@ -131,7 +159,7 @@ public class StandardBuilder extends Builder {
 				translationUnit.accept(macroDefiner);
 				translationUnit.accept(instrumentor);
 				 */
-				HashMap<String, ArrayList<String>> componentsTestObjectives = new HashMap<String, ArrayList<String>>();
+				
 
 				// Instruments unit-level components
 				//for (String component : unitLevelComponents) {
@@ -139,8 +167,9 @@ public class StandardBuilder extends Builder {
 				translationUnit.accept(referencesVisitor1);
 
 				ArrayList<String> testObjectives = new ArrayList<String>();
+				
 				UnitComponentInstrumentorVisitor instrumentor1 = new UnitComponentInstrumentorVisitor(tempUnitComponent,
-						testObjectives);
+						testObjectives, unitLevelComponents);
 				//if(testObjectives.isEmpty()) continue;
 				componentsTestObjectives.put(tempUnitComponent, testObjectives);
 				MacroDefinerVisitor macroDefiner1 = new MacroDefinerVisitor(tempUnitComponent,
@@ -148,7 +177,19 @@ public class StandardBuilder extends Builder {
 
 				// NOTE: macroDefine MUST preceed instrumentor in visit
 				translationUnit.accept(macroDefiner1);
+				
+				// Used to print the structure of the AST for debugging
+				//StatementTreePrinter printer = new StatementTreePrinter();
+				//translationUnit.accept(printer);
+				
 				translationUnit.accept(instrumentor1);
+				
+				// Need to store this one outside the loop to generate the branch pairs
+				nodeBranchMap.put(tempUnitComponent, instrumentor1.functionBranchPairMap);
+				
+				System.out.println(tempUnitComponent + "::" + instrumentor1.functionBranchPairMap.keySet());
+				
+				
 				//}
 				
 
@@ -190,7 +231,7 @@ public class StandardBuilder extends Builder {
 					//System.out.println(tempUnitComponent);
 					
 					ArrayList<String> tempTestObj= new ArrayList<String>();
-					tempTestObj.add("branch0-true");
+					tempTestObj.add(tempUnitComponent + ":" + "branch0-true");
 					componentsTestObjectives.replace(tempUnitComponent, tempTestObj);
 					String tempBranchInfo="if(_f_ocelot_branch_out(\""+tempUnitComponent+"\",0,true,0,1)){"
 							+ "\n}\n";
@@ -216,6 +257,147 @@ public class StandardBuilder extends Builder {
 			}
 
 		}
+		
+		// Martino
+		// This code generate the pairs
+		generatePairs();
+
+		/**
+		direct
+		for (String func : nodeBranchMap.keySet()) {
+			Map<String, List<String>> functionBranchPairMap = nodeBranchMap.get(func);
+			for (String calledFunc : functionBranchPairMap.keySet()) {
+				// have to multiply some of the starting function branches with all of the arriving function branches
+				cartesianProduct(functionBranchPairMap.get(calledFunc), 
+			}
+		}**/
+		
+	}
+	
+	private void generatePairs() {
+		int indirectionLevel = 2;
+		List<List<TestObjStateMachine>> indirectPairs = new ArrayList<List<TestObjStateMachine>>();
+		for (int j = 0; j < indirectionLevel; j++) {
+			indirectPairs.add(j, new ArrayList<TestObjStateMachine>());
+		}
+		for(String unitComponent:this.testIncludes) {
+			int lastIndex=unitComponent.lastIndexOf('/');
+			String testFunName=unitComponent.substring(lastIndex+1);
+
+			String tempUnitComponent=testFunName.substring(0, testFunName.length()-2);
+			
+
+			if(unitLevelComponents.contains(tempUnitComponent)) {
+				List<List<TestObjStateMachine>>  localIndirectPairs = generatePairforFunction(tempUnitComponent, indirectionLevel);
+				for (int j = 0; j < indirectionLevel; j++) {
+					indirectPairs.get(j).addAll(localIndirectPairs.get(j));
+				}
+				}
+			}
+		try { 
+            FileOutputStream fos = new FileOutputStream("PairsData"); 
+            ObjectOutputStream oos = new ObjectOutputStream(fos); 
+            oos.writeObject(indirectPairs); 
+            oos.close(); 
+            fos.close(); 
+        } 
+        catch (IOException ioe) { 
+            ioe.printStackTrace(); 
+        } 
+	}
+	
+	private List<List<TestObjStateMachine>> generatePairforFunction(String functionName, int indirectionLevel) {
+		Map<String, List<String>> functionToBranchesMap = nodeBranchMap.get(functionName);
+		List<List<TestObjStateMachine>> indirectPairs = new ArrayList<List<TestObjStateMachine>>();
+		for (int j = 0; j < indirectionLevel; j++) {
+			indirectPairs.add(j, new ArrayList<TestObjStateMachine>());
+		}
+		for(String calledFunc : functionToBranchesMap.keySet()) {
+			//List<String> usedBranches = functionToBranchesMap.get(calledFunc)
+			//		.stream().map(branch -> functionName + ":" +  branch).collect(Collectors.toList());;
+			List<String> usedBranches = functionToBranchesMap.get(calledFunc);
+			List<List<String>> indirectBraches = generateIndirectPairs(calledFunc, indirectionLevel, functionName);
+			List<List<TestObjStateMachine>>  localIndirectPairs  = cartesianProduct(usedBranches, indirectBraches);
+			
+			for (int j = 0; j < indirectionLevel; j++) {
+				indirectPairs.get(j).addAll(localIndirectPairs.get(j));
+			}
+
+			
+		}
+		return indirectPairs;
+	}
+	
+	private List<List<String>> generateIndirectPairs(String calledFunction, int indirectionLevel, String startingFunctionName) {
+		List<List<String>> overallIndirectBraches = new ArrayList<List<String>>();
+		//List<String> levelIndirectBranches = new ArrayList<String>();
+		/*for(String indirectFunction : nodeBranchMap.get(functionName).keySet()) {
+			if (indirectFunction != startingFunctionName) {
+				ArrayList<String> branchesToAdd = componentsTestObjectives.get(indirectFunction);
+				levelIndirectBranches.addAll(branchesToAdd);
+			}
+		}*/
+		ArrayList<String> DirectBranchesToAdd = componentsTestObjectives.get(calledFunction);
+		overallIndirectBraches.add(DirectBranchesToAdd);
+		if (indirectionLevel > 1) {
+			List<List<List<String>>> localOverallIndirectBraches = new ArrayList<List<List<String>>>(); // for and aggregate generate pairs
+			for(String indirectFunction: nodeBranchMap.get(calledFunction).keySet()) {
+				if (indirectFunction != startingFunctionName) {
+					localOverallIndirectBraches.add(generateIndirectPairs(indirectFunction, indirectionLevel - 1, startingFunctionName));
+				}
+			}
+			if (localOverallIndirectBraches.isEmpty()) {
+				for (int i = 0; i < indirectionLevel - 1; i++) {
+					overallIndirectBraches.add(new ArrayList<String>());
+				}
+			}
+			else {
+				overallIndirectBraches.addAll(aggregatePairsByIndirectionLevel(localOverallIndirectBraches));
+				}
+			}
+		return overallIndirectBraches;
+
+	}
+	
+	private List<List<String>> aggregatePairsByIndirectionLevel(List<List<List<String>>> localOverallIndirectBraches){
+		List<List<String>> overallIndirectBraches = new ArrayList<List<String>>();
+		try {
+		for (int i = 0; i < localOverallIndirectBraches.get(0).size(); i++) {
+			List<String> aggregator = new ArrayList<String>();
+			for(List<List<String>> indirectTreeBranches: localOverallIndirectBraches) {
+				aggregator.addAll(indirectTreeBranches.get(i)); 
+			}
+			overallIndirectBraches.add(aggregator);
+		}
+    } 
+    catch (Exception ioe) { 
+        ioe.printStackTrace(); 
+    } 
+		
+		
+		return overallIndirectBraches;
+	}
+	
+	private List<List<TestObjStateMachine>> cartesianProduct(List<String> setA, List<List<String>> indirectBraches) {
+	    List<List<TestObjStateMachine>> cartesianSet = new ArrayList<List<TestObjStateMachine>>();
+
+	    for (int j = 0; j < indirectBraches.size(); j++) {
+	    	cartesianSet.add(j, new ArrayList<TestObjStateMachine>());
+	    }
+	    
+	    for (String i: setA) {
+	    	for (int j = 0; j < indirectBraches.size(); j++) {
+	        	for (String k: indirectBraches.get(j)) {
+	                String testObjOne=i;
+					double fitValOne=Double.MAX_VALUE;
+					String testObjTwo=k;
+					double fitValTwo=Double.MAX_VALUE;
+					TestObjStateMachine testobjSM = new TestObjStateMachine(testObjOne,fitValOne,testObjTwo,fitValTwo); 
+					cartesianSet.get(j).add(testobjSM);
+				}
+	        }
+	    }
+	    return cartesianSet;
 	}
 
 	private void instrument() throws Exception {

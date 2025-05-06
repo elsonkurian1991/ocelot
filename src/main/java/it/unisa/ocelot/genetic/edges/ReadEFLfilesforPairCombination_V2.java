@@ -2,8 +2,10 @@ package it.unisa.ocelot.genetic.edges;
 
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.ObjectInputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -31,9 +33,28 @@ public class ReadEFLfilesforPairCombination_V2 {
 	//public static Map<String, EFLType> pathTCfitness = new HashMap<>();
 	//public static Map<String, FitType> files_PC_PairCom_FitnessVals = new HashMap<>();
 	public static ArrayList<TestObjStateMachine> files_SM_PC_FitVals= new ArrayList<>();//ok make to list todo
+	public static List<List<TestObjStateMachine>> ListOfSMs;
 	
+	@SuppressWarnings("unchecked")
 	public static void RunEFLfilesforPairCombination() throws IOException{ //RunEFLfilesforPairCombination
 		// read the test objectives file
+        try
+        {   
+            // Reading the object from a file
+            FileInputStream file = new FileInputStream("PairsData");
+            ObjectInputStream in = new ObjectInputStream(file);
+            
+            ListOfSMs = (List<List<TestObjStateMachine>>)in.readObject();
+            
+            in.close();
+            file.close();
+        }
+        
+        catch(Exception ex)
+        {
+        	System.err.println("Error reading testObjectives.to file: " + ex.getMessage());
+        }
+		
 		try (BufferedReader br1 = new BufferedReader(new FileReader("./testObjectives.to"))) { 
 			String lineBr1;
 			while ((lineBr1 = br1.readLine()) != null) {

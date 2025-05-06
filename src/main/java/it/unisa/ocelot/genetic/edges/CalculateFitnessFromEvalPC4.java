@@ -28,9 +28,11 @@ public class CalculateFitnessFromEvalPC4 {
 	public static double CalculateFitness(Object[][][] arguments) {
 		double fitness = 0.0;
 		//  to reset the fitness value for each iterations.
-		for (TestObjStateMachine sm : ReadEFLfilesforPairCombination_V2.files_SM_PC_FitVals) {
-			sm.setFitValOne(1);
-			sm.setFitValTwo(1);
+		for (List<TestObjStateMachine> smList : ReadEFLfilesforPairCombination_V2.ListOfSMs) {
+			for (TestObjStateMachine sm : smList) {
+				sm.setFitValOne(1);
+				sm.setFitValTwo(1);
+			}
 		}
 		// read the fitness values from the file.
 		try (BufferedReader f_Val_File = new BufferedReader(new FileReader("./fitnessValues.txt"))) { 
@@ -41,14 +43,16 @@ public class CalculateFitnessFromEvalPC4 {
 				fitnessHashMap.put(infoFromLinebr.getFunBranchName(), infoFromLinebr.getCurrFitnessVal());
 				lineBr  = f_Val_File.readLine();
 			}
-			for (TestObjStateMachine sm : ReadEFLfilesforPairCombination_V2.files_SM_PC_FitVals) {
-				//update the fitness values for each state machine (considering each pair as a SM).
-				if (fitnessHashMap.get(sm.getTestObjOne()) != null) {
-					FunBranchNameAndFitness infoFromLinebr= new FunBranchNameAndFitness(sm.getTestObjOne(), fitnessHashMap.get(sm.getTestObjOne()));
-					sm.transition(infoFromLinebr);}
-				if (fitnessHashMap.get(sm.getTestObjTwo()) != null) {
-					FunBranchNameAndFitness infoFromLinebr= new FunBranchNameAndFitness(sm.getTestObjTwo(), fitnessHashMap.get(sm.getTestObjTwo()));
-					sm.transition(infoFromLinebr);}
+			for (List<TestObjStateMachine> smList : ReadEFLfilesforPairCombination_V2.ListOfSMs) {
+				for (TestObjStateMachine sm : smList) {
+					//update the fitness values for each state machine (considering each pair as a SM).
+					if (fitnessHashMap.get(sm.getTestObjOne()) != null) {
+						FunBranchNameAndFitness infoFromLinebr= new FunBranchNameAndFitness(sm.getTestObjOne(), fitnessHashMap.get(sm.getTestObjOne()));
+						sm.transition(infoFromLinebr);}
+					if (fitnessHashMap.get(sm.getTestObjTwo()) != null) {
+						FunBranchNameAndFitness infoFromLinebr= new FunBranchNameAndFitness(sm.getTestObjTwo(), fitnessHashMap.get(sm.getTestObjTwo()));
+						sm.transition(infoFromLinebr);}
+				}
 			}
 		}
 		catch (IOException e) {
@@ -56,31 +60,32 @@ public class CalculateFitnessFromEvalPC4 {
 		}
 		//check the fitness and state is covered or not? of each SM
 		boolean isCoveredThisTime = false;
-		for (TestObjStateMachine sm : ReadEFLfilesforPairCombination_V2.files_SM_PC_FitVals) {
-			if (!sm.isGenerated()) {
-				//FitType tempVal = set.getValue();
-				boolean pairCovered = true;
-				if(!sm.isCovered()) {//is SM is covered?
-					pairCovered = false;
-					if(sm.getFitValOne()>1 || sm.getFitValTwo()>1)
-						System.err.println("Wrong fitness value! Val1:"+sm.getFitValOne()+" Val2:"+sm.getFitValTwo());
-					fitness += sm.getFitValOne()+sm.getFitValTwo(); //add the fitness values
-					if(fitness == Double.POSITIVE_INFINITY) {
-						fitness= Double.MAX_VALUE;
-					}
-				}				
-				if (pairCovered) {
-					isCoveredThisTime = true;
-					String tempArgs = sm.getArgumentList();
-					tempArgs = tempArgs.replaceAll("null", "");
-					String args = GetArguInString(arguments);
-					if (!tempArgs.contains(args)) {
-						tempArgs = tempArgs + args;
-					}
-					sm.setArgumentList(tempArgs);
-				} 
+		for (List<TestObjStateMachine> smList : ReadEFLfilesforPairCombination_V2.ListOfSMs) {
+			for (TestObjStateMachine sm : smList) {
+				if (!sm.isGenerated()) {
+					//FitType tempVal = set.getValue();
+					boolean pairCovered = true;
+					if(!sm.isCovered()) {//is SM is covered?
+						pairCovered = false;
+						if(sm.fitValOne>1 || sm.fitValTwo>1)
+							System.err.println("Wrong fitness value! Val1:"+sm.fitValOne+" Val2:"+sm.fitValTwo);
+						fitness += sm.fitValOne+sm.fitValTwo; //add the fitness values
+						if(fitness == Double.POSITIVE_INFINITY) {
+							fitness= Double.MAX_VALUE;
+						}
+					}				
+					if (pairCovered) {
+						isCoveredThisTime = true;
+						String tempArgs = sm.getArgumentList();
+						tempArgs = tempArgs.replaceAll("null", "");
+						String args = GetArguInString(arguments);
+						if (!tempArgs.contains(args)) {
+							tempArgs = tempArgs + args;
+						}
+						sm.setArgumentList(tempArgs);
+					} 
+				}
 			}
-			
 		}
 		if (isCoveredThisTime) {
 			return 0; //return 0 if the SM is covered in this time else sum of fitness values
@@ -96,7 +101,7 @@ public class CalculateFitnessFromEvalPC4 {
 		String fName = listOfItems[0];
 		String branchName = listOfItems[1];
 		String fitnessVal = listOfItems[2];
-		String fun_BranchName = fName + "_" + branchName;
+		String fun_BranchName = fName + ":" + branchName;
 		fitnessVal = fitnessVal.replace(",", ".");
 		double currFitness = Double.parseDouble(fitnessVal);
 		infoFromLinebr.setFunBranchName(fun_BranchName);

@@ -1,8 +1,12 @@
 package it.unisa.ocelot.c.instrumentor;
 
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Stack;
+
 
 import org.eclipse.cdt.core.dom.ast.ASTVisitor;
 import org.eclipse.cdt.core.dom.ast.IASTArraySubscriptExpression;
@@ -56,10 +60,17 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 	private List<IASTNode> typedefs;
 	private List<IASTExpression> functionCallsInExpressions;
 	private ArrayList<String> testObjectives;
+	// Map a function to all the branches that can be taken to reach that function
+	public Map<String, List<String>> functionBranchPairMap;
+	// Map a node in the AST to the branches taken to reach that node
+	private HashMap<IASTNode, List<String>> nodeBranchMap;
+	// A list of all the branches present in this function
+	//public List<String> functionBranches;
 
 	private Integer branchNumber;
+	private HashSet<String> targetFunctions;
 
-	public UnitComponentInstrumentorVisitor(String pInstrumentFunction, ArrayList<String> testObjectives) {
+	public UnitComponentInstrumentorVisitor(String pInstrumentFunction, ArrayList<String> testObjectives, List<String> functionNames) {
 		this.shouldVisitExpressions = true;
 		this.shouldVisitStatements = true;
 		this.shouldVisitDeclarations = true;
@@ -68,6 +79,7 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 		this.shouldVisitDeclSpecifiers = true;
 		this.shouldVisitPointerOperators = true;
 
+		// Function that i'm executing
 		this.functionName = pInstrumentFunction;
 
 		this.switchExpressions = new Stack<List<IASTStatement>>();
@@ -76,6 +88,13 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 
 		this.branchNumber = 0;
 		this.testObjectives = testObjectives;
+		
+
+		// Stores the names of the functions we are interested in for integration testing
+		this.functionBranchPairMap = new HashMap<>();
+		this.targetFunctions = new HashSet<String>(functionNames);
+		this.nodeBranchMap  = new HashMap<IASTNode, List<String>>();
+		
 	}
 
 	public List<IASTNode> getTypedefs() {
@@ -377,11 +396,54 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 	@Override
 	public int visit(IASTExpression expression) {
 		// this.transformDistanceExpression(expression, false, false);
-		return PROCESS_SKIP;
+		
+		//Martino
+        if (expression instanceof IASTFunctionCallExpression) {
+            IASTFunctionCallExpression call = (IASTFunctionCallExpression) expression;
+ 
+            IASTExpression functionNameExpr = call.getFunctionNameExpression();
+            String functionName = extractFunctionName(functionNameExpr);
+ 
+            if (functionName != null && targetFunctions.contains(functionName)) {
+                System.out.println("Found call to '" + functionName + "' at: " + expression.getFileLocation());
+                IASTNode ParentExpression = expression.getParent();
+                List<String> branchesTaken = new ArrayList<String>();
+                // Traverse the AST from bottom to top and collect the branches take to reach the function call
+                while (ParentExpression != null) {
+                	List<String> present = nodeBranchMap.get(ParentExpression);
+                	if (present != null) {
+                		branchesTaken.addAll(present);
+                	}
+                	ParentExpression = ParentExpression.getParent();
+                }
+                // check if the function has already associated some branches
+                List<String> present = functionBranchPairMap.get(functionName);
+            	if (present != null) {
+            		branchesTaken.addAll(present);
+            		functionBranchPairMap.put(functionName, branchesTaken);}
+            	else
+            		functionBranchPairMap.put(functionName, branchesTaken);
+            }
+        }
+
+		return PROCESS_CONTINUE;
 	}
+	
+	//Martino
+    private String extractFunctionName(IASTExpression expr) {
+        if (expr instanceof IASTIdExpression) {
+            return ((IASTIdExpression) expr).getName().toString();
+        } else if (expr instanceof IASTFieldReference) {
+            // for object.method() syntax
+            return ((IASTFieldReference) expr).getFieldName().toString();
+        }
+        // More complex expressions like (*fp)() could be handled here if needed
+        return null;
+    }
 
 	// TODO start from here
 	public void visit(IASTIfStatement statement) {
+		statement.getChildren();
 		IASTExpression[] instrArgs = new IASTExpression[5];
 		instrArgs[0] = new CASTLiteralExpression(CASTLiteralExpression.lk_string_literal,
 				("\"" + functionName + "\"").toCharArray());
@@ -397,6 +459,15 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 		IASTExpression resultExpression = buildFcallExpression(instrFunction);
 
 		statement.setConditionExpression(resultExpression);
+		
+		List<String> thenClause = new ArrayList<String>();
+		List<String> elseClause = new ArrayList<String>();
+		thenClause.add(functionName + ":" + "branch" + branchNumber + "-" + "true");
+		elseClause.add(functionName + ":" + "branch" + branchNumber + "-" + "false");
+		nodeBranchMap.put((IASTNode) statement.getThenClause(), thenClause);
+		if (statement.getElseClause() != null) {
+			nodeBranchMap.put(statement.getElseClause(), elseClause);
+			}
 
 		addTestObjectives(branchNumber);
 		branchNumber++;
@@ -540,8 +611,37 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 
 		substitute.addStatement(statement);
 	}
+	
+	private void markWhileForDoStatements(IASTStatement statement, IASTNode statementBody) throws Exception  {
+		List<String> Body = new ArrayList<String>();
+		List<String> outsideWhile = new ArrayList<String>();
+		Body.add(functionName + ":" + "branch" + branchNumber + "-" + "true");
+		outsideWhile.add(functionName + ":" + "branch" + branchNumber + "-" + "false");
+		nodeBranchMap.put(statementBody, Body);
+		
+		IASTNode Parent = statement.getParent();
+		if (Parent instanceof IASTCompoundStatement) {
+			IASTCompoundStatement ParentCompound = (IASTCompoundStatement) Parent;
+			IASTStatement[] StatementsList = ParentCompound.getStatements();
+			boolean postStatement = false;
+			for(IASTStatement stm : StatementsList) {
+				if (postStatement) {
+					List<String> present = nodeBranchMap.get((IASTNode) stm);
+					if (present != null)
+						outsideWhile.addAll(present);
+					nodeBranchMap.put(stm, outsideWhile);
+				}
+				if(stm.equals(statement))
+					postStatement = true;
+				
+			}
+		}
+		else {
+			throw new Exception("While parent not a CompoundStatement");
+		}
+	}
 
-	public void visit(IASTWhileStatement statement) {
+	public void visit(IASTWhileStatement statement) throws Exception {
 		IASTExpression[] instrArgs = new IASTExpression[5];
 		instrArgs[0] = new CASTLiteralExpression(CASTLiteralExpression.lk_string_literal,
 				("\"" + functionName + "\"").toCharArray());
@@ -554,12 +654,16 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 		IASTFunctionCallExpression instrFunction = makeFunctionCall("_f_ocelot_branch_out", instrArgs);
 		IASTExpression resultExpression = this.buildFcallExpression(instrFunction);
 		statement.setCondition(resultExpression);
+		
+		//Martino
+		markWhileForDoStatements(statement, statement.getBody());
+
 
 		addTestObjectives(branchNumber);
 		branchNumber++;
 	}
 
-	public void visit(IASTDoStatement statement) {
+	public void visit(IASTDoStatement statement) throws Exception {
 		IASTExpression[] instrArgs = new IASTExpression[5];
 		instrArgs[0] = new CASTLiteralExpression(CASTLiteralExpression.lk_string_literal,
 				("\"" + functionName + "\"").toCharArray());
@@ -572,12 +676,15 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 		IASTFunctionCallExpression instrFunction = makeFunctionCall("_f_ocelot_branch_out", instrArgs);
 		IASTExpression resultExpression = this.buildFcallExpression(instrFunction);
 		statement.setCondition(resultExpression);
+		
+		//Martino
+		markWhileForDoStatements(statement, statement.getBody());
 
 		addTestObjectives(branchNumber);
 		branchNumber++;
 	}
 
-	public void visit(IASTForStatement statement) {
+	public void visit(IASTForStatement statement) throws Exception {
 		IASTExpression[] instrArgs = new IASTExpression[5];
 		instrArgs[0] = new CASTLiteralExpression(CASTLiteralExpression.lk_string_literal,
 				("\"" + functionName + "\"").toCharArray());
@@ -592,6 +699,9 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 		IASTFunctionCallExpression instrFunction = makeFunctionCall("_f_ocelot_branch_out", instrArgs);
 		IASTExpression resultExpression = this.buildFcallExpression(instrFunction);
 		statement.setConditionExpression(resultExpression);
+		
+		//Martino
+		markWhileForDoStatements(statement, statement.getBody());
 
 		addTestObjectives(branchNumber);
 		branchNumber++;
@@ -606,22 +716,28 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 	}
 
 	public int visit(IASTStatement statement) {
-		this.functionCallsInExpressions.clear();
-		if (statement instanceof IASTIfStatement)
-			this.visit((IASTIfStatement) statement);
-		else if (statement instanceof IASTSwitchStatement) {
-			this.visit((IASTSwitchStatement) statement);
-			return PROCESS_SKIP; // Visits the statement on its own!
-		} else if (statement instanceof IASTWhileStatement)
-			this.visit((IASTWhileStatement) statement);
-		else if (statement instanceof IASTDoStatement)
-			this.visit((IASTDoStatement) statement);
-		else if (statement instanceof IASTForStatement)
-			this.visit((IASTForStatement) statement);
-		else if (statement instanceof IASTCaseStatement)
-			this.visit((IASTCaseStatement) statement);
-		else if (statement instanceof IASTDefaultStatement)
-			this.visit((IASTDefaultStatement) statement);
+		try {
+			//System.out.println(((IASTCompoundStatement)statement).getStatements());
+			//System.out.println(((ASTNode) statement).getAST());
+			this.functionCallsInExpressions.clear();
+			if (statement instanceof IASTIfStatement)
+				this.visit((IASTIfStatement) statement);
+			else if (statement instanceof IASTSwitchStatement) {
+				this.visit((IASTSwitchStatement) statement);
+				return PROCESS_SKIP; // Visits the statement on its own!
+			} else if (statement instanceof IASTWhileStatement)
+				this.visit((IASTWhileStatement) statement);
+			else if (statement instanceof IASTDoStatement)
+				this.visit((IASTDoStatement) statement);
+			else if (statement instanceof IASTForStatement)
+				this.visit((IASTForStatement) statement);
+			else if (statement instanceof IASTCaseStatement)
+				this.visit((IASTCaseStatement) statement);
+			else if (statement instanceof IASTDefaultStatement)
+				this.visit((IASTDefaultStatement) statement);
+		} catch (Exception e) {
+			e.printStackTrace();
+	}
 
 		return PROCESS_CONTINUE;
 	}
@@ -823,7 +939,11 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 	}
 
 	private void addTestObjectives(int branch) {
-		testObjectives.add("branch" + branch + "-true");
-		testObjectives.add("branch" + branch + "-false");
+		if (this.functionName == "ExpectationWindow_Calculator_BCAL_Lib_DM_TIM_BaliseMM_LMC")
+		{
+			System.out.println("here");
+		}
+		testObjectives.add(this.functionName + ":" + "branch" + branch + "-true");
+		testObjectives.add(this.functionName + ":" + "branch" + branch + "-false");
 	}
 }
