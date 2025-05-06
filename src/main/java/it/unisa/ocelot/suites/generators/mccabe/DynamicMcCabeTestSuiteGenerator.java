@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map.Entry;
 import java.util.Set;
 
@@ -192,16 +193,17 @@ public class DynamicMcCabeTestSuiteGenerator extends TestSuiteGenerator implemen
 				this.println("Partial coverage: " + calculator.getBranchCoverage());
 				this.budgetManager.updateTargets(mcCabeCalculator.extimateMissingTargets());
 				
-				for(TestObjStateMachine sm:ReadEFLfilesforPairCombination_V2.files_SM_PC_FitVals) {
-					String params=CalculateFitnessFromEvalPC4.GetArguInString(numericParams);
-					boolean foundTCParams=false;
-					if(sm.getArgumentList().contains(params)) {
-						foundTCParams=true;
+				for (List<TestObjStateMachine> smList : ReadEFLfilesforPairCombination_V2.ListOfSMs) {
+					for (TestObjStateMachine sm : smList) {
+						String params=CalculateFitnessFromEvalPC4.GetArguInString(numericParams);
+						boolean foundTCParams=false;
+						if(sm.getArgumentList().contains(params)) {
+							foundTCParams=true;
+						}
+						if(!sm.isGenerated() && foundTCParams) {
+							sm.setGenerated(true);
+						}
 					}
-					if(!sm.isGenerated() && foundTCParams) {
-						sm.setGenerated(true);
-					}
-				
 				}
 					
 				/*for(Entry<String, FType> fitnessGenVal : CalculateFitnessFromEvalPC.filesWithFitnessVals.entrySet()){
@@ -214,8 +216,10 @@ public class DynamicMcCabeTestSuiteGenerator extends TestSuiteGenerator implemen
 					
 				}*/
 				finish = true;
-				for(TestObjStateMachine sm: ReadEFLfilesforPairCombination_V2.files_SM_PC_FitVals) {
-					finish=finish && sm.isGenerated();
+				for (List<TestObjStateMachine> smList : ReadEFLfilesforPairCombination_V2.ListOfSMs) {
+					for (TestObjStateMachine sm : smList) {
+						finish=finish && sm.isGenerated();
+					}
 				}
 				/*
 				 * for(FType fitnessCovered :

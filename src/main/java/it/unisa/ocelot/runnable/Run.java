@@ -11,6 +11,7 @@ import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Map.Entry;
 import java.util.Scanner;
 import java.util.concurrent.TimeUnit;
@@ -150,8 +151,13 @@ public class Run {
 		
 	}
 	private static void PrintNumOfPathCovered() {
+		
+		int numSMs = 0;
+		for( List<TestObjStateMachine> SMs : ReadEFLfilesforPairCombination_V2.ListOfSMs) {
+			numSMs += SMs.size();
+		}
 
-		int totalPairCombination= ReadEFLfilesforPairCombination_V2.files_SM_PC_FitVals.size();
+		int totalPairCombination= numSMs;
 		int totalPairTestGenerated = 0;
 		String pairList="";
 		
@@ -160,27 +166,36 @@ public class Run {
 		//logWriter.append("Test case NOT generated for following pair combination: ");
 		//logWriter.append("\n");logWriter.append("\n");
 		ArrayList<String> listofObjNotCov=new ArrayList<String>();
-		for (TestObjStateMachine sm : ReadEFLfilesforPairCombination_V2.files_SM_PC_FitVals) {	
-			if(sm.isGenerated()) {
-				totalPairTestGenerated=totalPairTestGenerated+1;
-				pairList=pairList+sm.getSMPairName();
-			}
-			else {
-				if(sm.getFitValOne()!=0.0) {
-					if(!listofObjNotCov.contains(sm.getTestObjOne())){
-						listofObjNotCov.add(sm.getTestObjOne());
-					}
+		List<Integer> forwardPairCovered = new ArrayList<Integer>();
+		List<Integer> forwardPairNumber = new ArrayList<Integer>();
+		for (List<TestObjStateMachine> ListSM : ReadEFLfilesforPairCombination_V2.ListOfSMs) {	
+			int acc = 0;
+			forwardPairNumber.add(ListSM.size());
+			for (TestObjStateMachine sm : ListSM) {
+				if(sm.isGenerated()) {
+					totalPairTestGenerated += 1;
+					acc += 1;
+					pairList=pairList+sm.getSMPairName();
 				}
-				if(sm.getFitValTwo()!=0.0) {
-					if(!listofObjNotCov.contains(sm.getTestObjTwo())) {
-						listofObjNotCov.add(sm.getTestObjTwo());
+				else {
+					if(sm.getFitValOne()!=0.0) {
+						if(!listofObjNotCov.contains(sm.getTestObjOne())){
+							listofObjNotCov.add(sm.getTestObjOne());
+						}
 					}
+					if(sm.getFitValTwo()!=0.0) {
+						if(!listofObjNotCov.contains(sm.getTestObjTwo())) {
+							listofObjNotCov.add(sm.getTestObjTwo());
+						}
+					}
+					
+					//System.out.println(sm.getSMPairName());
+					//logWriter.append(sm.getSMPairName().toString());
+					//logWriter.append("\n");
 				}
 				
-				//System.out.println(sm.getSMPairName());
-				//logWriter.append(sm.getSMPairName().toString());
-				//logWriter.append("\n");
 			}
+			forwardPairCovered.add(acc);
 		}
 		System.out.println(listofObjNotCov);
 		logWriter.append("\n");
@@ -197,6 +212,8 @@ public class Run {
 		System.out.println("population.size:"+population_size);
 		System.out.println("evaluations.max:"+evaluations_max);
 		System.out.println(totalPairTestGenerated+" out of "+totalPairCombination+" pair combination  covered in the generated test suite ");
+		System.out.println("Forward pairs covered:" + forwardPairCovered);
+		System.out.println("Forward pairs size:" + forwardPairNumber);
 		logWriter.append(totalPairTestGenerated+" out of "+totalPairCombination+" pair combination  covered in the generated test suite ");
 		logWriter.append("\n");logWriter.append("\n");
 		//System.out.println("The covered pair combinations are: ");

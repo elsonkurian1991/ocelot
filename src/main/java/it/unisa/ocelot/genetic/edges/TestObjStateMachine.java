@@ -1,5 +1,6 @@
 package it.unisa.ocelot.genetic.edges;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -11,7 +12,8 @@ enum State{
 	twoCover
 }
 
-public class TestObjStateMachine {
+public class TestObjStateMachine implements Serializable {
+	private static final long serialVersionUID = 1L;
 	String testObjOne;
 	double fitValOne;
 	String testObjTwo;
