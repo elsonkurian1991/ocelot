@@ -122,8 +122,8 @@ public class ExecuteExperiment implements Runnable {
 			BenchmarkCalculator<Integer> sizeBenchmark = new TestSuiteSizeBenchmarkCalculator(cfg);
 	
 			generator.addBenchmark(timeBenchmark);
-			generator.addBenchmark(coverageBenchmark);
-			generator.addBenchmark(sizeBenchmark);
+			//generator.addBenchmark(coverageBenchmark);
+			//generator.addBenchmark(sizeBenchmark);
 			generator.addBenchmark(evaluationsBenchmark);
 	
 			Set<TestCase> suite = generator.generateTestSuite();
