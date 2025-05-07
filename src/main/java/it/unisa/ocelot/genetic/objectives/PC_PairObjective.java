@@ -23,11 +23,18 @@ public class PC_PairObjective extends GenericObjective {
 		double fitness = 0.0;
 		HashMap<String, Double> branchDistances = BranchDistanceCache.getBranchDistances();
 
-		FunBranchNameAndFitness infoFromLinebr1 = new FunBranchNameAndFitness(sm.getTestObjOne(),
-				branchDistances.get(sm.getTestObjOne()));
+		FunBranchNameAndFitness infoFromLinebr1;
+		if (branchDistances.containsKey(sm.getTestObjOne()))
+			infoFromLinebr1 = new FunBranchNameAndFitness(sm.getTestObjOne(), branchDistances.get(sm.getTestObjOne()));
+		else
+			infoFromLinebr1 = new FunBranchNameAndFitness(sm.getTestObjOne(), 1);
 		sm.transition(infoFromLinebr1);
-		FunBranchNameAndFitness infoFromLinebr2 = new FunBranchNameAndFitness(sm.getTestObjTwo(),
-				branchDistances.get(sm.getTestObjTwo()));
+
+		FunBranchNameAndFitness infoFromLinebr2;
+		if (branchDistances.containsKey(sm.getTestObjTwo()))
+			infoFromLinebr2 = new FunBranchNameAndFitness(sm.getTestObjTwo(), branchDistances.get(sm.getTestObjTwo()));
+		else
+			infoFromLinebr2 = new FunBranchNameAndFitness(sm.getTestObjTwo(), 1);
 		sm.transition(infoFromLinebr2);
 
 		fitness = sm.getFitValOne() + sm.getFitValTwo();
