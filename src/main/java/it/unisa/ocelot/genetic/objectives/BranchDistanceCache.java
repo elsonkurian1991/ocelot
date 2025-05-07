@@ -12,6 +12,7 @@ public class BranchDistanceCache {
 	private static HashMap<String, Double> fitnessHashMap = new HashMap<String, Double>();
 
 	public static void cacheFitnessValues() {
+		fitnessHashMap.clear();
 		try (BufferedReader f_Val_File = new BufferedReader(new FileReader("./fitnessValues.txt"))) {
 			String lineBr = f_Val_File.readLine();
 			while (lineBr != null) {
