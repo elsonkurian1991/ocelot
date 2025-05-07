@@ -31,7 +31,7 @@ public class BranchDistanceCache {
 		String fName = listOfItems[0];
 		String branchName = listOfItems[1];
 		String fitnessVal = listOfItems[2];
-		String fun_BranchName = fName + "_" + branchName;
+		String fun_BranchName = fName + ":" + branchName;
 		fitnessVal = fitnessVal.replace(",", ".");
 		double currFitness = Double.parseDouble(fitnessVal);
 		if (currFitness > 1)
