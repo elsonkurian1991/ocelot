@@ -92,16 +92,18 @@ public class GenericMOSATestSuiteGenerator extends TestSuiteGenerator implements
 		List<Integer> numberOfEvaluations = mosaExperiment.getNumberOfEvaluations();
 		for (int i = 0; i < archiveSolutions.size(); i++) {
 			currentSolution = archiveSolutions.get(i);
-			VariableTranslator translator = new VariableTranslator(currentSolution);
-
-			Object[][][] numericParams = translator.translateArray(cfg
-					.getParameterTypes());
-
-			System.out.println("Creating test case: "+ Arrays.toString(numericParams));
-			TestCase testCase = this.createTestCase(numericParams, suite.size());
-			suite.add(testCase);
-			
-			this.measureBenchmarks("MOSA Target", suite, numberOfEvaluations.get(i));
+			if(currentSolution.getFitness() == 0) {
+				VariableTranslator translator = new VariableTranslator(currentSolution);
+	
+				Object[][][] numericParams = translator.translateArray(cfg
+						.getParameterTypes());
+	
+				System.out.println("Creating test case: "+ Arrays.toString(numericParams));
+				TestCase testCase = this.createTestCase(numericParams, suite.size());
+				suite.add(testCase);
+				
+				this.measureBenchmarks("MOSA Target", suite, numberOfEvaluations.get(i));
+			}
 		}
 	}
 	
