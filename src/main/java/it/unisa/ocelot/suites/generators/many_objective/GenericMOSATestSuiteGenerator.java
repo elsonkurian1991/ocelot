@@ -1,5 +1,6 @@
 package it.unisa.ocelot.suites.generators.many_objective;
 
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -96,6 +97,7 @@ public class GenericMOSATestSuiteGenerator extends TestSuiteGenerator implements
 			Object[][][] numericParams = translator.translateArray(cfg
 					.getParameterTypes());
 
+			System.out.println("Creating test case: "+ Arrays.toString(numericParams));
 			TestCase testCase = this.createTestCase(numericParams, suite.size());
 			suite.add(testCase);
 			

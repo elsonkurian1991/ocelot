@@ -1,6 +1,7 @@
 package it.unisa.ocelot.simulator;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 
@@ -26,7 +27,6 @@ public class GenericCoverageCalculator {
 		for (Object[][][] params : pParametersList) {
 			CBridge bridge = new CBridge();
 			EventsHandler h = new EventsHandler();
-
 			bridge.getEvents(h, params[0][0], params[1], params[2][0]);
 
 			Simulator simulator = new Simulator(cfg, h.getEvents());
@@ -38,8 +38,10 @@ public class GenericCoverageCalculator {
 			BranchDistanceCache.cacheFitnessValues();
 			for (GenericObjective objective : objectives) {
 				double fitness = objective.getFitness(params);
-				if (fitness == 0)
+				if (fitness == 0) {
 					coveredObjectives.add(objective);
+					System.out.println("Test case covers: "+ objective.toString());
+				}
 			}
 
 			if (!simulator.isSimulationCorrect())

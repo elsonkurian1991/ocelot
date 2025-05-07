@@ -118,11 +118,9 @@ public class TestObjStateMachine implements Serializable {
 	@Override
 	public String toString() {
 		return "TestObjStateMachine [testObjOne=" + testObjOne + ", fitValOne=" + fitValOne + ", testObjTwo="
-				+ testObjTwo + ", fitValTwo=" + fitValTwo + ", currState=" + currState 
-				+ ", isGenerated=" + isGenerated + "]";
+				+ testObjTwo + ", fitValTwo=" + fitValTwo + ", currState=" + currState + ", isGenerated=" + isGenerated
+				+ ", argumentList=" + argumentList + "]";
 	}
-	
-
 	/*public void transitionState() {
 		switch (currState) {
 		case zeroCover: currState = State.zeroCover;

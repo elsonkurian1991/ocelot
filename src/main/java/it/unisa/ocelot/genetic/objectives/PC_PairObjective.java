@@ -44,4 +44,11 @@ public class PC_PairObjective extends GenericObjective {
 		return fitness;
 	}
 
+	@Override
+	public String toString() {
+		return "PC_PairObjective [sm=" + sm + ", isCovered()=" + isCovered() + ", getObjectiveID()=" + getObjectiveID()
+				+ ", hashCode()=" + hashCode() + ", toString()=" + super.toString() + ", getClass()=" + getClass()
+				+ "]";
+	}
+	
 }
