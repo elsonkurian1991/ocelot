@@ -10,6 +10,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
+import it.unisa.ocelot.genetic.edges.TestObjStateMachine;
+
 public class PC_PairsManager {
 	public static HashSet<EvalFunPathType> listofFunPaths = new HashSet<>();// ok
 	public static HashSet<FunctionPair> listofIntRelationKeys = new HashSet<>();// ok
