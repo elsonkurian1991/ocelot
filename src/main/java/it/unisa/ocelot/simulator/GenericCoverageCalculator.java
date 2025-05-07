@@ -17,12 +17,13 @@ import it.unisa.ocelot.util.Utils;
 
 public class GenericCoverageCalculator {
 	private CFG cfg;
-	private List<GenericObjective> objectives;
+	private Set<GenericObjective> objectives;
 	private Set<GenericObjective> coveredObjectives;
 	private double objectiveCoverage = 0;
 
 	public GenericCoverageCalculator(CFG cfg, List<GenericObjective> objectives) {
 		this.cfg = cfg;
+		this.objectives = new HashSet<GenericObjective>();
 		this.objectives.addAll(objectives);
 	}
 
