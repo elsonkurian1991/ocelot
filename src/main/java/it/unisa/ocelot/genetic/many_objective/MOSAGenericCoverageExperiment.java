@@ -5,14 +5,12 @@ import java.util.List;
 import org.apache.commons.lang3.Range;
 
 import it.unisa.ocelot.c.cfg.CFG;
-import it.unisa.ocelot.c.cfg.edges.LabeledEdge;
 import it.unisa.ocelot.c.types.CType;
 import it.unisa.ocelot.conf.ConfigManager;
 import it.unisa.ocelot.genetic.OcelotExperiment;
 import it.unisa.ocelot.genetic.StandardSettings;
-import it.unisa.ocelot.genetic.algorithms.MOSA;
+import it.unisa.ocelot.genetic.algorithms.MOSA_Generic;
 import it.unisa.ocelot.genetic.objectives.GenericObjective;
-import it.unisa.ocelot.genetic.settings.MOSASettings;
 import it.unisa.ocelot.genetic.settings.MOSASettingsGeneric;
 import it.unisa.ocelot.genetic.settings.SettingsFactory;
 import jmetal.core.Algorithm;
@@ -82,6 +80,6 @@ public class MOSAGenericCoverageExperiment extends OcelotExperiment {
 	}
 
 	public List<Integer> getNumberOfEvaluations() {
-		return ((MOSA) this.algorithm).getEvaluations();
+		return ((MOSA_Generic) this.algorithm).getEvaluations();
 	}
 }
