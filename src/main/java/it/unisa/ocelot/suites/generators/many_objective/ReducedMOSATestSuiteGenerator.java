@@ -45,9 +45,9 @@ public class ReducedMOSATestSuiteGenerator extends MOSATestSuiteGenerator implem
 
 		calculator.calculateCoverage(suite);
 		System.out.println("Coverage of MOSA test suite = "
-				+ calculator.getBranchCoverage());
+				+ calculator.getObjectiveCoverage());
 		
-		if (calculator.getBranchCoverage() >= this.config.getRequiredCoverage()) {
+		if (calculator.getObjectiveCoverage() >= this.config.getRequiredCoverage()) {
 			this.satisfied = true;
 		}
 			

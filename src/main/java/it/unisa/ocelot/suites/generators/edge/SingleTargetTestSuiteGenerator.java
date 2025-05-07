@@ -28,7 +28,7 @@ public class SingleTargetTestSuiteGenerator extends TestSuiteGenerator implement
 	private boolean satisfied;
 	
 	public SingleTargetTestSuiteGenerator(ConfigManager pConfigManager, CFG pCFG) {
-		super(pCFG);
+		super(pCFG, null);
 		
 		satisfied = false;
 		
@@ -44,7 +44,7 @@ public class SingleTargetTestSuiteGenerator extends TestSuiteGenerator implement
 		coverSingleTargets(suite);
 		
 		calculator.calculateCoverage(suite);
-		if (calculator.getBranchCoverage() >= this.config.getRequiredCoverage()) {
+		if (calculator.getObjectiveCoverage() >= this.config.getRequiredCoverage()) {
 			this.satisfied = true;
 		}
 				

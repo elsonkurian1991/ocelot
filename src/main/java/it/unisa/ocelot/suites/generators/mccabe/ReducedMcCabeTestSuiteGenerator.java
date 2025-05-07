@@ -28,7 +28,7 @@ public class ReducedMcCabeTestSuiteGenerator extends TestSuiteGenerator implemen
 	private boolean satisfied;
 
 	public ReducedMcCabeTestSuiteGenerator(ConfigManager pConfigManager, CFG pCFG) {
-		super(pCFG);
+		super(pCFG, null);
 		this.config = pConfigManager;
 	}
 
@@ -42,7 +42,7 @@ public class ReducedMcCabeTestSuiteGenerator extends TestSuiteGenerator implemen
 		coverMcCabePaths(suite);
 
 		calculator.calculateCoverage(suite);
-		if (calculator.getBranchCoverage() >= this.config.getRequiredCoverage()) {
+		if (calculator.getObjectiveCoverage() >= this.config.getRequiredCoverage()) {
 			this.satisfied = true;
 		}
 
@@ -74,7 +74,7 @@ public class ReducedMcCabeTestSuiteGenerator extends TestSuiteGenerator implemen
 		double lastCoverage = 0;
 		while (improvement && lastCoverage < this.config.getRequiredCoverage()) {
 			try { 
-				lastCoverage = calculator.getBranchCoverage();
+				lastCoverage = calculator.getObjectiveCoverage();
 			} catch (NullPointerException e) {
 				lastCoverage = 0;
 			}
@@ -116,8 +116,8 @@ public class ReducedMcCabeTestSuiteGenerator extends TestSuiteGenerator implemen
 				this.println(Utils.printParameters(numericParams));
 			}
 			calculator.calculateCoverage(suite);
-			improvement = calculator.getBranchCoverage() > lastCoverage;
-			lastCoverage = calculator.getBranchCoverage();
+			improvement = calculator.getObjectiveCoverage() > lastCoverage;
+			lastCoverage = calculator.getObjectiveCoverage();
 			this.println("### Iteration ended! ###");
 			if (improvement) {
 				searchPath.solve(this.getUncoveredEdges(suite));

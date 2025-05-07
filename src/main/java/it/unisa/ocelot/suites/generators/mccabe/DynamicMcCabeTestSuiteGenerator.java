@@ -46,7 +46,7 @@ public class DynamicMcCabeTestSuiteGenerator extends TestSuiteGenerator implemen
 	private int evaluations;
 
 	public DynamicMcCabeTestSuiteGenerator(ConfigManager pConfigManager, CFG pCFG) {
-		super(pCFG);
+		super(pCFG, null);
 		this.config = pConfigManager;
 	}
 
@@ -59,7 +59,7 @@ public class DynamicMcCabeTestSuiteGenerator extends TestSuiteGenerator implemen
 		coverMcCabePaths(suite);
 
 		calculator.calculateCoverage(suite);
-		if (calculator.getBranchCoverage() >= this.config.getRequiredCoverage()) {
+		if (calculator.getObjectiveCoverage() >= this.config.getRequiredCoverage()) {
 			this.satisfied = true;
 		}
 
@@ -129,7 +129,7 @@ public class DynamicMcCabeTestSuiteGenerator extends TestSuiteGenerator implemen
 						Object[][][] serendipitousParameters = currentTranslator
 								.translateArray(cfg.getParameterTypes());
 						calculator.calculateCoverage(serendipitousParameters);
-						mcCabeCalculator.addPath(calculator.getCoveredPath());
+						//mcCabeCalculator.addPath(calculator.getCoveredPath());
 					}
 
 				Object[][][] numericParams = translator.translateArray(cfg.getParameterTypes());
@@ -140,7 +140,7 @@ public class DynamicMcCabeTestSuiteGenerator extends TestSuiteGenerator implemen
 				if (fitnessValue == 0.0) {
 					this.println("Target covered!");
 					calculator.calculateCoverage(numericParams);
-					mcCabeCalculator.addPath(calculator.getCoveredPath());
+					//mcCabeCalculator.addPath(calculator.getCoveredPath());
 					suite.add(testCase);
 					this.measureBenchmarks("McCabe target", suite, exp.getNumberOfEvaluation());
 
@@ -190,7 +190,7 @@ public class DynamicMcCabeTestSuiteGenerator extends TestSuiteGenerator implemen
 				 */
 				calculator.calculateCoverage(suite);
 
-				this.println("Partial coverage: " + calculator.getBranchCoverage());
+				this.println("Partial coverage: " + calculator.getObjectiveCoverage());
 				this.budgetManager.updateTargets(mcCabeCalculator.extimateMissingTargets());
 				
 				for (List<TestObjStateMachine> smList : ReadEFLfilesforPairCombination_V2.ListOfSMs) {
@@ -262,7 +262,7 @@ public class DynamicMcCabeTestSuiteGenerator extends TestSuiteGenerator implemen
 				}
 			}
 		} else {
-			while (currentTarget != null && calculator.getBranchCoverage() < config.getRequiredCoverage()) {
+			while (currentTarget != null && calculator.getObjectiveCoverage() < config.getRequiredCoverage()) {
 				DMCExperiment exp = new DMCExperiment(cfg, config, cfg.getParameterTypes(), currentTarget,
 						seedPopulation, this.config.getDMCSeedSize());
 
@@ -297,7 +297,7 @@ public class DynamicMcCabeTestSuiteGenerator extends TestSuiteGenerator implemen
 						Object[][][] serendipitousParameters = currentTranslator
 								.translateArray(cfg.getParameterTypes());
 						calculator.calculateCoverage(serendipitousParameters);
-						mcCabeCalculator.addPath(calculator.getCoveredPath());
+						//mcCabeCalculator.addPath(calculator.getCoveredPath());
 					}
 
 				Object[][][] numericParams = translator.translateArray(cfg.getParameterTypes());
@@ -308,7 +308,7 @@ public class DynamicMcCabeTestSuiteGenerator extends TestSuiteGenerator implemen
 				if (fitnessValue == 0.0) {
 					this.println("Target covered!");
 					calculator.calculateCoverage(numericParams);
-					mcCabeCalculator.addPath(calculator.getCoveredPath());
+					//mcCabeCalculator.addPath(calculator.getCoveredPath());
 					suite.add(testCase);
 					this.measureBenchmarks("McCabe target", suite, exp.getNumberOfEvaluation());
 				} else {
@@ -325,7 +325,7 @@ public class DynamicMcCabeTestSuiteGenerator extends TestSuiteGenerator implemen
 				}
 
 				calculator.calculateCoverage(suite);
-				this.println("Partial coverage: " + calculator.getBranchCoverage());
+				this.println("Partial coverage: " + calculator.getObjectiveCoverage());
 				this.budgetManager.updateTargets(mcCabeCalculator.extimateMissingTargets());
 			}
 		}

@@ -19,6 +19,7 @@ import it.unisa.ocelot.genetic.objectives.GenericObjective;
 import it.unisa.ocelot.genetic.objectives.PC_PairsManager;
 import it.unisa.ocelot.simulator.CBridge;
 import it.unisa.ocelot.simulator.CoverageCalculator;
+import it.unisa.ocelot.simulator.GenericCoverageCalculator;
 import it.unisa.ocelot.suites.generators.TestSuiteGenerator;
 import it.unisa.ocelot.suites.generators.TestSuiteGeneratorHandler;
 import it.unisa.ocelot.suites.minimization.TestSuiteMinimizer;
@@ -61,22 +62,23 @@ public class GenAndWrite {
 			//LUCA: load list of objectives
 			List<GenericObjective> objectives = PC_PairsManager.loadObjectives();	
 			TestSuiteGenerator generator = TestSuiteGeneratorHandler.getInstance(config, cfg, objectives);
-			TestSuiteMinimizer minimizer = TestSuiteMinimizerHandler.getInstance(config);
+			//TestSuiteMinimizer minimizer = TestSuiteMinimizerHandler.getInstance(config);
 			
 			System.out.println("Generator: " + generator.getClass().getSimpleName());
-			System.out.println("Minimizer: " + minimizer.getClass().getSimpleName());
+			//System.out.println("Minimizer: " + minimizer.getClass().getSimpleName());
 			Set<TestCase> suite = generator.generateTestSuite();
 	
 			//Set<TestCase> minimizedSuite = minimizer.minimize(suite);
 			Set<TestCase> minimizedSuite = suite;
-			CoverageCalculator calculator = new CoverageCalculator(cfg);
+			GenericCoverageCalculator calculator = new GenericCoverageCalculator(cfg, objectives);
 			
 			calculator.calculateCoverage(minimizedSuite);
 	
 			System.out.println("-------------------------------------------------------");
 			System.out.println("Minimized test cases: " + minimizedSuite.size());
-			System.out.println("Branch coverage achieved: " + calculator.getBranchCoverage());
-			System.out.println("Statement coverage achieved: " + calculator.getBlockCoverage());
+			System.out.println("Objective coverage achieved: " + calculator.getObjectiveCoverage());
+			//System.out.println("Branch coverage achieved: " + calculator.getBranchCoverage());
+			//System.out.println("Statement coverage achieved: " + calculator.getBlockCoverage());
 			System.out.println("-------------------------------------------------------");
 			
 			String formattedFilename = config.getTestFilename();

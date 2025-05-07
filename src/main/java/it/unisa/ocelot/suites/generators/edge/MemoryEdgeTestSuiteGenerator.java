@@ -31,7 +31,7 @@ public class MemoryEdgeTestSuiteGenerator extends TestSuiteGenerator implements 
 	private int evaluations;
 	
 	public MemoryEdgeTestSuiteGenerator(ConfigManager pConfigManager, CFG pCFG) {
-		super(pCFG);
+		super(pCFG, null);
 		
 		satisfied = false;
 		
@@ -47,7 +47,7 @@ public class MemoryEdgeTestSuiteGenerator extends TestSuiteGenerator implements 
 		coverSingleTargets(suite);
 		
 		calculator.calculateCoverage(suite);
-		if (calculator.getBranchCoverage() >= this.config.getRequiredCoverage()) {
+		if (calculator.getObjectiveCoverage() >= this.config.getRequiredCoverage()) {
 			this.satisfied = true;
 		}
 				
@@ -66,7 +66,7 @@ public class MemoryEdgeTestSuiteGenerator extends TestSuiteGenerator implements 
 		
 		Collections.shuffle(uncoveredEdges);
 		while (!uncoveredEdges.isEmpty()
-				&& calculator.getBranchCoverage() < config.getRequiredCoverage()) {
+				&& calculator.getObjectiveCoverage() < config.getRequiredCoverage()) {
 			LabeledEdge targetEdge = uncoveredEdges.get(0);
 			uncoveredEdges.remove(0); // avoids infinite loop
 
@@ -111,7 +111,7 @@ public class MemoryEdgeTestSuiteGenerator extends TestSuiteGenerator implements 
 			this.println("Parameters found: " + Utils.printParameters(numericParams));
 
 			calculator.calculateCoverage(suite);
-			uncoveredEdges.removeAll(calculator.getCoveredEdges());
+			//uncoveredEdges.removeAll(calculator.getCoveredEdges());
 			this.budgetManager.updateTargets(uncoveredEdges.size());
 		}
 	}

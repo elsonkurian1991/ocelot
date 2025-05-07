@@ -26,7 +26,7 @@ import jmetal.util.JMException;
 @Deprecated
 public class DynamicPathsTestSuiteGenerator extends TestSuiteGenerator {	
 	public DynamicPathsTestSuiteGenerator(ConfigManager pConfigManager, CFG pCFG) {
-		super(pCFG);
+		super(pCFG,null);
 		this.config = pConfigManager;
 	}
 	
@@ -37,7 +37,7 @@ public class DynamicPathsTestSuiteGenerator extends TestSuiteGenerator {
 		
 		DynamicPathsFinder pathFinder = new DynamicPathsFinder(weighted);
 		
-		while (this.calculator.getBranchCoverage() < this.config.getRequiredCoverage()) {
+		while (this.calculator.getObjectiveCoverage() < this.config.getRequiredCoverage()) {
 			List<LabeledEdge> targetPath = pathFinder.getMaxCoveragePath();
 		
 			PathCoverageExperiment exp = new PathCoverageExperiment(cfg, config, cfg.getParameterTypes(), targetPath);

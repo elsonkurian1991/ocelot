@@ -26,7 +26,7 @@ public class McCabeTestSuiteGenerator extends TestSuiteGenerator implements Casc
 	private boolean satisfied;
 
 	public McCabeTestSuiteGenerator(ConfigManager pConfigManager, CFG pCFG) {
-		super(pCFG);
+		super(pCFG, null);
 		this.config = pConfigManager;
 	}
 
@@ -39,7 +39,7 @@ public class McCabeTestSuiteGenerator extends TestSuiteGenerator implements Casc
 		coverMcCabePaths(suite);
 
 		calculator.calculateCoverage(suite);
-		if (calculator.getBranchCoverage() >= this.config.getRequiredCoverage()) {
+		if (calculator.getObjectiveCoverage() >= this.config.getRequiredCoverage()) {
 			this.satisfied = true;
 		}
 

@@ -30,7 +30,7 @@ public class MOSATestSuiteGenerator extends TestSuiteGenerator implements Cascad
 	private int evaluations;
 
 	public MOSATestSuiteGenerator(ConfigManager config, CFG cfg) {
-		super(cfg);
+		super(cfg, null);
 		this.config = config;
 	}
 
@@ -46,9 +46,9 @@ public class MOSATestSuiteGenerator extends TestSuiteGenerator implements Cascad
 
 		calculator.calculateCoverage(suite);
 		System.out.println("Coverage of MOSA test suite = "
-				+ calculator.getBranchCoverage());
+				+ calculator.getObjectiveCoverage());
 		
-		if (calculator.getBranchCoverage() >= this.config.getRequiredCoverage()) {
+		if (calculator.getObjectiveCoverage() >= this.config.getRequiredCoverage()) {
 			this.satisfied = true;
 		}
 			

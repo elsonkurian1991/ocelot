@@ -16,7 +16,7 @@ public abstract class TestSuiteMinimizer extends TestSuiteGenerator implements C
 	}
 	
 	public TestSuiteMinimizer() {
-		super(null);
+		super(null, null);
 	}
 	
 	/**

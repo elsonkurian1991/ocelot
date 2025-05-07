@@ -6,7 +6,9 @@ import it.unisa.ocelot.c.cfg.edges.LabeledEdge;
 import it.unisa.ocelot.conf.ConfigManager;
 import it.unisa.ocelot.genetic.OcelotExperiment;
 import it.unisa.ocelot.genetic.VariableTranslator;
+import it.unisa.ocelot.genetic.objectives.GenericObjective;
 import it.unisa.ocelot.simulator.CoverageCalculator;
+import it.unisa.ocelot.simulator.GenericCoverageCalculator;
 import it.unisa.ocelot.suites.TestSuiteGenerationException;
 import it.unisa.ocelot.suites.benchmarks.BenchmarkCalculator;
 import it.unisa.ocelot.suites.budget.BudgetManager;
@@ -24,16 +26,16 @@ public abstract class TestSuiteGenerator {
 	@SuppressWarnings("rawtypes")
 	protected List<BenchmarkCalculator> benchmarkCalculators;
 	protected ConfigManager config;
-	public CoverageCalculator calculator;
+	public GenericCoverageCalculator calculator;
 	public CFG cfg;
 	protected BudgetManager budgetManager;
 	private int fixedBudget;
 	
 	@SuppressWarnings("rawtypes")
-	public TestSuiteGenerator(CFG pCFG) {
+	public TestSuiteGenerator(CFG pCFG, List<GenericObjective> objectives) {
 		this.benchmarkCalculators = new ArrayList<BenchmarkCalculator>();
 		this.cfg = pCFG;
-		this.calculator = new CoverageCalculator(pCFG);
+		this.calculator = new GenericCoverageCalculator(pCFG, objectives);
 		this.fixedBudget = -1;
 	}
 	
@@ -105,7 +107,7 @@ public abstract class TestSuiteGenerator {
 	
 		TestCase tc = new TestCase();
 		tc.setId(id);
-		tc.setCoveredPath(calculator.getCoveredPath());
+		//tc.setCoveredPath(calculator.getCoveredPath());
 		tc.setParameters(pParams);
 	
 		return tc;
@@ -123,11 +125,11 @@ public abstract class TestSuiteGenerator {
 			Object[][][] numericParams = translator.translateArray(cfg.getParameterTypes());
 			TestCase testCase = this.createTestCase(numericParams, suite.size());
 			calculator.calculateCoverage(suite);
-			double prevCoverage = calculator.getBranchCoverage();
+			double prevCoverage = calculator.getObjectiveCoverage();
 			
 			suite.add(testCase);
 			calculator.calculateCoverage(suite);
-			if (calculator.getBranchCoverage() == prevCoverage)
+			if (calculator.getObjectiveCoverage() == prevCoverage)
 				suite.remove(testCase);
 			else {
 				this.print("Serendipitous coverage! ");

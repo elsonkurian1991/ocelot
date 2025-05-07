@@ -22,7 +22,7 @@ public class CascadeTestSuiteGenerator extends TestSuiteGenerator {
 	
 	
 	public CascadeTestSuiteGenerator(ConfigManager pConfigManager, CFG pCFG) {
-		super(pCFG);
+		super(pCFG, null);
 		this.generators = new ArrayList<TestSuiteGenerator>();
 		this.config = pConfigManager;
 	}

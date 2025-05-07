@@ -32,7 +32,7 @@ public class GenericMOSATestSuiteGenerator extends TestSuiteGenerator implements
 	private List<GenericObjective> objectives;
 
 	public GenericMOSATestSuiteGenerator(ConfigManager config, CFG cfg, List<GenericObjective> objectives) {
-		super(cfg);
+		super(cfg, objectives);
 		this.config = config;
 		this.objectives = objectives;
 	}
@@ -49,9 +49,9 @@ public class GenericMOSATestSuiteGenerator extends TestSuiteGenerator implements
 
 		calculator.calculateCoverage(suite);
 		System.out.println("Coverage of MOSA test suite = "
-				+ calculator.getBranchCoverage());
+				+ calculator.getObjectiveCoverage());
 		
-		if (calculator.getBranchCoverage() >= this.config.getRequiredCoverage()) {
+		if (calculator.getObjectiveCoverage() >= this.config.getRequiredCoverage()) {
 			this.satisfied = true;
 		}
 			

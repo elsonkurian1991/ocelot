@@ -28,7 +28,7 @@ public class RandomTestSuiteGenerator extends TestSuiteGenerator implements Casc
 	private boolean satisfied;
 	
 	public RandomTestSuiteGenerator(ConfigManager pConfigManager, CFG pCFG) {
-		super(pCFG);
+		super(pCFG,null);
 		this.config = pConfigManager;
 		this.random = new Random();
 		this.ranges = this.config.getTestRanges();
@@ -45,7 +45,7 @@ public class RandomTestSuiteGenerator extends TestSuiteGenerator implements Casc
 		this.generateRandomSuite(suite);
 		
 		calculator.calculateCoverage(suite);
-		if (calculator.getBranchCoverage() >= this.config.getRequiredCoverage()) {
+		if (calculator.getObjectiveCoverage() >= this.config.getRequiredCoverage()) {
 			this.satisfied = true;
 		}
 		
@@ -67,17 +67,17 @@ public class RandomTestSuiteGenerator extends TestSuiteGenerator implements Casc
 			sizeout = Integer.MAX_VALUE;
 		
 		double lastCoverage = 0.0;
-		while (calculator.getBranchCoverage() < this.config.getRequiredCoverage() &&
+		while (calculator.getObjectiveCoverage() < this.config.getRequiredCoverage() &&
 				suite.size() <= sizeout &&
 				time < timeout) {
 			coverRandom(suite);
 			calculator.calculateCoverage(suite);
 			
-			if (calculator.getBranchCoverage() > lastCoverage) {
+			if (calculator.getObjectiveCoverage() > lastCoverage) {
 				this.measureBenchmarks("Random", suite, null);
-				lastCoverage = calculator.getBranchCoverage();
+				lastCoverage = calculator.getObjectiveCoverage();
 				
-				this.println(calculator.getBranchCoverage());
+				this.println(calculator.getObjectiveCoverage());
 				this.println(suite.size());
 				this.printSeparator();
 			}

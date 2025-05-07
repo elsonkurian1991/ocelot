@@ -37,7 +37,7 @@ public class CDG_BasedApproachGenerator extends TestSuiteGenerator implements Ca
 	private int evaluations;
 
 	public CDG_BasedApproachGenerator(ConfigManager config, CFG cfg) {
-		super(cfg);
+		super(cfg, null);
 		this.config = config;
 		
 		this.coverageCalculatorListener = new CoverageCalculatorListener(cfg);
@@ -55,13 +55,13 @@ public class CDG_BasedApproachGenerator extends TestSuiteGenerator implements Ca
 
 		calculator.calculateCoverage(suite);
 		System.out.println("Coverage of Harman's method test suite = "
-				+ calculator.getBranchCoverage());
+				+ calculator.getObjectiveCoverage());
 
 		// restore all branches as uncovered for next experiments
 		for (LabeledEdge edge : this.branches)
 			edge.setUncovered();
 		
-		if (calculator.getBranchCoverage() >= this.config.getRequiredCoverage()) {
+		if (calculator.getObjectiveCoverage() >= this.config.getRequiredCoverage()) {
 			this.satisfied = true;
 		}
 
