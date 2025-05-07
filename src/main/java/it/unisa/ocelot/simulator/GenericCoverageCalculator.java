@@ -18,7 +18,7 @@ import it.unisa.ocelot.util.Utils;
 public class GenericCoverageCalculator {
 	private CFG cfg;
 	private Set<GenericObjective> objectives;
-	private Set<GenericObjective> coveredObjectives;
+	private Set<GenericObjective> coveredObjectives = new HashSet<GenericObjective>();
 	private double objectiveCoverage = 0;
 
 	public GenericCoverageCalculator(CFG cfg, List<GenericObjective> objectives) {
@@ -28,6 +28,7 @@ public class GenericCoverageCalculator {
 	}
 
 	public void calculateCoverage(List<Object[][][]> pParametersList) {
+		coveredObjectives.clear(); 
 		for (Object[][][] params : pParametersList) {
 			CBridge bridge = new CBridge();
 			EventsHandler h = new EventsHandler();
@@ -42,10 +43,6 @@ public class GenericCoverageCalculator {
 			// efficient than reading it for every objective.
 			BranchDistanceCache.cacheFitnessValues();
 			for (GenericObjective objective : objectives) {
-				if (objective.isCovered()) {
-					coveredObjectives.add(objective);
-					continue;
-				}
 				double fitness = objective.getFitness(params);
 				if (fitness == 0)
 					coveredObjectives.add(objective);
