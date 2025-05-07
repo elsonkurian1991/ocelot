@@ -124,7 +124,7 @@ public class PC_PairsManager {
 		String values[] = val.split(",");
 		ArrayList<String> valuesList = new ArrayList<String>();
 		for (int i = 0; i < values.length; i++) {
-			String tempValList = key + "_" + values[i];
+			String tempValList = values[i];
 			valuesList.add(tempValList);
 		}
 		EvalFunPathType evalFunPathType = new EvalFunPathType(key, valuesList);
