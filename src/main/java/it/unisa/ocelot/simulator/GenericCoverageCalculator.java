@@ -2,6 +2,7 @@ package it.unisa.ocelot.simulator;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -14,7 +15,7 @@ import it.unisa.ocelot.util.Utils;
 public class GenericCoverageCalculator {
 	private CFG cfg;
 	private List<GenericObjective> objectives;
-	private List<GenericObjective> coveredObjectives = new ArrayList<GenericObjective>();
+	private Set<GenericObjective> coveredObjectives = new HashSet<GenericObjective>();
 	private double objectiveCoverage = 0;
 
 	public GenericCoverageCalculator(CFG cfg, List<GenericObjective> objectives) {
@@ -23,7 +24,6 @@ public class GenericCoverageCalculator {
 	}
 
 	public void calculateCoverage(List<Object[][][]> pParametersList) {
-		coveredObjectives.clear(); 
 		for (Object[][][] params : pParametersList) {
 			CBridge bridge = new CBridge();
 			EventsHandler h = new EventsHandler();
@@ -40,7 +40,7 @@ public class GenericCoverageCalculator {
 				double fitness = objective.getFitness(params);
 				if (fitness == 0) {
 					coveredObjectives.add(objective);
-					System.out.println("Test case covers: "+ objective.toString());
+					//System.out.println("Test case covers: " + objective.toString());
 				}
 			}
 
@@ -56,8 +56,11 @@ public class GenericCoverageCalculator {
 	}
 
 	public void calculateCoverage(Set<TestCase> pTestCases) {
-		for(TestCase tc : pTestCases) {
+		int i = 0;
+		for (TestCase tc : pTestCases) {
+			System.out.println("Computing coverage for TC: " + i + "out of: " + pTestCases.size());
 			calculateCoverage(tc.getParameters());
+			i = i + 1;
 		}
 		this.objectiveCoverage = ((double) this.coveredObjectives.size()) / this.objectives.size();
 	}
@@ -66,10 +69,10 @@ public class GenericCoverageCalculator {
 		return this.objectiveCoverage;
 	}
 
-	public List<GenericObjective> getCoveredObjectives() {
+	public Set<GenericObjective> getCoveredObjectives() {
 		return this.coveredObjectives;
 	}
-	
+
 	public List<GenericObjective> getUncoveredObjectives() {
 		List<GenericObjective> uncovered = new ArrayList<GenericObjective>(this.objectives);
 		uncovered.removeAll(this.coveredObjectives);

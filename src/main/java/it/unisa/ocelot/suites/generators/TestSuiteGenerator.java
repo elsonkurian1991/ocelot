@@ -103,7 +103,7 @@ public abstract class TestSuiteGenerator {
 	}
 
 	protected TestCase createTestCase(Object[][][] pParams, int id) {
-		this.calculator.calculateCoverage(pParams);
+		//this.calculator.calculateCoverage(pParams);
 	
 		TestCase tc = new TestCase();
 		tc.setId(id);
