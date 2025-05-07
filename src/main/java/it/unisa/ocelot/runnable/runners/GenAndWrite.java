@@ -5,6 +5,7 @@ import java.io.FileOutputStream;
 import java.io.PrintStream;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
 import java.util.Set;
 
 import org.apache.commons.io.output.TeeOutputStream;
@@ -14,6 +15,8 @@ import it.unisa.ocelot.c.cfg.CFG;
 import it.unisa.ocelot.c.cfg.CFGBuilder;
 import it.unisa.ocelot.c.types.CTypeHandler;
 import it.unisa.ocelot.conf.ConfigManager;
+import it.unisa.ocelot.genetic.objectives.GenericObjective;
+import it.unisa.ocelot.genetic.objectives.PC_PairsManager;
 import it.unisa.ocelot.simulator.CBridge;
 import it.unisa.ocelot.simulator.CoverageCalculator;
 import it.unisa.ocelot.suites.generators.TestSuiteGenerator;
@@ -55,8 +58,9 @@ public class GenAndWrite {
 			int mcCabePaths = cfg.edgeSet().size() - cfg.vertexSet().size() + 1;
 			System.out.println("Cyclomatic complexity: " + mcCabePaths);
 	
-			//TODO: LUCA add objectives here if used
-			TestSuiteGenerator generator = TestSuiteGeneratorHandler.getInstance(config, cfg, null);
+			//LUCA: load list of objectives
+			List<GenericObjective> objectives = PC_PairsManager.loadObjectives();	
+			TestSuiteGenerator generator = TestSuiteGeneratorHandler.getInstance(config, cfg, objectives);
 			TestSuiteMinimizer minimizer = TestSuiteMinimizerHandler.getInstance(config);
 			
 			System.out.println("Generator: " + generator.getClass().getSimpleName());
