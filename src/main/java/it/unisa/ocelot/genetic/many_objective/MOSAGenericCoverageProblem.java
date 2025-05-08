@@ -39,6 +39,7 @@ public class MOSAGenericCoverageProblem extends StandardProblem {
 	public MOSAGenericCoverageProblem(CFG cfg, CType[] parameters, int pArraySize,
 			Range<Double>[] ranges, List<GenericObjective> objectives) throws Exception {
 		super(parameters, ranges, pArraySize);
+		numberOfObjectives_ = objectives.size();
 		this.cfg = cfg;
 		this.objectives = objectives;
 	}
