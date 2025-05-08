@@ -1,6 +1,8 @@
 package it.unisa.ocelot.simulator;
 
+import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -53,6 +55,14 @@ public class Simulator {
 	 * Perform the simulation
 	 */
 	public void simulate() {
+		File file = new File("fitnessValues.txt");
+		try {
+			Files.deleteIfExists(file.toPath());
+			//System.out.println("fitnessValues-----deleted");	
+		} catch (IOException e) {
+			System.err.println("Error deleting file fitnessValues.txt: from::>evaluateSolution () " + e.getMessage());
+		}
+		
 		this.reset();
 		//Consumes the first event
 		ExecutionEvent currentEvent = this.getNextEvent();
