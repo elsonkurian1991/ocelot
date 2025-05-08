@@ -159,7 +159,7 @@ public class MOSA_Generic extends OcelotAlgorithm {
 
 			while ((remain > 0) && (remain >= front.size())) {
 
-				this.crowdingDistanceAssignment(front, problem_.getNumberOfObjectives());
+				this.crowdingDistanceAssignmentV2(front, problem_.getNumberOfObjectives());
 
 				// Add the individuals of this front
 				for (int i = 0; i < front.size(); i++) {
@@ -178,7 +178,7 @@ public class MOSA_Generic extends OcelotAlgorithm {
 			// if remain is less than current front size, insert only the best
 			if (remain > 0) {
 				// current front contains the individuals to insert
-				this.crowdingDistanceAssignment(front, problem_.getNumberOfObjectives());
+				this.crowdingDistanceAssignmentV2(front, problem_.getNumberOfObjectives());
 				front.sort(new CrowdingComparator());
 
 				for (int i = 0; i < remain; i++)
@@ -341,6 +341,92 @@ public class MOSA_Generic extends OcelotAlgorithm {
 			}
 		} // for
 	}
+	
+	public void crowdingDistanceAssignmentV2(SolutionSet solutionSet, int numberOfObjects) {
+		int size = solutionSet.size();
+
+		if (size == 0) {
+			return;
+		}
+
+		if (size == 1) {
+			solutionSet.get(0).setCrowdingDistance(Double.POSITIVE_INFINITY);
+			return;
+		}
+
+		// initialize to 0.0 all crowding distances
+		for (int i = 0; i < size; i++)
+			solutionSet.get(i).setCrowdingDistance(0.0);
+
+		double minObjective = 0.0;
+		double maxObjective = 0.0;
+		double distance = 0.0;
+
+		for (int i = 0; i < numberOfObjects; i++) {
+			// sort the population by current object
+			//try {
+			solutionSet.sort(new ObjectiveComparator(i));
+			//} catch (IllegalArgumentException e) {
+			//	System.out.println("ERROR");
+			//}
+			minObjective = solutionSet.get(0).getObjective(i);
+			maxObjective = solutionSet.get(size - 1).getObjective(i);
+
+			// set infinity crowding distance for first and last element
+			solutionSet.get(0).setCrowdingDistance(Double.POSITIVE_INFINITY);
+			solutionSet.get(size - 1).setCrowdingDistance(Double.POSITIVE_INFINITY);
+
+			for (int j = 1; j < size - 1; j++) {
+				distance = solutionSet.get(j + 1).getObjective(i)
+						- solutionSet.get(j - 1).getObjective(i);
+
+				// avoid division by 0 that leads to NaN values
+				if (maxObjective - minObjective == 0)
+					distance = 0.0;
+				else
+					distance = distance / (maxObjective - minObjective);
+
+				distance += solutionSet.get(j).getCrowdingDistance();
+				solutionSet.get(j).setCrowdingDistance(distance);
+			}
+		} // for
+	}
+	
+	 public void fastEpsilonDominanceAssignment(SolutionSet solutionSet, int numberOfObjects) {
+	        double value;
+			int size = solutionSet.size();
+			for (int i = 0; i < size; i++)
+				solutionSet.get(i).setCrowdingDistance(0.0);
+
+			for (int i = 0; i < numberOfObjects; i++) {
+	            double min = Double.POSITIVE_INFINITY;
+	            List<Solution> minSet = new ArrayList<>(solutionSet.size());
+	            double max = 0;
+	            for (int j = 1; j < size - 1; j++) {
+	            	Solution test = solutionSet.get(j);
+	                value = test.getObjective(i);
+	                if (value < min) {
+	                    min = value;
+	                    minSet.clear();
+	                    minSet.add(test);
+	                } else if (value == min)
+	                    minSet.add(test);
+
+	                if (value > max) {
+	                    max = value;
+	                }
+	            }
+
+	            if (max == min)
+	                continue;
+
+	            for (Solution test : minSet) {
+	                double numer = (solutionSet.size() - minSet.size());
+	                double demon = solutionSet.size();
+					test.setCrowdingDistance(Math.max(test.getCrowdingDistance(), numer / demon));
+	            }
+	        }
+	    }
 
 	@SuppressWarnings("unused")
 	private boolean allTargetsCovered() {
