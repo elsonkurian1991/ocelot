@@ -41,6 +41,7 @@ public class PC_PairsManager {
 
 		List<GenericObjective> objectives = new ArrayList<GenericObjective>();
 		int j = 0;
+		int objectiveID = 0;
 		for (EvalFunPathType keySet1 : listofFunPaths) {
 			for (EvalFunPathType keySet2 : listofFunPaths) {
 				if (!keySet1.getEvalFunName().equals(keySet2.getEvalFunName())) {
@@ -51,10 +52,9 @@ public class PC_PairsManager {
 						keySets.add(keySet1.getEvalFunName());
 						keySets.add(keySet2.getEvalFunName());
 						listofKeys.put(String.valueOf(j), keySets);
+						objectiveID = generatePairWiseCombinations(objectives, keySet1, keySet2, objectiveID);
 						j++;
-						generatePairWiseCombinations(objectives, keySet1, keySet2);
 					}
-
 				}
 			}
 		}
@@ -100,19 +100,20 @@ public class PC_PairsManager {
 		return false;
 	}
 
-	public static void generatePairWiseCombinations(List<GenericObjective> objectives, EvalFunPathType keySet1,
-			EvalFunPathType keySet2) {
+	public static int generatePairWiseCombinations(List<GenericObjective> objectives, EvalFunPathType keySet1,
+			EvalFunPathType keySet2, int objectiveID) {
 		ArrayList<String> params1 = keySet1.getEvalFunPathList(); // TODO add the getName and add to params
 		ArrayList<String> params2 = keySet2.getEvalFunPathList();
-		int id = 0;
 		for (String param1 : params1) {
 			for (String param2 : params2) {
 				String testObj1 = param1.toString();
 				String testObj2 = param2.toString();
-				PC_PairObjective PC_Pair = new PC_PairObjective(false, id, testObj1, testObj2);
+				PC_PairObjective PC_Pair = new PC_PairObjective(false, objectiveID, testObj1, testObj2);
 				objectives.add(PC_Pair);
+				objectiveID++;
 			}
 		}
+		return objectiveID;
 	}
 
 	private static void AddFunPath(String line) {
