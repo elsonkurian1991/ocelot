@@ -342,7 +342,13 @@ public class MOSA_Generic extends OcelotAlgorithm {
 		} // for
 	}
 	
-	public void crowdingDistanceAssignmentV2(SolutionSet solutionSet, int numberOfObjects) {
+	public void crowdingDistanceAssignmentV2(SolutionSet solutionSetOrig, int numberOfObjects) {
+		SolutionSet solutionSet = new SolutionSet();
+		for (int i = 0; i < solutionSetOrig.size(); i++) {
+			Solution current = new Solution(solutionSetOrig.get(i));
+			solutionSet.add(current);
+		}
+		
 		int size = solutionSet.size();
 
 		if (size == 0) {
@@ -390,6 +396,12 @@ public class MOSA_Generic extends OcelotAlgorithm {
 				solutionSet.get(j).setCrowdingDistance(distance);
 			}
 		} // for
+		
+		solutionSetOrig.clear();
+		for (int i = 0; i < solutionSet.size(); i++) {
+			Solution current = new Solution(solutionSet.get(i));
+			solutionSetOrig.add(current);
+		}
 	}
 	
 	 public void fastEpsilonDominanceAssignment(SolutionSet solutionSet, int numberOfObjects) {
