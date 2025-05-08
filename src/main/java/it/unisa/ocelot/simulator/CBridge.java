@@ -1,5 +1,9 @@
 package it.unisa.ocelot.simulator;
 
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+
 public class CBridge {
 	private int coreId;
 	private static int n;
@@ -50,6 +54,14 @@ public class CBridge {
 	 * @param pValues Parameters of the function
 	 */
 	public void getEvents(EventsHandler pHandler, Object[] pValues, Object[][] pArrays, Object[] pPointers) {
+		File file = new File("fitnessValues.txt");
+		try {
+			Files.deleteIfExists(file.toPath());
+			//System.out.println("fitnessValues-----deleted");	
+		} catch (IOException e) {
+			System.err.println("Error deleting file fitnessValues.txt: from::>evaluateSolution () " + e.getMessage());
+		}
+		
 		if (!initialized)
 			throw new RuntimeException("ERROR: You have to initialize CBrige before starting to evaluate");
 		double[] values = new double[pValues.length];
