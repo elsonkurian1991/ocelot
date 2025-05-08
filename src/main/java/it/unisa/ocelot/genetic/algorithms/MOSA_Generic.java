@@ -397,7 +397,6 @@ public class MOSA_Generic extends OcelotAlgorithm {
 			}
 		} // for
 		
-		solutionSetOrig.clear();
 		for (int i = 0; i < solutionSet.size(); i++) {
 			Solution current = new Solution(solutionSet.get(i));
 			solutionSetOrig.replace(i, current);
