@@ -58,7 +58,7 @@ public class GenericCoverageCalculator {
 	public void calculateCoverage(Set<TestCase> pTestCases) {
 		int i = 0;
 		for (TestCase tc : pTestCases) {
-			System.out.println("Computing coverage for TC: " + i + "out of: " + pTestCases.size());
+			System.out.println("Computing coverage for TC: " + i + " out of: " + pTestCases.size());
 			calculateCoverage(tc.getParameters());
 			i = i + 1;
 		}
