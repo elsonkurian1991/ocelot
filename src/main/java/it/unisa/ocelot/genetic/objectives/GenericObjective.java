@@ -27,10 +27,13 @@ public abstract class GenericObjective {
 	public void setObjectiveID(int objectiveID) {
 		this.objectiveID = objectiveID;
 	}
-
+	
 	@Override
 	public int hashCode() {
-		return Objects.hash(isCovered, objectiveID);
+		final int prime = 31;
+		int result = 1;
+		result = prime * result + objectiveID;
+		return result;
 	}
 
 	@Override
@@ -42,7 +45,9 @@ public abstract class GenericObjective {
 		if (getClass() != obj.getClass())
 			return false;
 		GenericObjective other = (GenericObjective) obj;
-		return isCovered == other.isCovered && objectiveID == other.objectiveID;
+		if (objectiveID != other.objectiveID)
+			return false;
+		return true;
 	}
 
 	@Override
