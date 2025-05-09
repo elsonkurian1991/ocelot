@@ -45,16 +45,37 @@ public class GenericMOSATestSuiteGenerator extends TestSuiteGenerator implements
 		this.startBenchmarks();
 
 		coverMultiObjective(suite, objectives);
-		//this.measureBenchmarks("MOSA algorithm", suite);
 
+		double coverage = calculateCoverage();
+		System.out.println("Coverage of MOSA test suite = " + coverage);
+
+		/*
 		calculator.calculateCoverage(suite);
 		System.out.println("Coverage of MOSA test suite = " + calculator.getObjectiveCoverage());
 
 		if (calculator.getObjectiveCoverage() >= this.config.getRequiredCoverage()) {
 			this.satisfied = true;
 		}
-
+		*/
+		
 		return suite;
+	}
+
+	private double calculateCoverage() {
+		double covered = 0;
+		int total = 0;
+		for (GenericObjective objective : objectives) {
+			if (objective.isCovered())
+				covered++;
+			else {
+			}
+			total++;
+		}
+
+		double coverage = covered / total;
+		System.out.println("Covered objectives: " + covered);
+		System.out.println("Total objectives: " + total);
+		return coverage;
 	}
 
 	public boolean isSatisfied() {
@@ -95,11 +116,11 @@ public class GenericMOSATestSuiteGenerator extends TestSuiteGenerator implements
 
 				Object[][][] numericParams = translator.translateArray(cfg.getParameterTypes());
 
-				//System.out.println("Creating test case: " + Arrays.toString(numericParams));
+				// System.out.println("Creating test case: " + Arrays.toString(numericParams));
 				TestCase testCase = this.createTestCase(numericParams, suite.size());
 				suite.add(testCase);
 
-				this.measureBenchmarks("MOSA Target", null, numberOfEvaluations.get(i));
+				this.measureBenchmarks("MOSA Target", suite, numberOfEvaluations.get(i));
 			}
 		}
 		System.out.println("Testsuite size: " + suite.size());
