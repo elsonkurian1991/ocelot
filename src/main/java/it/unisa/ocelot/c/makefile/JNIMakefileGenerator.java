@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+import it.unisa.ocelot.conf.ConfigManager;
 import it.unisa.ocelot.util.Utils;
 
 public abstract class JNIMakefileGenerator {
@@ -33,7 +34,7 @@ public abstract class JNIMakefileGenerator {
 	public abstract String getLibName();
 	
 	public void generate() throws IOException {
-		String supportFiles= 
+		/*String supportFiles= 
 				" BaliseGroupMonitoringWhenLinkingInfoIsUsed_BCAL_Lib_DM_TIM_BaliseMM_LIU.c"
 				+ " LinkingWindowConsistencyAndManagement_LMC_Lib_DM_TIM_BaliseMM_LMC.c"
 				+ " CheckLinkingConsistency_DC_Lib_DM_TIM_BaliseMM_LMC.c"
@@ -51,10 +52,11 @@ public abstract class JNIMakefileGenerator {
 				+ " kcg_consts.c"
 				+ " kcg_types.c"
 				+ " initDataBase.c"
-				+ " genericDataBase.c ";
+				+ " genericDataBase.c ";*/
 
-				
+		String supportFiles= getSupportFiles();
 		
+		//System.out.println(supportFiles);
 		
 		String glib2paths = "";
 		for (String temp : this.getGlib2Paths())
@@ -89,7 +91,25 @@ public abstract class JNIMakefileGenerator {
 		"\t$(RM) $(MAIN)\n";
 		
 		Utils.writeFile(this.filename, result);
+		//System.out.println(result);
 	}
 	
+
+	private String getSupportFiles() throws IOException {
+		List<String> fileNames = new ArrayList<>();
+		ConfigManager getConfInfo=ConfigManager.getInstance();		
+		String[] supportFiles= getConfInfo.getTestIncludePaths();
+		for(int i=0;i<supportFiles.length;i++) {
+			//System.out.println(supportFiles[i]);
+			if(supportFiles[i].endsWith(".c")) {
+				//System.out.println(supportFiles[i]);
+				int lastIndex=supportFiles[i].lastIndexOf('/');
+				fileNames.add(supportFiles[i].substring(lastIndex+1));
+			}
+			
+		}	
+		return String.join(" ", fileNames);
+	}
+
 	public abstract Process runCompiler() throws IOException;
 }
