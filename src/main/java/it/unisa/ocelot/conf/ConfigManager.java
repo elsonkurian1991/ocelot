@@ -247,11 +247,11 @@ public class ConfigManager {
 		String includeStrings = this.properties.getProperty("test.includes", "");
 		String[] includes = StringUtils.split(includeStrings, ",");
 		String basedir = this.getTestBasedir();
-		System.out.println("List of Unit-level components used are as follows: ");
+		//System.out.println("List of Unit-level components used are as follows: ");
 		for (int i = 0; i < includes.length; i++) {
 			if (!includes[i].startsWith("/"))
 				includes[i] = basedir + includes[i];
-			System.out.println(includes[i]);
+			//System.out.println(includes[i]);
 		}
 		
 		return includes;
