@@ -1,12 +1,15 @@
 package it.unisa.ocelot.c;
 
+import java.io.File;
 import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.lang.reflect.Field;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -15,6 +18,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.stream.Collectors;
 
 import org.apache.commons.io.IOUtils;
@@ -101,8 +108,40 @@ public class StandardBuilder extends Builder {
 		this.makefileGenerator.generate();
 		this.stream.print("........... ");
 		Process proc = this.makefileGenerator.runCompiler();
+		
+		//this.stream.println(IOUtils.toString(proc.getInputStream()));
+		
+		//following code is add for output all the complier error from gcc. 
+		ExecutorService executor = Executors.newFixedThreadPool(2);
+	
 
-		this.stream.println(IOUtils.toString(proc.getInputStream()));
+		Future<String> stdoutFuture = (Future<String>) executor.submit(() -> IOUtils.toString(proc.getInputStream(), StandardCharsets.UTF_8));
+		Future<String> stderrFuture = (Future<String>) executor.submit(() -> IOUtils.toString(proc.getErrorStream(), StandardCharsets.UTF_8));
+
+		String stdout = null;
+		try {
+			stdout = stdoutFuture.get();
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		} catch (ExecutionException e) {
+			e.printStackTrace();
+		}
+		String stderr = null;
+		try {
+			stderr = stderrFuture.get();
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		} catch (ExecutionException e) {
+			e.printStackTrace();
+		}
+		
+		this.stream.println(stdout);
+
+		if (!stderr.isEmpty()) {
+		    this.stream.println("Compiler errors:");
+		    this.stream.println(stderr);
+		}
+		executor.shutdown();
 
 		try {
 			int result;
@@ -254,6 +293,23 @@ public class StandardBuilder extends Builder {
 				reportComponentsTestObjectives(componentsTestObjectives);
 				//this.callMacro = macroDefiner.getCallMacro();
 				//this.externDeclarations = referencesVisitor.getExternalDeclarations();
+			}
+			else {
+				//here, just copy the other supported files to jni folder, eg kcg_types, database etc.
+				File sourceFile = new File(unitComponent);
+				File jniDir = new File("jni");
+				 if (!sourceFile.exists()) {
+				 System.out.println("Source file does not exist: " + unitComponent);
+				 return;
+				 }
+				 File destFile = new File(jniDir, sourceFile.getName());
+				 try {
+					 Files.copy(sourceFile.toPath(), destFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+					 System.out.println("File copied to: " + destFile.getAbsolutePath());
+					 } catch (IOException e) {
+					  System.out.println("Error copying file: " + e.getMessage());
+					  }
+
 			}
 
 		}
@@ -491,6 +547,7 @@ public class StandardBuilder extends Builder {
 	}
 
 	private void reportComponentsTestObjectives(HashMap<String, ArrayList<String>> componentsTestObjectives) {
+		//TODO in the new version, we are not using this, remove it!!
 		try {
 			FileWriter myWriter = new FileWriter("testObjectives.to", true);//false?
 			for (Entry<String, ArrayList<String>> componentTestObjectives : componentsTestObjectives.entrySet()) {
