@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -54,7 +55,7 @@ public class Run {
 	private String[] experimentGenerators;
 	private boolean forceBuild;
 	private String configFilename;
-	
+
 	private boolean forceNoBuild;
 	public static final String localOcelotDir=System.getProperty("user.dir"); 
 	public static final boolean isExpWithEvalFun=true;// this will treat as our version of OCELOT
@@ -69,7 +70,7 @@ public class Run {
 	public static void main(String[] args) throws Exception {
 		if(isExpWithEvalFun) {
 			welcome();
-			}
+		}
 
 		System.out.println("Now deleting old build file.... just for better debuging");
 		String filePathToDelete1 = localOcelotDir+"/.lastbuild.cks";
@@ -81,7 +82,7 @@ public class Run {
 		String filePathToDelete4 = localOcelotDir+"/testObjectives.to"; //do 
 		deleteFileIfExists(filePathToDelete4);
 		deleteOldEvalPCfiles(localOcelotDir);
-		
+
 		long startTime =System.currentTimeMillis();
 		Run runner = new Run(args);
 		if (runner.mustBuild())
@@ -96,11 +97,11 @@ public class Run {
 			//logWriter.append("List of PC PairCombinations:");
 			//logWriter.append("\n{\n");
 			//for(TestObjStateMachine sm:ReadEFLfilesforPairCombination_V2.files_SM_PC_FitVals) {
-				//logWriter.append(sm.getSMPairName().toString());
-				//logWriter.append("\n");
+			//logWriter.append(sm.getSMPairName().toString());
+			//logWriter.append("\n");
 			//}
 			//logWriter.append("}\n");
-			
+
 		}
 		runner.run();
 		if(isExpWithEvalFun) {
@@ -119,25 +120,61 @@ public class Run {
 			/*logWriter.append("files_PC_PairCom_FitnessVals");*/
 			logWriter.append("\n");
 			logWriter.append(ReadEFLfilesforPairCombination_V2.files_SM_PC_FitVals.toString());
-			
+
 			/*for (TestObjStateMachine sm : ReadEFLfilesforPairCombination_V2.files_SM_PC_FitVals) {
-				
+
 			}*/
-			
+
 		}
 		createLogFile(logWriter);
 		//System.out.println(CalculateFitnessFromEvalPC3.linesFromFitnessFiles);
+		//delete all the target source files from the jni folder
+		deleteTargetSourceFilesFromJni();
+	}
+	private static void deleteTargetSourceFilesFromJni() throws IOException {
+		ConfigManager getConfInfo=ConfigManager.getInstance();		
+		String[] listFiles= getConfInfo.getTestIncludePaths();
+		String tragetSourceFolder=getConfInfo.getTestBasedir();
+        File outputJniFolder = new File(tragetSourceFolder, "jni");
+        // Create the 'jni' subfolder if it doesn't exist
+        if (!outputJniFolder.exists()) {
+            boolean created = outputJniFolder.mkdirs();
+            if (!created) {
+                System.out.println("Failed to create output JNI folder: " + outputJniFolder.getAbsolutePath());
+                return;
+            }
+        }
+		for(int i=0;i<listFiles.length;i++) {
+			//System.out.println(supportFiles[i]);
+			int lastIndex=listFiles[i].lastIndexOf('/');
+			File sourceFile = new File("jni/", listFiles[i].substring(lastIndex+1));
+            File destinationFile = new File(outputJniFolder, listFiles[i].substring(lastIndex+1));
+
+            if (sourceFile.exists()) {
+                try {
+                    Files.move(sourceFile.toPath(), destinationFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+                    //System.out.println("Moved: " + sourceFile.getAbsolutePath() + " -> " + destinationFile.getAbsolutePath());
+                } catch (IOException e) {
+                    System.out.println("Failed to move: " + sourceFile.getAbsolutePath());
+                    e.printStackTrace();
+                }
+            } else {
+                System.out.println("File not found: " + sourceFile.getAbsolutePath());
+            }
+
+		}	
+		 System.out.println("Files moved to "+outputJniFolder+"/ for backup.");
 
 	}
 	private static void welcome() throws InterruptedException {
-		System.out.println("WELCOME");
-		System.out.println("Did you update the localOcelotDir, function name, parameter list ?");
-		System.out.println("Please update the UnitLevelComponemts.txt and IntRelKeyList.kl file,\n IMP: update: it.unisa.ocelot.c.makefile.JNIMakefileGenerator-> gcc -> support files and then execute, thanks");
-		System.out.println("Y/N");
+		System.out.println("WELCOME to EvInT");
+		System.out.println("Did you update the localOcelotDir, function name, includes and parameter list correctly?");
+		System.out.println("Please update the UnitLevelComponemts.txt. thanks");
+		System.out.println("Yes/No");
 		TimeUnit.SECONDS.sleep(1);
-		System.out.println("Hope you updated the parameters... else...update the files and then...restart...");
+		System.out.println("Hope you updated the information... else...please update the files...");
 		TimeUnit.SECONDS.sleep(1);
-	
+
 	}
 	public static void createLogFile(StringBuilder logWriter) throws IOException {
 		LocalDateTime now = LocalDateTime.now();
@@ -148,10 +185,10 @@ public class Run {
 		try (BufferedWriter writer = new BufferedWriter(new FileWriter(dir_FileName))){
 			writer.write(logWriter.toString());
 		}
-		
+
 	}
 	private static void PrintNumOfPathCovered() {
-		
+
 		int numSMs = 0;
 		for( List<TestObjStateMachine> SMs : ReadEFLfilesforPairCombination_V2.ListOfSMs) {
 			numSMs += SMs.size();
@@ -160,7 +197,7 @@ public class Run {
 		int totalPairCombination= numSMs;
 		int totalPairTestGenerated = 0;
 		String pairList="";
-		
+
 		logWriter.append("\n");
 		//System.out.println("Test case NOT generated for following pair combination: ");
 		//logWriter.append("Test case NOT generated for following pair combination: ");
@@ -188,12 +225,12 @@ public class Run {
 							listofObjNotCov.add(sm.getTestObjTwo());
 						}
 					}
-					
+
 					//System.out.println(sm.getSMPairName());
 					//logWriter.append(sm.getSMPairName().toString());
 					//logWriter.append("\n");
 				}
-				
+
 			}
 			forwardPairCovered.add(acc);
 		}
@@ -217,7 +254,7 @@ public class Run {
 		logWriter.append(totalPairTestGenerated+" out of "+totalPairCombination+" pair combination  covered in the generated test suite ");
 		logWriter.append("\n");logWriter.append("\n");
 		//System.out.println("The covered pair combinations are: ");
-		
+
 	}
 	private static void deleteOldEvalPCfiles(String directoryPath) {
 		File directory = new File(directoryPath);
