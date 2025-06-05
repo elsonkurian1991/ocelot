@@ -315,7 +315,7 @@ public class StandardBuilder extends Builder {
 		}
 		
 		// Martino
-		// This code generate the pairs
+		// This code generates the pairs
 		generatePairs();
 
 		/**

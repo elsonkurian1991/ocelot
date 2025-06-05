@@ -1,18 +1,43 @@
 package it.unisa.ocelot.genetic.objectives;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 
+import it.unisa.ocelot.TestCase;
 import it.unisa.ocelot.genetic.edges.FunBranchNameAndFitness;
 import it.unisa.ocelot.genetic.edges.TestObjStateMachine;
 
 public class PC_PairObjective extends GenericObjective {
 
 	TestObjStateMachine sm;
-
-	public PC_PairObjective(boolean isCovered, int objectiveID, String testObj1, String testObj2) {
+	public Integer budget;
+	public String direction;
+	public PC_PairObjective TriggeredPair;
+	public TestCase DiscovererTestCase;
+	public int indirectionLevel;
+	
+	
+	
+	
+	public PC_PairObjective(boolean isCovered, int objectiveID, String testObj1, String testObj2, String direction, int indirectionLevel) {
 		super(isCovered, objectiveID);
 		sm = new TestObjStateMachine(testObj1, testObj2);
+		budget = 0;
+		this.direction = direction;
+		DiscovererTestCase = null;
+		this.indirectionLevel = indirectionLevel;
 	}
+	
+	public PC_PairObjective(boolean isCovered, int objectiveID, TestObjStateMachine SM, String direction, int indirectionLevel) {
+		super(isCovered, objectiveID);
+		sm = SM;
+		budget = 0;
+		this.direction = direction;
+		DiscovererTestCase = null;
+		this.indirectionLevel = indirectionLevel;
+	}
+	
+
 
 	@Override
 	public double getFitness(Object[][][] arguments) {
@@ -50,5 +75,20 @@ public class PC_PairObjective extends GenericObjective {
 				+ ", hashCode()=" + hashCode() + ", toString()=" + super.toString() + ", getClass()=" + getClass()
 				+ "]";
 	}
+
+	public int compareTo(Integer budget2) {
+		// TODO Auto-generated method stub
+		return 0;
+	}
+	
+	public Integer getBudgetUsed() {
+		return this.budget;
+	}
+	
+    public static void sort(ArrayList<PC_PairObjective> list) {
+
+        list.sort((o1, o2) -> o1.getBudgetUsed().compareTo(o2.getBudgetUsed()));
+    }
+
 	
 }
