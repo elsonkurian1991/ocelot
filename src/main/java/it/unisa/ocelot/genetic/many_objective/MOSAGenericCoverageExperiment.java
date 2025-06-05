@@ -1,5 +1,8 @@
 package it.unisa.ocelot.genetic.many_objective;
 
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.ObjectOutputStream;
 import java.util.List;
 
 import org.apache.commons.lang3.Range;
@@ -48,9 +51,10 @@ public class MOSAGenericCoverageExperiment extends OcelotExperiment {
 			Range<Double>[] ranges = config.getTestRanges();
 
 			MOSAGenericCoverageProblem problem = null;
-			if (ranges != null)
+			if (ranges != null) {
 				problem = new MOSAGenericCoverageProblem(this.cfg, this.parametersTypes, config.getTestArraysSize(), 
 						ranges, objectives);
+				}
 			else
 				throw new RuntimeException("Error: please, set the ranges for the parameters for MOSA algorithm");
 			
@@ -58,12 +62,12 @@ public class MOSAGenericCoverageExperiment extends OcelotExperiment {
 				System.err.println("Warning: MOSA will run with its own algorithm (AVM ignored)!");
 			}
 
-			StandardSettings settings = new MOSASettingsGeneric(problem, config, objectives);
+			MOSASettingsGeneric settings = new MOSASettingsGeneric(problem, config, objectives);
 			if (config.isMetaMutatorEnabled())
 				settings.useMetaMutator();
 			settings.setNumericConstants(this.cfg.getConstantNumbers());
 			problem.setDebug(config.getDebug());
-			algorithm[0] = settings.configure();
+			algorithm[0] = settings.configure(cfg, parametersTypes);
 		} catch (Exception e) {
 			System.err.println("An error occurred while instantiating problem: " + e.getMessage());
 			return;

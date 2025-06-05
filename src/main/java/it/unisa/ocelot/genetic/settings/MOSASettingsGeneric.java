@@ -5,7 +5,9 @@ import java.util.List;
 import jmetal.core.Algorithm;
 import jmetal.core.Problem;
 import jmetal.util.JMException;
+import it.unisa.ocelot.c.cfg.CFG;
 import it.unisa.ocelot.c.cfg.edges.LabeledEdge;
+import it.unisa.ocelot.c.types.CType;
 import it.unisa.ocelot.conf.ConfigManager;
 import it.unisa.ocelot.genetic.algorithms.MOSA;
 import it.unisa.ocelot.genetic.algorithms.MOSA_Generic;
@@ -28,8 +30,8 @@ public class MOSASettingsGeneric extends GASettings {
 		this.objectives = objectives;
 	}
 	
-	public Algorithm configure() throws JMException {
-		Algorithm algorithm = new MOSA_Generic((MOSAGenericCoverageProblem)problem_, objectives);
+	public Algorithm configure(CFG cfg, CType[] parametersTypes) throws JMException {
+		Algorithm algorithm = new MOSA_Generic((MOSAGenericCoverageProblem)problem_, objectives, cfg, parametersTypes, config);
 		algorithm.setInputParameter("maxCoverage", this.config.getRequiredCoverage());
 		return super.configure(algorithm);
     }
