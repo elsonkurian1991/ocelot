@@ -63,7 +63,7 @@ public class MOSADominanceComparator_Generic implements Comparator {
 		double value1, value2;
 
 		for (GenericObjective uncoveredBranch : target) {
-			if (uncoveredBranch.isCovered())
+			if (uncoveredBranch.isCovered() || !uncoveredBranch.isActive())
 				continue; //branch covered
 			
 			value1 = solution1.getObjective(uncoveredBranch.getObjectiveID());

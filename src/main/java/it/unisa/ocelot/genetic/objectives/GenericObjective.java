@@ -5,10 +5,13 @@ import java.util.Objects;
 public abstract class GenericObjective {
 	private boolean isCovered;
 	private int objectiveID;
+	// Used in DynaMOSA to know if we are currenlty optimizing for this objective
+	private boolean isActive;
 
 	public GenericObjective(boolean isCovered, int objectiveID) {
 		super();
 		this.isCovered = isCovered;
+		this.isActive = true;
 		this.objectiveID = objectiveID;
 	}
 
@@ -18,6 +21,15 @@ public abstract class GenericObjective {
 
 	public void setCovered(boolean isCovered) {
 		this.isCovered = isCovered;
+	}
+	
+	public boolean isActive() {
+		//return isCovered;
+		return isActive;
+	}
+
+	public void setActive(boolean isActive) {
+		this.isActive = isActive;
 	}
 
 	public int getObjectiveID() {
