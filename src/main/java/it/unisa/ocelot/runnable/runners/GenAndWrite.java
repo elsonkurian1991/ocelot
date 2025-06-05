@@ -81,7 +81,7 @@ public class GenAndWrite {
 			//System.out.println("Statement coverage achieved: " + calculator.getBlockCoverage());
 			System.out.println("-------------------------------------------------------");
 			
-			String formattedFilename = config.getTestFilename();
+			/*String formattedFilename = config.getTestFilename();
 			formattedFilename = formattedFilename.replaceAll("[^A-Za-z0-9]", "_");
 			String filename = "_Test_" + config.getTestFunction() + "_" + formattedFilename + ".c";
 			System.out.println("Writing test suite on " + filename + "...");
@@ -89,7 +89,7 @@ public class GenAndWrite {
 			TestFramework framework = new TestFramework(new CheckFactory());
 			
 			String content = framework.writeTestSuite(minimizedSuite, cfg, config);
-			Utils.writeFile(filename, content);
+			Utils.writeFile(filename, content);*/
 			
 			System.out.println("Operation completed!");
 		} catch (Exception e) {

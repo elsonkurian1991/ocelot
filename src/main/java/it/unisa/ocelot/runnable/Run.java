@@ -33,6 +33,9 @@ import it.unisa.ocelot.genetic.edges.FitType;
 import it.unisa.ocelot.genetic.edges.ReadEFLfilesforPairCombination;
 import it.unisa.ocelot.genetic.edges.ReadEFLfilesforPairCombination_V2;
 import it.unisa.ocelot.genetic.edges.TestObjStateMachine;
+import it.unisa.ocelot.genetic.objectives.GenericObjective;
+import it.unisa.ocelot.genetic.objectives.PC_PairObjective;
+import it.unisa.ocelot.genetic.objectives.PC_PairsManager;
 import it.unisa.ocelot.runnable.runners.ExecuteExperiment;
 import it.unisa.ocelot.runnable.runners.ExecuteWholeCoverage;
 import it.unisa.ocelot.runnable.runners.GenAndWrite;
@@ -62,6 +65,9 @@ public class Run {
 	public static StringBuilder logWriter = new StringBuilder();
 	public static int population_size;
 	public static int evaluations_max;
+	
+	//List of generated objectives
+	public static List<GenericObjective> generatedObjectives;
 	enum State{
 		zeroCover,
 		oneCover,
@@ -92,7 +98,8 @@ public class Run {
 			//logWriter.append("\n");
 			//logWriter.append("Info:");
 			//logWriter.append("\n");
-			ReadEFLfilesforPairCombination_V2.RunEFLfilesforPairCombination(); // run this to read the efl file and create pairwise combinations. find a best place to call this
+			//ReadEFLfilesforPairCombination_V2.RunEFLfilesforPairCombination(); // run this to read the efl file and create pairwise combinations. find a best place to call this
+			generatedObjectives = PC_PairsManager.loadObjectives();
 			//logWriter.append("\n");
 			//logWriter.append("List of PC PairCombinations:");
 			//logWriter.append("\n{\n");
@@ -119,7 +126,7 @@ public class Run {
 			//logWriter.append("\n");
 			/*logWriter.append("files_PC_PairCom_FitnessVals");*/
 			logWriter.append("\n");
-			logWriter.append(ReadEFLfilesforPairCombination_V2.files_SM_PC_FitVals.toString());
+			logWriter.append(generatedObjectives.toString());
 
 			/*for (TestObjStateMachine sm : ReadEFLfilesforPairCombination_V2.files_SM_PC_FitVals) {
 
@@ -189,12 +196,8 @@ public class Run {
 	}
 	private static void PrintNumOfPathCovered() {
 
-		int numSMs = 0;
-		for( List<TestObjStateMachine> SMs : ReadEFLfilesforPairCombination_V2.ListOfSMs) {
-			numSMs += SMs.size();
-		}
 
-		int totalPairCombination= numSMs;
+		int totalPairCombination= generatedObjectives.size();
 		int totalPairTestGenerated = 0;
 		String pairList="";
 
@@ -202,39 +205,38 @@ public class Run {
 		//System.out.println("Test case NOT generated for following pair combination: ");
 		//logWriter.append("Test case NOT generated for following pair combination: ");
 		//logWriter.append("\n");logWriter.append("\n");
-		ArrayList<String> listofObjNotCov=new ArrayList<String>();
-		List<Integer> forwardPairCovered = new ArrayList<Integer>();
-		List<Integer> forwardPairNumber = new ArrayList<Integer>();
-		for (List<TestObjStateMachine> ListSM : ReadEFLfilesforPairCombination_V2.ListOfSMs) {	
-			int acc = 0;
-			forwardPairNumber.add(ListSM.size());
-			for (TestObjStateMachine sm : ListSM) {
-				if(sm.isGenerated()) {
-					totalPairTestGenerated += 1;
-					acc += 1;
-					pairList=pairList+sm.getSMPairName();
+		int totalCovered = 0;
+		int forwardLevel1covered = 0;
+		int forwardLevel2covered = 0;
+		
+		int forwardLevel1notCovered = 0;
+		int forwardLevel2notCovered = 0;
+		for (GenericObjective obj : generatedObjectives) {	
+			PC_PairObjective pairObj = (PC_PairObjective) obj;
+			
+			
+			// TODO: refactor to handle multiple indirections level and to allow non PC_PairObjective as objective
+			if (obj.isCovered()) {
+				if ( pairObj.indirectionLevel == 1) {
+					forwardLevel1covered++;
 				}
-				else {
-					if(sm.getFitValOne()!=0.0) {
-						if(!listofObjNotCov.contains(sm.getTestObjOne())){
-							listofObjNotCov.add(sm.getTestObjOne());
-						}
-					}
-					if(sm.getFitValTwo()!=0.0) {
-						if(!listofObjNotCov.contains(sm.getTestObjTwo())) {
-							listofObjNotCov.add(sm.getTestObjTwo());
-						}
-					}
-
-					//System.out.println(sm.getSMPairName());
-					//logWriter.append(sm.getSMPairName().toString());
-					//logWriter.append("\n");
+				else if (pairObj.indirectionLevel == 2) {
+					forwardLevel2covered++;
 				}
-
 			}
-			forwardPairCovered.add(acc);
+			else if (!obj.isCovered()) {
+				if ( pairObj.indirectionLevel == 1) {
+					forwardLevel1notCovered++;
+				}
+				else if (pairObj.indirectionLevel == 2) {
+					forwardLevel2notCovered++;
+				}
+			}
+			
+			
+			int acc = 0;
 		}
-		System.out.println(listofObjNotCov);
+		//System.out.println(listofObjNotCov);
 		logWriter.append("\n");
 		logWriter.append("The covered pair combinations are: ");
 		logWriter.append("\n");logWriter.append("{\n");
@@ -248,10 +250,10 @@ public class Run {
 		logWriter.append("\n");logWriter.append("\n");
 		System.out.println("population.size:"+population_size);
 		System.out.println("evaluations.max:"+evaluations_max);
-		System.out.println(totalPairTestGenerated+" out of "+totalPairCombination+" pair combination  covered in the generated test suite ");
-		System.out.println("Forward pairs covered:" + forwardPairCovered);
-		System.out.println("Forward pairs size:" + forwardPairNumber);
-		logWriter.append(totalPairTestGenerated+" out of "+totalPairCombination+" pair combination  covered in the generated test suite ");
+		System.out.println((forwardLevel1covered + forwardLevel2covered)+" out of "+totalPairCombination+" pair combination  covered in the generated test suite ");
+		System.out.println("Forward pairs covered:" + (forwardLevel1covered + forwardLevel2covered));
+		System.out.println("Forward pairs size:" + totalPairCombination);
+		logWriter.append((forwardLevel1covered + forwardLevel2covered)+" out of "+totalPairCombination+" pair combination  covered in the generated test suite ");
 		logWriter.append("\n");logWriter.append("\n");
 		//System.out.println("The covered pair combinations are: ");
 
