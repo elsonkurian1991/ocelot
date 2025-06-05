@@ -209,6 +209,7 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 
 	public IASTExpression transformDistanceExpression(IASTExpression expression, boolean pNegation,
 			boolean pTransPerformed) {
+		//System.out.println(expression.getRawSignature());
 		if (expression instanceof IASTBinaryExpression) {
 			IASTBinaryExpression realExpression = (IASTBinaryExpression) expression;
 			if (realExpression.getOperator() == IASTBinaryExpression.op_equals)
@@ -232,14 +233,17 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 				return this.trasformArithmetic(realExpression, pNegation, IASTBinaryExpression.op_minus);
 			else if (realExpression.getOperator() == IASTBinaryExpression.op_plus)
 				return this.trasformArithmetic(realExpression, pNegation, IASTBinaryExpression.op_plus);
-			else if (realExpression.getOperator() == IASTBinaryExpression.op_multiply)
-				return this.trasformArithmetic(realExpression, pNegation, IASTBinaryExpression.op_multiply);
+			else if (realExpression.getOperator() == IASTBinaryExpression.op_divide)
+				return this.trasformArithmetic(realExpression, pNegation, IASTBinaryExpression.op_divide);//division was missing before
 			else if (realExpression.getOperator() == IASTBinaryExpression.op_multiply)
 				return this.trasformArithmetic(realExpression, pNegation, IASTBinaryExpression.op_multiply);
 			else if (realExpression.getOperator() == IASTBinaryExpression.op_binaryOr)
+				//return this.trasformArithmetic(realExpression, pNegation, IASTBinaryExpression.op_min);//make changes to handle: if 'and'then min of the distance
 				return this.trasformArithmetic(realExpression, pNegation, IASTBinaryExpression.op_binaryOr);
 			else if (realExpression.getOperator() == IASTBinaryExpression.op_binaryAnd)
-				return this.trasformArithmetic(realExpression, pNegation, IASTBinaryExpression.op_binaryAnd);
+				return this.trasformArithmetic(realExpression, pNegation, IASTBinaryExpression.op_plus); //make changes to handle: if 'and' then add the distance
+				//return this.trasformArithmetic(realExpression, pNegation, IASTBinaryExpression.op_binaryAnd);
+			/**/
 			/**/
 			else if (realExpression.getOperator() == IASTBinaryExpression.op_assign
 					|| realExpression.getOperator() == IASTBinaryExpression.op_plusAssign
@@ -318,7 +322,23 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 				return this.transformNot(realExpression, pNegation, pTransPerformed);
 			} else if (realExpression.getOperator() == IASTUnaryExpression.op_amper
 					|| realExpression.getOperator() == IASTUnaryExpression.op_star) {
-				return realExpression;
+				if (!pTransPerformed) {
+					IASTExpression[] arguments = new IASTExpression[1];
+					arguments[0] = realExpression;
+
+					IASTExpression result;
+				
+					if (!pNegation)
+						result = makeFunctionCall("_f_ocelot_istrue", arguments);
+					else
+						result = makeFunctionCall("_f_ocelot_isfalse", arguments);
+					//System.out.println(result.getRawSignature().toString());
+					return result;
+				}
+				else {
+					return realExpression;
+				}
+				//return realExpression;
 			} else if (realExpression.getOperator() == IASTUnaryExpression.op_postFixDecr
 					|| realExpression.getOperator() == IASTUnaryExpression.op_postFixIncr) {
 
@@ -354,10 +374,12 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 				arguments[0] = expression;
 
 				IASTExpression result;
+			
 				if (!pNegation)
 					result = makeFunctionCall("_f_ocelot_istrue", arguments);
 				else
 					result = makeFunctionCall("_f_ocelot_isfalse", arguments);
+				//System.out.println(result.getRawSignature().toString());
 				return result;
 			}
 		} else if (expression instanceof IASTFunctionCallExpression) {
@@ -373,8 +395,9 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 
 		return expression;
 	}
-
+	//here we need to change the logic... 
 	public IASTExpression transformOriginalExpression(IASTExpression expression) {
+		//System.out.println(expression.getRawSignature());
 		if (expression instanceof IASTBinaryExpression) {
 			IASTBinaryExpression realExpression = (IASTBinaryExpression) expression;
 
@@ -403,7 +426,7 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
  
             IASTExpression functionNameExpr = call.getFunctionNameExpression();
             String functionName = extractFunctionName(functionNameExpr);
- 
+            //System.out.println(functionName+"  checking...");
             if (functionName != null && targetFunctions.contains(functionName)) {
                 System.out.println("Found call to '" + functionName + "' at: " + expression.getFileLocation());
                 IASTNode ParentExpression = expression.getParent();
@@ -444,6 +467,7 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 	// TODO start from here
 	public void visit(IASTIfStatement statement) {
 		statement.getChildren();
+		//System.out.println(statement.getConditionExpression().getRawSignature().toString());
 		IASTExpression[] instrArgs = new IASTExpression[5];
 		instrArgs[0] = new CASTLiteralExpression(CASTLiteralExpression.lk_string_literal,
 				("\"" + functionName + "\"").toCharArray());
@@ -714,11 +738,12 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 	public void visit(IASTDefaultStatement statement) {
 		this.switchExpressions.lastElement().add(statement);
 	}
-
+	//read the statement line by line 
 	public int visit(IASTStatement statement) {
 		try {
 			//System.out.println(((IASTCompoundStatement)statement).getStatements());
 			//System.out.println(((ASTNode) statement).getAST());
+			//System.out.println(statement.getRawSignature());
 			this.functionCallsInExpressions.clear();
 			if (statement instanceof IASTIfStatement)
 				this.visit((IASTIfStatement) statement);
@@ -941,7 +966,7 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 	private void addTestObjectives(int branch) {
 		if (this.functionName == "ExpectationWindow_Calculator_BCAL_Lib_DM_TIM_BaliseMM_LMC")
 		{
-			System.out.println("here");
+			//System.out.println("here");
 		}
 		testObjectives.add(this.functionName + ":" + "branch" + branch + "-true");
 		testObjectives.add(this.functionName + ":" + "branch" + branch + "-false");

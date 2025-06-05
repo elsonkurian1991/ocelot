@@ -29,9 +29,11 @@ import org.eclipse.cdt.core.dom.ast.IASTNode;
 import org.eclipse.cdt.core.dom.ast.IASTPreprocessorIncludeStatement;
 import org.eclipse.cdt.core.dom.ast.IASTPreprocessorStatement;
 import org.eclipse.cdt.core.dom.ast.IASTTranslationUnit;
+import org.eclipse.cdt.core.dom.rewrite.ASTRewrite;
 
 import it.unisa.ocelot.c.compiler.GCC;
 import it.unisa.ocelot.c.instrumentor.ExternalReferencesVisitor;
+import it.unisa.ocelot.c.instrumentor.InstrumenterVisitForIfMethodCalls;
 import it.unisa.ocelot.c.instrumentor.InstrumentorVisitor;
 import it.unisa.ocelot.c.instrumentor.MacroDefinerVisitor;
 import it.unisa.ocelot.c.instrumentor.StatementTreePrinter;
@@ -206,23 +208,29 @@ public class StandardBuilder extends Builder {
 				translationUnit.accept(referencesVisitor1);
 
 				ArrayList<String> testObjectives = new ArrayList<String>();
+
 				
-				UnitComponentInstrumentorVisitor instrumentor1 = new UnitComponentInstrumentorVisitor(tempUnitComponent,
-						testObjectives, unitLevelComponents);
 				//if(testObjectives.isEmpty()) continue;
-				componentsTestObjectives.put(tempUnitComponent, testObjectives);
+				
 				MacroDefinerVisitor macroDefiner1 = new MacroDefinerVisitor(tempUnitComponent,
 						referencesVisitor1.getExternalReferences());
 
 				// NOTE: macroDefine MUST preceed instrumentor in visit
 				translationUnit.accept(macroDefiner1);
 				
+			
 				// Used to print the structure of the AST for debugging
 				//StatementTreePrinter printer = new StatementTreePrinter();
 				//translationUnit.accept(printer);
-				
-				translationUnit.accept(instrumentor1);
-				
+				//Here we add a instrumention visitor for method call in the if condition.
+				ASTRewrite rewriter = ASTRewrite.create(translationUnit);
+				InstrumenterVisitForIfMethodCalls instrumentor_if_method_call = new InstrumenterVisitForIfMethodCalls(tempUnitComponent,rewriter);
+				translationUnit.accept(instrumentor_if_method_call);
+				//till here...
+				UnitComponentInstrumentorVisitor instrumentor1 = new UnitComponentInstrumentorVisitor(tempUnitComponent,
+						testObjectives, unitLevelComponents);
+				translationUnit.accept(instrumentor1);//old ours
+				componentsTestObjectives.put(tempUnitComponent, testObjectives);
 				// Need to store this one outside the loop to generate the branch pairs
 				nodeBranchMap.put(tempUnitComponent, instrumentor1.functionBranchPairMap);
 				
