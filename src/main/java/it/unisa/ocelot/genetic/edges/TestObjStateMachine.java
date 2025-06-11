@@ -136,13 +136,14 @@ public class TestObjStateMachine implements Serializable {
 
 		if(this.getTestObjOne().contentEquals(infoFromLinebr.getFunBranchName())) {
 			if(infoFromLinebr.getCurrFitnessVal()==0.0) {
-				this.setCurrState(State.oneCover);				
+				this.setCurrState(State.oneCover);
+				
 			}
 			else {
 				this.setCurrState(State.zeroCover);
+				this.setFitValTwo(1);
 			}
 			this.setFitValOne(infoFromLinebr.getCurrFitnessVal());
-
 		}
 		if(this.getTestObjTwo().contentEquals(infoFromLinebr.getFunBranchName())) {
 
@@ -152,10 +153,11 @@ public class TestObjStateMachine implements Serializable {
 				}
 				else {
 					this.setCurrState(State.oneCover);
-				}										
+				}	
+				this.setFitValTwo(infoFromLinebr.getCurrFitnessVal());
 			}
 
-			this.setFitValTwo(infoFromLinebr.getCurrFitnessVal());
+			
 		}
 
 	}
