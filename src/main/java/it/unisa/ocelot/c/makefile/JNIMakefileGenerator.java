@@ -72,7 +72,8 @@ public abstract class JNIMakefileGenerator {
 		
 		String moreOptions = this.getMoreOptions();
 	
-		String result = "CC = gcc-9 \n\n" +
+		//String result = "CC = gcc-9 \n\n" +
+		String result = "CC ="+this.getCCompiler()+" \n\n" +
 		"JAVA_HOME = " + this.getJavaHome() + "\n\n" +
 		"SYSTEM_INCLUDE = " + this.getSystemInclude() + "\n\n" +
 		"GLIB2_INCUDE = " + glib2paths + "\n" +

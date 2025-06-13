@@ -145,7 +145,7 @@ public class MOSA_Generic extends OcelotAlgorithm {
 		// store every T.C. that covers previously uncovered branches in the archive
 		this.updateArchive(population, evaluations);
 		
-		int newSolutionEval = 5000;
+		int newSolutionEval = 400;
 
 		while (evaluations < maxEvaluations && calculateCoverage() < maxCoverage) {
 			
@@ -164,7 +164,8 @@ public class MOSA_Generic extends OcelotAlgorithm {
 			}*/
 			
 			// Restar the population after a set budget is used
-			/*if (evaluations > newSolutionEval) {
+			/*
+			if (evaluations > newSolutionEval) {
 				population = new SolutionSet(populationSize);
 				System.out.println("---------------------------------------newPopulation");
 				for (int i = 0; i < populationSize; i++) {
@@ -175,10 +176,16 @@ public class MOSA_Generic extends OcelotAlgorithm {
 				newSolutionEval += 2000;
 			}*/
 			
-			
 				
-			offspringPopulation = new SolutionSet(populationSize);
+			offspringPopulation = new SolutionSet(populationSize+(int)(populationSize*0.1));
 			Solution[] parents = new Solution[2];
+			
+			for (int i = 0; i < populationSize * 0.1; i++) {
+				newSolution = new Solution(problem_);
+				problem_.evaluate(newSolution);
+				evaluations++;
+				offspringPopulation.add(newSolution);
+			}
 
 			for (int i = 0; i < (populationSize / 2); i++) {
 				if (evaluations < maxEvaluations) {
@@ -199,6 +206,22 @@ public class MOSA_Generic extends OcelotAlgorithm {
 
 			// Create the solutionSet union of solutionSet and offSpring
 			union = ((SolutionSet) population).union(offspringPopulation);
+			
+			double globalFitness = 0;
+			
+			for (GenericObjective obj:allTargets) {
+				double objFitness = Double.MAX_VALUE;
+				if (obj.isCovered() || !obj.isActive())
+					continue;
+				for(int i = 0; i < union.size(); i++) {
+					if (union.get(i).getObjective(obj.getObjectiveID()) <  objFitness)
+						objFitness = union.get(i).getObjective(obj.getObjectiveID());
+				}
+				globalFitness += objFitness;
+			}
+			System.out.println(globalFitness);
+			
+			this.updateArchive(union, evaluations);
 
 			//modify the objectives before here
 			Front fronts = this.preferenceSorting(union);
@@ -236,11 +259,24 @@ public class MOSA_Generic extends OcelotAlgorithm {
 				this.crowdingDistanceAssignmentV2(front, problem_.getNumberOfObjectives());
 				front.sort(new CrowdingComparator());
 
-				for (int i = 0; i < remain; i++)
+				for (int i = 0; i < remain; i++) {
 					population.add(front.get(i));
+				}
 			}
+			
+			/*for (GenericObjective obj:allTargets) {
+				double objFitness = Double.MAX_VALUE;
+				if (obj.isCovered() || !obj.isActive())
+					continue;
+				for(int i = 0; i < union.size(); i++) {
+					if (union.get(i).getObjective(obj.getObjectiveID()) <  objFitness)
+						objFitness = union.get(i).getObjective(obj.getObjectiveID());
+				}
+				globalFitness += objFitness;
+			}
+			System.out.println(globalFitness);*/
 
-			this.updateArchive(population, evaluations);
+			
 			evaluations++;
 
 		}// while
@@ -284,17 +320,15 @@ public class MOSA_Generic extends OcelotAlgorithm {
 				if (objectiveScore == 0.0) {
 					objective.setCovered(true);
 					PC_PairObjective triggeredPair = ((PC_PairObjective) objective).TriggeredPair;
+					
+					// Add the solution that covered the objective to the objective object
+					//((PC_PairObjective) objective).DiscovererTestCase = currentCandidate;
 					if (triggeredPair != null && !triggeredPair.isCovered()) {
-						//((PC_PairObjective) objective).TriggeredPair.setActive(true);
+						((PC_PairObjective) objective).TriggeredPair.setActive(true);
 						//System.out.println("Pair activated");
 					}
-					int acc = 0;
-					for (GenericObjective target : allTargets) {
-						if (target.isActive() && !target.isCovered()) {
-							acc++;
-						}
-					}
-					System.out.println("Active not covered " + acc);
+					
+					
 					archive.add(currentCandidate);
 					evaluations.add(evaluation);
 					System.out.println("One covered " + archive.size());
@@ -302,6 +336,13 @@ public class MOSA_Generic extends OcelotAlgorithm {
 				}
 			} // while candidates
 		} // while targets
+		int acc = 0;
+		for (GenericObjective target : allTargets) {
+			if (target.isActive() && !target.isCovered()) {
+				acc++;
+			}
+		}
+		System.out.println("Active not covered " + acc);
 	}
 
 	private Front preferenceSorting(SolutionSet candidates) {
@@ -311,18 +352,22 @@ public class MOSA_Generic extends OcelotAlgorithm {
 		SolutionSet front_0 = new SolutionSet(allTargets.size());
 
 		/*** preference criterion ***/
-		double minimum_fitness = Double.MAX_VALUE;
-		Solution t_best = null; // best test case
+		
+		 
 		Set<Solution> solutionsToDelete = new HashSet<>();
 
 		for (GenericObjective target : allTargets) {
 			if (target.isCovered() || !target.isActive())
 				continue;
 			Iterator<Solution> populationIterator = population.iterator();
+			double minimum_fitness = Double.MAX_VALUE;
+			// best test case
+			Solution t_best = null;
 			while (populationIterator.hasNext()) {
 
-				Solution currentSolution = populationIterator.next();
+				
 				int idObjective = target.getObjectiveID();
+				Solution currentSolution = populationIterator.next();
 				double currentObjective = currentSolution.getObjective(idObjective);
 
 				if (currentObjective < minimum_fitness) {
@@ -350,6 +395,8 @@ public class MOSA_Generic extends OcelotAlgorithm {
 		/*** fast-non dominated-sort ***/
 
 		MOSARanking_Generic ranking = new MOSARanking_Generic(population, allTargets);
+		
+
 
 		int remain = population.size();
 		int front_number = 0;
@@ -364,6 +411,8 @@ public class MOSA_Generic extends OcelotAlgorithm {
 
 		return front;
 	}
+	
+	//public List<SolutionSet> rankDominatedAndNonDominated(population) {}
 
 	public void crowdingDistanceAssignment(SolutionSet solutionSet, int numberOfObjects) {
 		int size = solutionSet.size();
@@ -449,6 +498,8 @@ public class MOSA_Generic extends OcelotAlgorithm {
 		double distance = 0.0;
 
 		for (int i = 0; i < numberOfObjects; i++) {
+			if ((allTargets.get(i).isCovered())||  !(allTargets.get(i).isActive()))
+				continue;
 			// sort the population by current object
 			//try {
 			solutionSet.sort(new ObjectiveComparator(i));
