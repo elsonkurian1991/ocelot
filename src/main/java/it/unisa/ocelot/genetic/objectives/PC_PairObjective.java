@@ -6,6 +6,7 @@ import java.util.HashMap;
 import it.unisa.ocelot.TestCase;
 import it.unisa.ocelot.genetic.edges.FunBranchNameAndFitness;
 import it.unisa.ocelot.genetic.edges.TestObjStateMachine;
+import jmetal.core.Solution;
 
 public class PC_PairObjective extends GenericObjective {
 
@@ -13,7 +14,7 @@ public class PC_PairObjective extends GenericObjective {
 	public Integer budget;
 	public String direction;
 	public PC_PairObjective TriggeredPair;
-	public TestCase DiscovererTestCase;
+	public Solution DiscovererTestCase;
 	public int indirectionLevel;
 	
 	
@@ -62,7 +63,7 @@ public class PC_PairObjective extends GenericObjective {
 			infoFromLinebr2 = new FunBranchNameAndFitness(sm.getTestObjTwo(), 1);
 		sm.transition(infoFromLinebr2);
 
-		fitness = sm.getFitValOne() + sm.getFitValTwo();
+		fitness = (sm.getFitValOne() + sm.getFitValTwo())/2;
 		if (fitness == Double.POSITIVE_INFINITY) {
 			fitness = Double.MAX_VALUE;
 		}

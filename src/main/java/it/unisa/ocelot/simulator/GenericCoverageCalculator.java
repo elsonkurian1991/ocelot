@@ -38,7 +38,7 @@ public class GenericCoverageCalculator {
 			BranchDistanceCache.cacheFitnessValues();
 			for (GenericObjective objective : objectives) {
 				double fitness = objective.getFitness(params);
-				if (fitness == 0) {
+				if (fitness == 0.0) {
 					coveredObjectives.add(objective);
 					//System.out.println("Test case covers: " + objective.toString());
 				}

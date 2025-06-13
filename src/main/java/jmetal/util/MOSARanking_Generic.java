@@ -84,7 +84,7 @@ public class MOSARanking_Generic {
 			// For all q individuals , calculate if p dominates q or vice versa
 			for (int q = p + 1; q < solutionSet_.size(); q++) {
 
-				// check dominance
+				// Check if p dominate q, q dominate p or they are not dominated by eachother
 				flagDominate = dominance_.compare(solutionSet.get(p),
 						solutionSet.get(q));
 
