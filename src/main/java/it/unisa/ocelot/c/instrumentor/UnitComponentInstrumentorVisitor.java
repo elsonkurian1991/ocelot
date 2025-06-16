@@ -226,13 +226,17 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 				return this.transformOr(realExpression, pNegation, pTransPerformed);
 			/* changing for operators */
 			else if (realExpression.getOperator() == IASTBinaryExpression.op_minus)
-				return this.trasformArithmetic(realExpression, pNegation, IASTBinaryExpression.op_minus);
+				//return this.trasformArithmetic(realExpression, pNegation, IASTBinaryExpression.op_minus);
+				return realExpression;
 			else if (realExpression.getOperator() == IASTBinaryExpression.op_plus)
-				return this.trasformArithmetic(realExpression, pNegation, IASTBinaryExpression.op_plus);
+				//return this.trasformArithmetic(realExpression, pNegation, IASTBinaryExpression.op_plus);
+				return realExpression;
 			else if (realExpression.getOperator() == IASTBinaryExpression.op_divide)
-				return this.trasformArithmetic(realExpression, pNegation, IASTBinaryExpression.op_divide);//division was missing before
+				//return this.trasformArithmetic(realExpression, pNegation, IASTBinaryExpression.op_divide);//division was missing before
+				return realExpression;
 			else if (realExpression.getOperator() == IASTBinaryExpression.op_multiply)
-				return this.trasformArithmetic(realExpression, pNegation, IASTBinaryExpression.op_multiply);
+				//return this.trasformArithmetic(realExpression, pNegation, IASTBinaryExpression.op_multiply);
+				return realExpression;
 			else if (realExpression.getOperator() == IASTBinaryExpression.op_binaryOr)
 				//return this.trasformArithmetic(realExpression, pNegation, IASTBinaryExpression.op_min);//make changes to handle: if 'and'then min of the distance
 				return this.trasformArithmetic(realExpression, pNegation, IASTBinaryExpression.op_binaryOr);
