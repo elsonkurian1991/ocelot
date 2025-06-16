@@ -945,14 +945,18 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 		if (copy instanceof IASTBinaryExpression) {
 			IASTBinaryExpression realCopy = (IASTBinaryExpression) copy;
 			IASTBinaryExpression realOrig = (IASTBinaryExpression) pExpression;
-			realCopy.setOperand1(realOrig.getOperand1());
-			realCopy.setOperand2(realOrig.getOperand2());
-
+			
+			realCopy.setOperator(realOrig.getOperator());
+			realCopy.setOperand1(this.cloneExpression(realOrig.getOperand1()));
+			realCopy.setOperand2(this.cloneExpression(realOrig.getOperand2()));
+			
 			return realCopy;
 		} else if (copy instanceof IASTUnaryExpression) {
 			IASTUnaryExpression realCopy = (IASTUnaryExpression) copy;
 			IASTUnaryExpression realOrig = (IASTUnaryExpression) pExpression;
-			realCopy.setOperand(realOrig.getOperand());
+			
+			realCopy.setOperator(realOrig.getOperator());
+			realCopy.setOperand(this.cloneExpression(realOrig.getOperand()));
 
 			return realCopy;
 		} else if (copy instanceof IASTIdExpression) {
