@@ -218,14 +218,54 @@ double _f_ocelot_neq_pointer(void* op1, void* op2) {
 }
 
 double _f_ocelot_and(double op1, double op2) {
-	return (double)op1+(double)op2;
+	double result = ((double)op1+(double)op2)/(double)2.0
+
+	FILE *fptr;
+
+	// Open a file in writing mode
+	fptr = fopen("debug.txt", "a");
+
+	// Write some text to the file
+	fprintf(fptr, "_f_ocelot_and");
+	fprintf(fptr, ";");
+	fprintf(fptr, "op1");
+	fprintf(fptr, ";");
+	fprintf(fptr, "%f", op1);
+	fprintf(fptr, ";");
+	fprintf(fptr, "op2");
+	fprintf(fptr, ";");
+	fprintf(fptr, "%f", op2);
+	fprintf(fptr, ";");
+	fprintf(fptr, "result");
+	fprintf(fptr, ";");
+	fprintf(fptr, "%f", result);
+	fprintf(fptr, "\n");
+
+	return result;
 }
 
 double _f_ocelot_or(double op1, double op2) {
+	FILE *fptr;
+
+	// Open a file in writing mode
+	fptr = fopen("debug.txt", "a");
+
+	// Write some text to the file
+	fprintf(fptr, "_f_ocelot_or");
+	fprintf(fptr, ";");
+	fprintf(fptr, "op1");
+	fprintf(fptr, ";");
+	fprintf(fptr, "%f", op1);
+	fprintf(fptr, ";");
+	fprintf(fptr, "op2");
+	fprintf(fptr, ";");
+	fprintf(fptr, "%f", op2);
+	fprintf(fptr, "\n");
+
 	if ((double)op1 < (double)op2)
-			return (double)op1;
-		else
-			return (double)op2;
+		return (double)op1;
+	else
+		return (double)op2;
 }
 
 double _f_ocelot_istrue(double flag) {
