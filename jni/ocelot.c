@@ -109,7 +109,7 @@ double _f_ocelot_get_fcall() {
 
 //updated the following function for better result
 double _f_ocelot_eq_numeric(double op1, double op2) {
-	double k = ABS(op1 - op2);
+	double k = fabs(op1 - op2);
 	double result;
 	if (k == 0.0) {
 		result = 0.0;
@@ -128,7 +128,7 @@ double _f_ocelot_gt_numeric(double op1, double op2) {
 		result = 0.0;
 	} else {
 		//result = (op2 - op1) + OCELOT_K;
-		k=ABS(k)+1;
+		k=fabs(k)+1;
 		result = k/(1+k);
 	}
 	return result;
@@ -141,7 +141,7 @@ double _f_ocelot_ge_numeric(double op1, double op2) {
 		result = 0.0;
 	} else {
 		//result = (op2 - op1) + OCELOT_K;
-		k=ABS(k)+1;
+		k=fabs(k)+1;
 		result = k/(1+k);
 	}
 	return result;
@@ -156,7 +156,7 @@ double _f_ocelot_le_numeric(double op1, double op2) {
 }
 
 double _f_ocelot_neq_numeric(double op1, double op2) {
-	double k = ABS(op1 - op2);
+	double k = fabs(op1 - op2);
 	double result;
 
 	if (k != 0.0)
@@ -216,7 +216,7 @@ double _f_ocelot_istrue(double flag) {
 }
 
 double _f_ocelot_isfalse(double flag) {
-	double k = ABS(flag);
+	double k = fabs(flag);
 	if (flag == 0.0)
 		return 0;
 	else if (flag == 1.0)
