@@ -11,8 +11,36 @@ int _f_ocelot_branch_out(char* functionName, int count, int result, double dista
 
 	// Open a file in writing mode
 	fptr = fopen("fitnessValues.txt", "a");
-	if (distanceTrue==0.0 & distanceFalse==0.0){//for infeasible conditions eg: default case for switch cases involving enum with only two values.
+
+	//The following if is for infeasible conditions eg: default case for switch cases involving enum with only two values.
+	if (distanceTrue==0.0 & distanceFalse==0.0) {
 	   distanceTrue=1.0;
+	}  
+
+	//The following if is for some sanity checks. It will print warnings that should be checked to see if the isntrumentation is correct.
+	if ((distanceTrue == distanceFalse) | (((distanceTrue==1.0)&(distanceFalse!=0)) | ((distanceFalse==1.0)&(distanceTrue!=0)) | ((distanceTrue==0.0)|(distanceFalse==false))) {
+		FILE *fptr2;
+		// Open a file in writing mode
+		fptr2 = fopen("fitnessErrors.txt", "a");
+		// Write some text to the file
+		fprintf(fptr2, functionName);
+		fprintf(fptr2, ";");
+		fprintf(fptr2, "branch%d", count);
+		fprintf(fptr2, "-");
+		fprintf(fptr2, "true");
+		fprintf(fptr2, ";");
+		fprintf(fptr2, "%f", distanceTrue);
+		fprintf(fptr2, "\n");
+
+		fprintf(fptr2, functionName);
+		fprintf(fptr2, ";");
+		fprintf(fptr2, "branch%d", count);
+		fprintf(fptr2, "-");
+		fprintf(fptr2, "false");
+		fprintf(fptr2, ";");
+		fprintf(fptr2, "%f", distanceFalse);
+		fprintf(fptr2, "\n");
+		fclose(fptr);
 	}  
 
 	// Write some text to the file
