@@ -18,7 +18,7 @@ int _f_ocelot_branch_out(char* functionName, int count, int result, double dista
 	}  
 
 	//The following if is for some sanity checks. It will print warnings that should be checked to see if the isntrumentation is correct.
-	if ((distanceTrue == distanceFalse) | (((distanceTrue==1.0)&(distanceFalse!=0.0)) | ((distanceFalse==1.0)&(distanceTrue!=0.0))) | ((distanceTrue==0.0)|(distanceFalse==0.0))) {
+	if ((distanceTrue == distanceFalse) | (((distanceTrue==1.0)&(distanceFalse!=0.0)) | ((distanceFalse==1.0)&(distanceTrue!=0.0))) | (!((distanceTrue==0.0)|(distanceFalse==0.0)))) {
 		FILE *fptr2;
 		// Open a file in writing mode
 		fptr2 = fopen("fitnessErrors.txt", "a");
