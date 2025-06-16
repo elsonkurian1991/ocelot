@@ -131,26 +131,6 @@ double _f_ocelot_gt_numeric(double op1, double op2) {
 		k=(double)fabs(k)+1.0;
 		result = (double)k/(1.0+(double)k);
 	}
-	FILE *fptr;
-
-	// Open a file in writing mode
-	fptr = fopen("debug.txt", "a");
-
-	// Write some text to the file
-	fprintf(fptr, "_f_ocelot_gt_numeric");
-	fprintf(fptr, ";");
-	fprintf(fptr, "op1");
-	fprintf(fptr, ";");
-	fprintf(fptr, "%f", op1);
-	fprintf(fptr, ";");
-	fprintf(fptr, "op2");
-	fprintf(fptr, ";");
-	fprintf(fptr, "%f", op2);
-	fprintf(fptr, ";");
-	fprintf(fptr, "result");
-	fprintf(fptr, ";");
-	fprintf(fptr, "%f", result);
-	fprintf(fptr, "\n");
 	return result;
 }
 
@@ -218,50 +198,11 @@ double _f_ocelot_neq_pointer(void* op1, void* op2) {
 }
 
 double _f_ocelot_and(double op1, double op2) {
-	double result = ((double)op1+(double)op2)/(double)2.0
-
-	FILE *fptr;
-
-	// Open a file in writing mode
-	fptr = fopen("debug.txt", "a");
-
-	// Write some text to the file
-	fprintf(fptr, "_f_ocelot_and");
-	fprintf(fptr, ";");
-	fprintf(fptr, "op1");
-	fprintf(fptr, ";");
-	fprintf(fptr, "%f", op1);
-	fprintf(fptr, ";");
-	fprintf(fptr, "op2");
-	fprintf(fptr, ";");
-	fprintf(fptr, "%f", op2);
-	fprintf(fptr, ";");
-	fprintf(fptr, "result");
-	fprintf(fptr, ";");
-	fprintf(fptr, "%f", result);
-	fprintf(fptr, "\n");
-
+	double result = ((double)op1+(double)op2)/(double)2.0;
 	return result;
 }
 
 double _f_ocelot_or(double op1, double op2) {
-	FILE *fptr;
-
-	// Open a file in writing mode
-	fptr = fopen("debug.txt", "a");
-
-	// Write some text to the file
-	fprintf(fptr, "_f_ocelot_or");
-	fprintf(fptr, ";");
-	fprintf(fptr, "op1");
-	fprintf(fptr, ";");
-	fprintf(fptr, "%f", op1);
-	fprintf(fptr, ";");
-	fprintf(fptr, "op2");
-	fprintf(fptr, ";");
-	fprintf(fptr, "%f", op2);
-	fprintf(fptr, "\n");
-
 	if ((double)op1 < (double)op2)
 		return (double)op1;
 	else
@@ -287,50 +228,5 @@ double _f_ocelot_isfalse(double flag) {
 
 int _f_ocelot_pointertotab(void* ptr) {
 	int result = (ptr - (void*)_v_ocelot_pointers) / sizeof(_t_ocelot_array);
-	return result;
-}
-
-double _f_ocelot_binary(double flag) {
-	double result = (double)flag/(double)2.0;
-
-	FILE *fptr;
-
-	// Open a file in writing mode
-	fptr = fopen("debug.txt", "a");
-
-	// Write some text to the file
-	fprintf(fptr, "_f_ocelot_binary");
-	fprintf(fptr, ";");
-	fprintf(fptr, "flag");
-	fprintf(fptr, ";");
-	fprintf(fptr, "%f", flag);
-	fprintf(fptr, ";");
-	fprintf(fptr, "result");
-	fprintf(fptr, ";");
-	fprintf(fptr, "%f", result);
-	fprintf(fptr, "\n");
-	return result;
-}
-
-double _f_ocelot_binary_neg(double flag) {
-	double result = 1.0 - ((double)flag/(double)2.0);
-
-	FILE *fptr;
-
-	// Open a file in writing mode
-	fptr = fopen("debug.txt", "a");
-
-	// Write some text to the file
-	fprintf(fptr, "_f_ocelot_binary_neg");
-	fprintf(fptr, ";");
-	fprintf(fptr, "flag");
-	fprintf(fptr, ";");
-	fprintf(fptr, "%f", flag);
-	fprintf(fptr, ";");
-	fprintf(fptr, "result");
-	fprintf(fptr, ";");
-	fprintf(fptr, "%f", result);
-	fprintf(fptr, "\n");
-
 	return result;
 }
