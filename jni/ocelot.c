@@ -109,14 +109,14 @@ double _f_ocelot_get_fcall() {
 
 //updated the following function for better result
 double _f_ocelot_eq_numeric(double op1, double op2) {
-	double k = fabs(op1 - op2);
+	double k = fabs((double)op1 - (double)op2);
 	double result;
 	if (k == 0.0) {
 		result = 0.0;
 	} else {
 		//result = k+OCELOT_K;
-		k=k+1.0;
-		result = k/(1.0+k);
+		k=(double)k+1.0;
+		result = (double)k/(1.0+(double)k);
 	}
 	return result;
 }
@@ -155,14 +155,14 @@ double _f_ocelot_gt_numeric(double op1, double op2) {
 }
 
 double _f_ocelot_ge_numeric(double op1, double op2) {
-	double k = op2 - op1;
+	double k = (double)op2 - (double)op1;
 	double result;
 	if (k <= 0.0) {
 		result = 0.0;
 	} else {
 		//result = (op2 - op1) + OCELOT_K;
-		k=fabs(k)+1.0;
-		result = k/(1.0+k);
+		k=(double)fabs(k)+1.0;
+		result = (double)k/(1.0+(double)k);
 	}
 	return result;
 }
@@ -218,14 +218,14 @@ double _f_ocelot_neq_pointer(void* op1, void* op2) {
 }
 
 double _f_ocelot_and(double op1, double op2) {
-	return op1+op2;
+	return (double)op1+(double)op2;
 }
 
 double _f_ocelot_or(double op1, double op2) {
-	if (op1 < op2)
-			return op1;
+	if ((double)op1 < (double)op2)
+			return (double)op1;
 		else
-			return op2;
+			return (double)op2;
 }
 
 double _f_ocelot_istrue(double flag) {
@@ -251,7 +251,7 @@ int _f_ocelot_pointertotab(void* ptr) {
 }
 
 double _f_ocelot_binary(double flag) {
-	double result = flag/(double)2.0;
+	double result = (double)flag/(double)2.0;
 
 	FILE *fptr;
 
@@ -273,7 +273,7 @@ double _f_ocelot_binary(double flag) {
 }
 
 double _f_ocelot_binary_neg(double flag) {
-	double result = 1.0 - (flag/(double)2.0);
+	double result = 1.0 - ((double)flag/(double)2.0);
 
 	FILE *fptr;
 
