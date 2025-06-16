@@ -200,11 +200,7 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 	}
 
 	public IASTExpression trasformArithmetic(IASTBinaryExpression expression, boolean negation, int operation) {
-		if (!negation) {
-			return this.transformArithmeticExpression(expression, false, operation);
-		} else {
-			return this.transformArithmeticExpression(expression, true, operation);
-		}
+			return this.transformArithmeticExpression(expression, negation, operation);
 	}
 
 	public IASTExpression transformDistanceExpression(IASTExpression expression, boolean pNegation,
@@ -815,7 +811,7 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 		IASTExpression operand2 = pExpression.getOperand2();
 
 		IASTExpression instrumentedOp1 = this.transformDistanceExpression(operand1, false, true);
-		IASTExpression instrumentedOp2 = this.transformDistanceExpression(operand2, true, true);
+		IASTExpression instrumentedOp2 = this.transformDistanceExpression(operand2, false, true);
 
 		IASTExpression[] operationArgs = new IASTExpression[1];
 		IASTBinaryExpression auxExpression = pExpression.copy();
@@ -825,9 +821,9 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 
 		IASTExpression result;
 		if (negation)
-			result = makeFunctionCall("_f_ocelot_istrue", operationArgs);
+			result = makeFunctionCall("_f_ocelot_binary_neg", operationArgs);			
 		else
-			result = makeFunctionCall("_f_ocelot_isfalse", operationArgs);
+			result = makeFunctionCall("_f_ocelot_binary", operationArgs);
 		return result;
 	}
 

@@ -229,3 +229,13 @@ int _f_ocelot_pointertotab(void* ptr) {
 	int result = (ptr - (void*)_v_ocelot_pointers) / sizeof(_t_ocelot_array);
 	return result;
 }
+
+double _f_ocelot_binary(double flag) {
+	double result = flag/(double)2;
+	return result;
+}
+
+double _f_ocelot_binary_neg(double flag) {
+	double result = 1 - (flag/(double)2);
+	return result;
+}
