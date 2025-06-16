@@ -122,15 +122,35 @@ double _f_ocelot_eq_numeric(double op1, double op2) {
 }
 
 double _f_ocelot_gt_numeric(double op1, double op2) {
-	double k = op2 - op1;
+	double k = (double)op2 - (double)op1;
 	double result;
 	if (k < 0.0) {
 		result = 0.0;
 	} else {
 		//result = (op2 - op1) + OCELOT_K;
-		k=fabs(k)+1.0;
-		result = k/(1.0+k);
+		k=(double)fabs(k)+1.0;
+		result = (double)k/(1.0+(double)k);
 	}
+	FILE *fptr;
+
+	// Open a file in writing mode
+	fptr = fopen("debug.txt", "a");
+
+	// Write some text to the file
+	fprintf(fptr, "_f_ocelot_gt_numeric");
+	fprintf(fptr, ";");
+	fprintf(fptr, "op1");
+	fprintf(fptr, ";");
+	fprintf(fptr, "%f", op1);
+	fprintf(fptr, ";");
+	fprintf(fptr, "op2");
+	fprintf(fptr, ";");
+	fprintf(fptr, "%f", op2);
+	fprintf(fptr, ";");
+	fprintf(fptr, "result");
+	fprintf(fptr, ";");
+	fprintf(fptr, "%f", result);
+	fprintf(fptr, "\n");
 	return result;
 }
 
