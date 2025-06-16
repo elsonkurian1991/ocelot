@@ -40,7 +40,7 @@ int _f_ocelot_branch_out(char* functionName, int count, int result, double dista
 		fprintf(fptr2, ";");
 		fprintf(fptr2, "%f", distanceFalse);
 		fprintf(fptr2, "\n");
-		fclose(fptr);
+		fclose(fptr2);
 	}  
 
 	// Write some text to the file
