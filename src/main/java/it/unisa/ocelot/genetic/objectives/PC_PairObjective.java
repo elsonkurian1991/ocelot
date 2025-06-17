@@ -10,7 +10,7 @@ import jmetal.core.Solution;
 
 public class PC_PairObjective extends GenericObjective {
 
-	TestObjStateMachine sm;
+	public TestObjStateMachine sm;
 	public Integer budget;
 	public String direction;
 	public PC_PairObjective TriggeredPair;

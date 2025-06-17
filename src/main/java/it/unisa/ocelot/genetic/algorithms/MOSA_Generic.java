@@ -1,6 +1,8 @@
 package it.unisa.ocelot.genetic.algorithms;
 
 import java.io.FileInputStream;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -279,7 +281,31 @@ public class MOSA_Generic extends OcelotAlgorithm {
 
 		}// while
 		
+		Set<String> coveredBranches = new HashSet<String>();
+		Set<String> maybeUncoveredBranches = new HashSet<String>();
+		for (GenericObjective obj:allTargets) {
+			if (obj.isCovered()) {
+					coveredBranches.add(((PC_PairObjective) obj).sm.getTestObjOne());
+					coveredBranches.add(((PC_PairObjective) obj).sm.getTestObjTwo());
+				}
+			else if (obj.isActive()){
+				maybeUncoveredBranches.add(((PC_PairObjective) obj).sm.getTestObjOne());
+				maybeUncoveredBranches.add(((PC_PairObjective) obj).sm.getTestObjTwo());
+			}
+		}
+		maybeUncoveredBranches.removeAll(coveredBranches);
 		
+		try {
+		      FileWriter myWriter = new FileWriter("uncoveredBranches.txt");
+		      
+		      for (String branch : maybeUncoveredBranches)
+		    	  myWriter.write(branch + "\n");
+		      myWriter.close();
+		      
+		    } catch (IOException e) {
+		      System.out.println("Unable to generate file uncoveredBranches.txt");
+		      e.printStackTrace();
+		    }
 		
 		
 		this.algorithmStats.setEvaluations(evaluations);
