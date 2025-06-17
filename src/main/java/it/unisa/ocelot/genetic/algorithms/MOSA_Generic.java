@@ -82,6 +82,7 @@ public class MOSA_Generic extends OcelotAlgorithm {
 		this.cfg = cfg;
 		parametersTypes = parameters;
 		this.config = config;
+		allottedTime = config.getExecutionTime();
 		
 	}
 
@@ -147,7 +148,7 @@ public class MOSA_Generic extends OcelotAlgorithm {
 		
 		int newSolutionEval = 400;
 
-		while (evaluations < maxEvaluations && calculateCoverage() < maxCoverage) {
+		while ( keepRunning(evaluations, maxEvaluations, startTime) && calculateCoverage() < maxCoverage) {
 			
 			
 			//System.out.println(evaluations + ":--:" + maxEvaluations);
@@ -311,6 +312,19 @@ public class MOSA_Generic extends OcelotAlgorithm {
 		this.algorithmStats.setEvaluations(evaluations);
 
 		return this.archive;
+	}
+
+	private boolean keepRunning(int evaluations, int maxEvaluations, long startTime) {
+		if (allottedTime != 0) {
+			long endTime = System.nanoTime();
+			if ( (endTime - startTime) / 1000000000 < allottedTime)
+				return true;
+		}
+		else {
+			if (evaluations < maxEvaluations) 
+				return true;
+		}
+		return false;
 	}
 
 	/**

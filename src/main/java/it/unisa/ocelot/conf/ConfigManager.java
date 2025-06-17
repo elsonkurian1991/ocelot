@@ -97,6 +97,14 @@ public class ConfigManager {
 	}
 	
 	/**
+	 * Returns the amount of time in seconds the genetic algorithm will run (uses evaluation if not specified)
+	 * @return
+	 */
+	public int getExecutionTime() {
+		return Integer.parseInt(this.properties.getProperty("evaluations.time", "0"));
+	}
+	
+	/**
 	 * Returns the probability of crossover for the genetic algorithm (0.9 if not specified)
 	 * @return
 	 */
@@ -474,5 +482,7 @@ public class ConfigManager {
 	public String getMoreOptions() {
 		return this.properties.getProperty("config.options", "");
 	}
+	
+	
 	
 }
