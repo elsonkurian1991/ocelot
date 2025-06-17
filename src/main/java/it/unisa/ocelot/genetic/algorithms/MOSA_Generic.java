@@ -51,7 +51,6 @@ public class MOSA_Generic extends OcelotAlgorithm {
 	private CFG cfg;
 	private CType[] parametersTypes;
 	private ConfigManager config;
-	private List<GenericObjective> batchedObjectives;
 	
 	private boolean firstRun = true;
 	
@@ -81,7 +80,6 @@ public class MOSA_Generic extends OcelotAlgorithm {
 		this.cfg = cfg;
 		parametersTypes = parameters;
 		this.config = config;
-		batchedObjectives = allTargets.subList(4, 104);
 		
 	}
 

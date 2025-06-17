@@ -32,6 +32,7 @@ import org.eclipse.cdt.core.dom.ast.IASTTranslationUnit;
 import org.eclipse.cdt.core.dom.rewrite.ASTRewrite;
 
 import it.unisa.ocelot.c.compiler.GCC;
+import it.unisa.ocelot.c.instrumentor.BooleanAssignmentTransformer;
 import it.unisa.ocelot.c.instrumentor.ExternalReferencesVisitor;
 import it.unisa.ocelot.c.instrumentor.InstrumenterVisitForIfMethodCalls;
 import it.unisa.ocelot.c.instrumentor.InstrumentorVisitor;
@@ -200,6 +201,9 @@ public class StandardBuilder extends Builder {
 				translationUnit.accept(macroDefiner);
 				translationUnit.accept(instrumentor);
 				 */
+				
+				//BooleanAssignmentTransformer at = new BooleanAssignmentTransformer(translationUnit);
+				//translationUnit.accept(at);
 				
 
 				// Instruments unit-level components
