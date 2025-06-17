@@ -43,6 +43,32 @@ int _f_ocelot_branch_out(char* functionName, int count, int result, double dista
 		fclose(fptr2);
 	}  
 
+	//The following if is for some sanity checks on the fitness values range.
+	if (distanceTrue > 1.0 | distanceTrue < 0.0 | distanceFalse > 1.0 | distanceFalse < 0.0) {
+		FILE *fptr3;
+		// Open a file in writing mode
+		fptr3 = fopen("fitnessErrors2.txt", "a");
+		// Write some text to the file
+		fprintf(fptr3, functionName);
+		fprintf(fptr3, ";");
+		fprintf(fptr3, "branch%d", count);
+		fprintf(fptr3, "-");
+		fprintf(fptr3, "true");
+		fprintf(fptr3, ";");
+		fprintf(fptr3, "%f", distanceTrue);
+		fprintf(fptr3, "\n");
+
+		fprintf(fptr3, functionName);
+		fprintf(fptr3, ";");
+		fprintf(fptr3, "branch%d", count);
+		fprintf(fptr3, "-");
+		fprintf(fptr3, "false");
+		fprintf(fptr3, ";");
+		fprintf(fptr3, "%f", distanceFalse);
+		fprintf(fptr3, "\n");
+		fclose(fptr3);
+	} 
+
 	// Write some text to the file
 	fprintf(fptr, functionName);
 	fprintf(fptr, ";");
