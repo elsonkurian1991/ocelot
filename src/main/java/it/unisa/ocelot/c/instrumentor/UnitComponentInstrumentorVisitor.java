@@ -385,7 +385,7 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 				|| expression instanceof IASTArraySubscriptExpression || expression instanceof IASTConditionalExpression
 				|| expression instanceof IASTCastExpression || expression instanceof IASTFieldReference
 				|| expression instanceof IASTTypeIdExpression) {
-			if (!pTransPerformed) {
+			//if (!pTransPerformed) {
 				IASTExpression[] arguments = new IASTExpression[1];
 				arguments[0] = expression;
 
@@ -397,7 +397,7 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 					result = makeFunctionCall("_f_ocelot_isfalse", arguments);
 				// System.out.println(result.getRawSignature().toString());
 				return result;
-			}
+			//}
 		} else if (expression instanceof IASTFunctionCallExpression) {
 			return makeFunctionCall("_f_ocelot_get_fcall", new IASTExpression[0]);
 		} else {
