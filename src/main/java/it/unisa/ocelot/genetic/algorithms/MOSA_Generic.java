@@ -1,9 +1,7 @@
 package it.unisa.ocelot.genetic.algorithms;
 
-import java.io.FileInputStream;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.io.ObjectInputStream;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -15,6 +13,7 @@ import it.unisa.ocelot.c.types.CType;
 import it.unisa.ocelot.conf.ConfigManager;
 import it.unisa.ocelot.genetic.OcelotAlgorithm;
 import it.unisa.ocelot.genetic.many_objective.MOSAGenericCoverageProblem;
+import it.unisa.ocelot.genetic.objectives.BranchManager;
 import it.unisa.ocelot.genetic.objectives.GenericObjective;
 import it.unisa.ocelot.genetic.objectives.PC_PairObjective;
 import it.unisa.ocelot.util.Front;
@@ -43,6 +42,7 @@ public class MOSA_Generic extends OcelotAlgorithm {
 	private SolutionSet archive;
 	// we store here the complete set of target for given problem
 	private List<GenericObjective> allTargets;
+	private List<GenericObjective> branchTargets;
 	@SuppressWarnings("unused")
 	private Set<GenericObjective> coveredObjectives;
 	//private EdgeGraph<CFGNode, LabeledEdge> edgeGraph;
@@ -73,10 +73,17 @@ public class MOSA_Generic extends OcelotAlgorithm {
 	 * 
 	 * @param problem
 	 *            Problem to solve
+	 * @throws IOException 
 	 */
 	public MOSA_Generic(MOSAGenericCoverageProblem problem, List<GenericObjective> targets, CFG cfg, CType[] parameters, ConfigManager config) {
 		super(problem);
 		allTargets = new ArrayList<>(targets);
+		try {
+			branchTargets = BranchManager.loadObjectives(0);
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 		evaluations = new ArrayList<>();
 		this.coveredObjectives = new HashSet<>();
 		newBatchObjectives = false;
@@ -147,8 +154,7 @@ public class MOSA_Generic extends OcelotAlgorithm {
 
 		// store every T.C. that covers previously uncovered branches in the archive
 		this.updateArchive(population, evaluations);
-		
-		int newSolutionEval = 400;
+
 		long startTime = System.nanoTime();
 		while ( keepRunning(evaluations, maxEvaluations, startTime) && calculateCoverage() < maxCoverage) {
 			
@@ -359,7 +365,7 @@ public class MOSA_Generic extends OcelotAlgorithm {
 
 				if (objectiveScore == 0.0) {
 					objective.setCovered(true);
-					PC_PairObjective triggeredPair = ((PC_PairObjective) objective).TriggeredPair;
+					GenericObjective triggeredPair = objective.TriggeredPair;
 					
 					// Add the solution that covered the objective to the objective object
 					//((PC_PairObjective) objective).DiscovererTestCase = currentCandidate;
@@ -416,6 +422,7 @@ public class MOSA_Generic extends OcelotAlgorithm {
 				}// end-if
 
 			} // end-while
+			//System.out.println(target.toString() + minimum_fitness);
 			t_best.setRank(0); // set rank 0 for preference criterion
 			front_0.add(t_best); // adding to front 0
 			solutionsToDelete.add(t_best);

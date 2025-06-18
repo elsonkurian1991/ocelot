@@ -33,6 +33,7 @@ import it.unisa.ocelot.genetic.edges.FitType;
 import it.unisa.ocelot.genetic.edges.ReadEFLfilesforPairCombination;
 import it.unisa.ocelot.genetic.edges.ReadEFLfilesforPairCombination_V2;
 import it.unisa.ocelot.genetic.edges.TestObjStateMachine;
+import it.unisa.ocelot.genetic.objectives.BranchManager;
 import it.unisa.ocelot.genetic.objectives.GenericObjective;
 import it.unisa.ocelot.genetic.objectives.PC_PairObjective;
 import it.unisa.ocelot.genetic.objectives.PC_PairsManager;
@@ -68,6 +69,7 @@ public class Run {
 	
 	//List of generated objectives
 	public static List<GenericObjective> generatedObjectives;
+	public static List<GenericObjective> branchObjective;
 	enum State{
 		zeroCover,
 		oneCover,
@@ -100,6 +102,7 @@ public class Run {
 			//logWriter.append("\n");
 			//ReadEFLfilesforPairCombination_V2.RunEFLfilesforPairCombination(); // run this to read the efl file and create pairwise combinations. find a best place to call this
 			generatedObjectives = PC_PairsManager.loadObjectives();
+			branchObjective = BranchManager.loadObjectives(generatedObjectives.size());
 			//logWriter.append("\n");
 			//logWriter.append("List of PC PairCombinations:");
 			//logWriter.append("\n{\n");

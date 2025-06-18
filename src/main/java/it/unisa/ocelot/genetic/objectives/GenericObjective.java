@@ -7,6 +7,7 @@ public abstract class GenericObjective {
 	private int objectiveID;
 	// Used in DynaMOSA to know if we are currenlty optimizing for this objective
 	private boolean isActive;
+	public GenericObjective TriggeredPair;
 
 	public GenericObjective(boolean isCovered, int objectiveID) {
 		super();
@@ -24,7 +25,7 @@ public abstract class GenericObjective {
 	}
 	
 	public boolean isActive() {
-		//return isCovered;
+		//return true;
 		return isActive;
 	}
 

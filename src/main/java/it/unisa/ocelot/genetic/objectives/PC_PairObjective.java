@@ -13,7 +13,6 @@ public class PC_PairObjective extends GenericObjective {
 	public TestObjStateMachine sm;
 	public Integer budget;
 	public String direction;
-	public PC_PairObjective TriggeredPair;
 	public Solution DiscovererTestCase;
 	public int indirectionLevel;
 	

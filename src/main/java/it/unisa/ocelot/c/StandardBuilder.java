@@ -63,6 +63,7 @@ public class StandardBuilder extends Builder {
 		super();
 		setOutput(System.out);
 
+		
 		this.testFilename = pTestFilename;
 		this.testFunction = pTestFunction;
 		this.testIncludes = pTestIncludes;
@@ -87,6 +88,7 @@ public class StandardBuilder extends Builder {
 
 	@Override
 	public void build() throws IOException, BuildingException {
+		
 		if (this.makefileGenerator == null)
 			throw new BuildingException("No makefile generator specified");
 		if (this.stream == null)
@@ -331,7 +333,17 @@ public class StandardBuilder extends Builder {
 		// Martino
 		// This code generates the pairs
 		generatePairs();
-
+		
+		// This code generates BranchObjectives used to compare
+		// DynaMOSA with branches optimization with DynaMOSA with pairs obtimization
+		StringBuilder branchObjList = new StringBuilder();
+		for (ArrayList<String> component : componentsTestObjectives.values()) {
+			for ( String branch : component) {
+				branchObjList.append(branch);
+				branchObjList.append(",");
+			}
+		}
+		Utils.writeFile("branchObjectives.txt", branchObjList.toString());
 		/**
 		direct
 		for (String func : nodeBranchMap.keySet()) {
