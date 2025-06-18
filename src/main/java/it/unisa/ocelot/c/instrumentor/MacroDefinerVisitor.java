@@ -227,6 +227,10 @@ public class MacroDefinerVisitor extends ASTVisitor {
 			macro += "#define OCELOT_TYPES {";
 			List<String> elements = new ArrayList<>();
 			for (int i = 0; i < parametersStringTypes.length; i++) {
+				if(parametersStringTypes[i].contentEquals("void")) {
+					//add this part to handle void in the parameter.
+					continue;
+				}
 				String parameterStringName = parametersStringNames[i].replaceAll("\\*\\s*", "");
 				IParameter parameterRealType = this.parameters.get(parameterStringName);
 				IType type = getType(parameterRealType.getType());
@@ -293,7 +297,11 @@ public class MacroDefinerVisitor extends ASTVisitor {
 				String parameterStringName = parametersStringNames[i].replaceAll("\\*\\s*", "");
 				String parameterStringType = parametersStringTypes[i];
 				
-				IParameter parameterRealType = this.parameters.get(parameterStringName);				
+				IParameter parameterRealType = this.parameters.get(parameterStringName);	
+				if(parametersStringTypes[i].contentEquals("void")) {
+					//add this part to handle void in the parameter.
+					continue;
+				}
 				IType type = getType(parameterRealType.getType());
 				IType realType = type;
 				if (type instanceof CPointerType) {
