@@ -56,6 +56,8 @@ public class MOSA_Generic extends OcelotAlgorithm {
 	
 	private boolean firstRun = true;
 	
+	int allottedTime;
+	
 	
 	//private Dominators<EdgeWrapper<LabeledEdge>, DefaultEdge> dominators;
 
@@ -147,7 +149,7 @@ public class MOSA_Generic extends OcelotAlgorithm {
 		this.updateArchive(population, evaluations);
 		
 		int newSolutionEval = 400;
-
+		long startTime = System.nanoTime();
 		while ( keepRunning(evaluations, maxEvaluations, startTime) && calculateCoverage() < maxCoverage) {
 			
 			
