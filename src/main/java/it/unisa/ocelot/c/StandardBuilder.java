@@ -74,7 +74,10 @@ public class StandardBuilder extends Builder {
 	private List<String> readUnitLevelComponents() {
 		List<String> unitLevelComponents = new ArrayList<String>();
 		try {
-			unitLevelComponents = Files.readAllLines(Paths.get("unitLevelComponents.txt"));
+			this.config = ConfigManager.getInstance();
+			//unitLevelComponents = Files.readAllLines(Paths.get("unitLevelComponents.txt"));
+			unitLevelComponents = config.getUnitLevelComponents();
+			//System.out.println(unitLevelComponents);
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -84,7 +87,6 @@ public class StandardBuilder extends Builder {
 
 	@Override
 	public void build() throws IOException, BuildingException {
-		this.config = ConfigManager.getInstance();
 		if (this.makefileGenerator == null)
 			throw new BuildingException("No makefile generator specified");
 		if (this.stream == null)

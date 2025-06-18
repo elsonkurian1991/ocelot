@@ -9,6 +9,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.StringReader;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
 import java.util.UUID;
@@ -481,6 +482,10 @@ public class ConfigManager {
 	
 	public String getMoreOptions() {
 		return this.properties.getProperty("config.options", "");
+	}
+	
+	public List<String> getUnitLevelComponents() {
+		return Arrays.asList(this.properties.getProperty("test.components", "").replaceAll("\\s+","").split(","));
 	}
 	
 	
