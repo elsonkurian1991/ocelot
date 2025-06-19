@@ -324,7 +324,7 @@ public class InstrumenterVisitForIfMethodCalls extends ASTVisitor{
 
 	public int visit(IASTStatement statement) {
 		try {
-			System.out.println(statement.getRawSignature());
+			//System.out.println(statement.getRawSignature());
 			if (statement instanceof IASTIfStatement)
 				this.visit((IASTIfStatement) statement);
 

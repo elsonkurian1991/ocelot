@@ -209,21 +209,21 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 		if (expression instanceof IASTBinaryExpression) {
 			IASTBinaryExpression realExpression = (IASTBinaryExpression) expression;
 			if (realExpression.getOperator() == IASTBinaryExpression.op_equals)
-				return this.transformEquals(realExpression, pNegation, pTransPerformed);
+				return this.transformEquals(realExpression, pNegation, true);
 			else if (realExpression.getOperator() == IASTBinaryExpression.op_greaterThan)
-				return this.transformGreaterThan(realExpression, pNegation, pTransPerformed);
+				return this.transformGreaterThan(realExpression, pNegation, true);
 			else if (realExpression.getOperator() == IASTBinaryExpression.op_greaterEqual)
-				return this.transformGreaterEquals(realExpression, pNegation, pTransPerformed);
+				return this.transformGreaterEquals(realExpression, pNegation, true);
 			else if (realExpression.getOperator() == IASTBinaryExpression.op_lessThan)
-				return this.transformLessThan(realExpression, pNegation, pTransPerformed);
+				return this.transformLessThan(realExpression, pNegation, true);
 			else if (realExpression.getOperator() == IASTBinaryExpression.op_lessEqual)
-				return this.transformLessEquals(realExpression, pNegation, pTransPerformed);
+				return this.transformLessEquals(realExpression, pNegation, true);
 			else if (realExpression.getOperator() == IASTBinaryExpression.op_notequals)
-				return this.transformNotEquals(realExpression, pNegation, pTransPerformed);
+				return this.transformNotEquals(realExpression, pNegation, true);
 			else if (realExpression.getOperator() == IASTBinaryExpression.op_logicalAnd)
-				return this.transformAnd(realExpression, pNegation, pTransPerformed);
+				return this.transformAnd(realExpression, pNegation, false);
 			else if (realExpression.getOperator() == IASTBinaryExpression.op_logicalOr)
-				return this.transformOr(realExpression, pNegation, pTransPerformed);
+				return this.transformOr(realExpression, pNegation, false);
 			/* changing for operators */
 			else if (realExpression.getOperator() == IASTBinaryExpression.op_minus)
 				// return this.trasformArithmetic(realExpression, pNegation,
@@ -248,15 +248,15 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 				return this.trasformArithmetic(realExpression, pNegation, IASTBinaryExpression.op_binaryOr);
 			else if (realExpression.getOperator() == IASTBinaryExpression.op_binaryAnd)
 				return this.trasformArithmetic(realExpression, pNegation, IASTBinaryExpression.op_binaryAnd); // make
-																												// changes
-																												// to
-																												// handle:
-																												// if
-																												// 'and'
-																												// then
-																												// add
-																												// the
-																												// distance
+			// changes
+			// to
+			// handle:
+			// if
+			// 'and'
+			// then
+			// add
+			// the
+			// distance
 			// return this.trasformArithmetic(realExpression, pNegation,
 			// IASTBinaryExpression.op_binaryAnd);
 			/**/
@@ -385,7 +385,8 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 				|| expression instanceof IASTArraySubscriptExpression || expression instanceof IASTConditionalExpression
 				|| expression instanceof IASTCastExpression || expression instanceof IASTFieldReference
 				|| expression instanceof IASTTypeIdExpression) {
-			//if (!pTransPerformed) {
+			if (!pTransPerformed) {
+				System.out.println(expression.getRawSignature());
 				IASTExpression[] arguments = new IASTExpression[1];
 				arguments[0] = expression;
 
@@ -397,7 +398,7 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 					result = makeFunctionCall("_f_ocelot_isfalse", arguments);
 				// System.out.println(result.getRawSignature().toString());
 				return result;
-			//}
+			}
 		} else if (expression instanceof IASTFunctionCallExpression) {
 			return makeFunctionCall("_f_ocelot_get_fcall", new IASTExpression[0]);
 		} else {
@@ -568,33 +569,35 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 
 				currentDefaultExpression.setOperand2(defaultExpressionSubtree);
 				currentDefaultExpression = defaultExpressionSubtree;
-			} else {
+				/*} else {
 				defaultWritten = true;
 				label = "default";
 				distanceCalculation = defaultExpression;
 			}
+				 */
 
-			IASTExpression[] arguments = new IASTExpression[5];
-			arguments[0] = new CASTLiteralExpression(CASTLiteralExpression.lk_string_literal,
-					("\"" + functionName + "\"").toCharArray());
-			arguments[1] = new CASTLiteralExpression(CASTLiteralExpression.lk_integer_constant,
-					branchNumber.toString().toCharArray());
-			arguments[2] = new CASTLiteralExpression(CASTLiteralExpression.lk_integer_constant,
-					String.valueOf(CaseEdge.retrieveUniqueId(label)).toCharArray());
-			// aCase.getChildren. find the list of children.
-			// System.out.println(aCase.getChildren().length);
-			if (aCase.getChildren().length == 0) {
-				arguments[3] = distanceCalculation.copy(); // 1 return
-				arguments[4] = distanceCalculation.copy(); // 0 return
-				// true= !=0, false= 1
-			} else {
-				arguments[3] = this.transformDistanceExpression(distanceCalculation, false, false);
-				arguments[4] = this.transformDistanceExpression(distanceCalculation, true, false);
+				IASTExpression[] arguments = new IASTExpression[5];
+				arguments[0] = new CASTLiteralExpression(CASTLiteralExpression.lk_string_literal,
+						("\"" + functionName + "\"").toCharArray());
+				arguments[1] = new CASTLiteralExpression(CASTLiteralExpression.lk_integer_constant,
+						branchNumber.toString().toCharArray());
+				arguments[2] = new CASTLiteralExpression(CASTLiteralExpression.lk_integer_constant,
+						String.valueOf(CaseEdge.retrieveUniqueId(label)).toCharArray());
+				// aCase.getChildren. find the list of children.
+				// System.out.println(aCase.getChildren().length);
+				if (aCase.getChildren().length == 0) {
+					arguments[3] = distanceCalculation.copy(); // 1 return
+					arguments[4] = distanceCalculation.copy(); // 0 return
+					// true= !=0, false= 1
+				} else {
+					arguments[3] = this.transformDistanceExpression(distanceCalculation, false, false);
+					arguments[4] = this.transformDistanceExpression(distanceCalculation, true, false);
+				}
+				substitute.addStatement(new CASTExpressionStatement(makeFunctionCall("_f_ocelot_branch_out", arguments)));
+
+				addTestObjectives(branchNumber);
+				branchNumber++;
 			}
-			substitute.addStatement(new CASTExpressionStatement(makeFunctionCall("_f_ocelot_branch_out", arguments)));
-
-			addTestObjectives(branchNumber);
-			branchNumber++;
 		}
 
 		if (!defaultWritten) {
@@ -609,7 +612,7 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 			arguments[2] = new CASTLiteralExpression(CASTLiteralExpression.lk_integer_constant,
 					String.valueOf(CaseEdge.retrieveUniqueId(label)).toCharArray());
 			arguments[3] = this.transformDistanceExpression(distanceCalculation, false, false);
-			arguments[4] = distanceCalculation.copy();
+			arguments[4] =  this.transformDistanceExpression(distanceCalculation, true, false);//distanceCalculation.copy();
 
 			substitute.addStatement(new CASTExpressionStatement(makeFunctionCall("_f_ocelot_branch_out", arguments)));
 
@@ -830,8 +833,8 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 		IASTExpression operand1 = pExpression.getOperand1();
 		IASTExpression operand2 = pExpression.getOperand2();
 
-		IASTExpression instrumentedOp1 = this.transformDistanceExpression(operand1, negation, true);
-		IASTExpression instrumentedOp2 = this.transformDistanceExpression(operand2, negation, true);
+		IASTExpression instrumentedOp1 = this.transformDistanceExpression(operand1, negation, false);
+		IASTExpression instrumentedOp2 = this.transformDistanceExpression(operand2, negation, false);
 
 		IASTExpression[] operationArgs = new IASTExpression[2];
 		operationArgs[0] = instrumentedOp1;
@@ -909,7 +912,7 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 		} else {
 			ASTWriter writer = new ASTWriter();
 			System.err.println("I can't handle this type situation: " + type.toString()
-					+ ". Assuming numeric. Please, manually check.");
+			+ ". Assuming numeric. Please, manually check.");
 			System.err.println("Error node: " + writer.write(expression.getParent()));
 
 			this.functionCallsInExpressions.add(makeFunctionCall("_f_ocelot_reg_fcall_numeric", arguments));
@@ -945,16 +948,16 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 		if (copy instanceof IASTBinaryExpression) {
 			IASTBinaryExpression realCopy = (IASTBinaryExpression) copy;
 			IASTBinaryExpression realOrig = (IASTBinaryExpression) pExpression;
-			
+
 			realCopy.setOperator(realOrig.getOperator());
 			realCopy.setOperand1(this.cloneExpression(realOrig.getOperand1()));
 			realCopy.setOperand2(this.cloneExpression(realOrig.getOperand2()));
-			
+
 			return realCopy;
 		} else if (copy instanceof IASTUnaryExpression) {
 			IASTUnaryExpression realCopy = (IASTUnaryExpression) copy;
 			IASTUnaryExpression realOrig = (IASTUnaryExpression) pExpression;
-			
+
 			realCopy.setOperator(realOrig.getOperator());
 			realCopy.setOperand(this.cloneExpression(realOrig.getOperand()));
 

@@ -202,11 +202,11 @@ double _f_ocelot_ge_numeric(double op1, double op2) {
 }
 
 double _f_ocelot_lt_numeric(double op1, double op2) {
-	return _f_ocelot_ge_numeric(op2, op1);
+	return _f_ocelot_gt_numeric(op2, op1);
 }
 
 double _f_ocelot_le_numeric(double op1, double op2) {
-	return _f_ocelot_gt_numeric(op2, op1);
+	return _f_ocelot_ge_numeric(op2, op1);
 }
 
 double _f_ocelot_neq_numeric(double op1, double op2) {
