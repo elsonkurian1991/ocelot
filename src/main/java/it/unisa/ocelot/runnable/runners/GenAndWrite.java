@@ -15,6 +15,7 @@ import it.unisa.ocelot.c.cfg.CFG;
 import it.unisa.ocelot.c.cfg.CFGBuilder;
 import it.unisa.ocelot.c.types.CTypeHandler;
 import it.unisa.ocelot.conf.ConfigManager;
+import it.unisa.ocelot.genetic.objectives.BranchManager;
 import it.unisa.ocelot.genetic.objectives.GenericObjective;
 import it.unisa.ocelot.genetic.objectives.PC_PairsManager;
 import it.unisa.ocelot.simulator.CBridge;
@@ -60,7 +61,21 @@ public class GenAndWrite {
 			System.out.println("Cyclomatic complexity: " + mcCabePaths);
 	
 			//LUCA: load list of objectives
-			List<GenericObjective> objectives = PC_PairsManager.loadObjectives();	
+			// Martino: decide if you want to pass pair objectives or branch objectives
+			List<GenericObjective> objectives;
+			if (config.getOptimizeFor().equals("Pairs"))
+				 objectives = PC_PairsManager.loadObjectives();	
+			else if (config.getOptimizeFor().equals("Branches"))
+				objectives = BranchManager.loadObjectives(0);
+			else
+				throw new Exception("Don't know what you are optimizing for");
+			List<GenericObjective> objectivesToEvaluate;
+			if (config.getEvaluateOn().equals("Pairs"))
+				objectivesToEvaluate = PC_PairsManager.loadObjectives();	
+			else if (config.getOptimizeFor().equals("Branches"))
+				objectivesToEvaluate = BranchManager.loadObjectives(0);
+			else
+				throw new Exception("Don't know what you are optimizing for");	
 			TestSuiteGenerator generator = TestSuiteGeneratorHandler.getInstance(config, cfg, objectives);
 			//TestSuiteMinimizer minimizer = TestSuiteMinimizerHandler.getInstance(config);
 			
@@ -70,7 +85,7 @@ public class GenAndWrite {
 	
 			//Set<TestCase> minimizedSuite = minimizer.minimize(suite);
 			Set<TestCase> minimizedSuite = suite;
-			GenericCoverageCalculator calculator = new GenericCoverageCalculator(cfg, objectives);
+			GenericCoverageCalculator calculator = new GenericCoverageCalculator(cfg, objectivesToEvaluate);
 			
 			calculator.calculateCoverage(minimizedSuite);
 	

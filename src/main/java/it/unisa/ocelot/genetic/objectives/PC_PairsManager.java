@@ -1,8 +1,7 @@
 package it.unisa.ocelot.genetic.objectives;
 
-import java.io.BufferedReader;
+
 import java.io.FileInputStream;
-import java.io.FileReader;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.util.ArrayList;
@@ -10,7 +9,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 
 import it.unisa.ocelot.genetic.edges.TestObjStateMachine;
 
@@ -57,11 +55,13 @@ public class PC_PairsManager {
 				indirectionLevel++;
 			}
 			
-			// For every objective find it's triggering pair
-			for (GenericObjective obj : objectives) {
-				findTriggeredPair((PC_PairObjective) obj, objectives);
-			}
 			generatedObjectives = objectives;
+			
+			// For every objective find it's triggering pair
+			for (GenericObjective obj : generatedObjectives) {
+				findTriggeredPair((PC_PairObjective) obj, generatedObjectives);
+			}
+			
 			return generatedObjectives;
 		}
 		else 
@@ -94,7 +94,7 @@ public class PC_PairsManager {
 			//boolean test = pairObjective.sm.getTestObjOne().equals(secondBranchTriggered);
 			if (pairObjective.sm.getTestObjOne().equals(firstBranch) && pairObjective.sm.getTestObjTwo().equals(secondBranchTriggered)) {
 				// Insert in triggerd fiels of pc_pair
-				pC_Pair.TriggeredPair = (PC_PairObjective) obj;
+				pC_Pair.TriggeredPair =  obj;
 			}
 		}
 	}

@@ -102,7 +102,7 @@ public class Run {
 			//logWriter.append("\n");
 			//ReadEFLfilesforPairCombination_V2.RunEFLfilesforPairCombination(); // run this to read the efl file and create pairwise combinations. find a best place to call this
 			generatedObjectives = PC_PairsManager.loadObjectives();
-			branchObjective = BranchManager.loadObjectives(generatedObjectives.size());
+			branchObjective = BranchManager.loadObjectives(0);
 			//logWriter.append("\n");
 			//logWriter.append("List of PC PairCombinations:");
 			//logWriter.append("\n{\n");

@@ -484,10 +484,21 @@ public class ConfigManager {
 		return this.properties.getProperty("config.options", "");
 	}
 	
+	public String getOptimizeFor() {
+		return this.properties.getProperty("experiment.optimize", "Pairs");
+	}
+	
+	public String getEvaluateOn() {
+		return this.properties.getProperty("experiment.evaluate", "Pairs");
+	}
+	
 	public List<String> getUnitLevelComponents() {
 		return Arrays.asList(this.properties.getProperty("test.components", "").replaceAll("\\s+","").split(","));
 	}
 	
+	public boolean isRandomRun() {
+		return this.properties.getProperty("experiment.random", "false").equalsIgnoreCase("true");
+	}
 	
 	
 }

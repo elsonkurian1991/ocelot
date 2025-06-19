@@ -16,6 +16,7 @@ import it.unisa.ocelot.genetic.many_objective.MOSAGenericCoverageProblem;
 import it.unisa.ocelot.genetic.objectives.BranchManager;
 import it.unisa.ocelot.genetic.objectives.GenericObjective;
 import it.unisa.ocelot.genetic.objectives.PC_PairObjective;
+import it.unisa.ocelot.genetic.objectives.PC_PairsManager;
 import it.unisa.ocelot.util.Front;
 import jmetal.core.Operator;
 import jmetal.core.Solution;
@@ -42,19 +43,17 @@ public class MOSA_Generic extends OcelotAlgorithm {
 	private SolutionSet archive;
 	// we store here the complete set of target for given problem
 	private List<GenericObjective> allTargets;
-	private List<GenericObjective> branchTargets;
+	private List<GenericObjective> archiveTargets;
 	@SuppressWarnings("unused")
 	private Set<GenericObjective> coveredObjectives;
-	//private EdgeGraph<CFGNode, LabeledEdge> edgeGraph;
-	private boolean newBatchObjectives;
-	// Store tha active range on which you are currently calculating the MOSA
-	private boolean activeObjectiveRange;
 	
 	private CFG cfg;
 	private CType[] parametersTypes;
 	private ConfigManager config;
 	
 	private boolean firstRun = true;
+	
+	private double addRandom;
 	
 	int allottedTime;
 	
@@ -79,19 +78,23 @@ public class MOSA_Generic extends OcelotAlgorithm {
 		super(problem);
 		allTargets = new ArrayList<>(targets);
 		try {
-			branchTargets = BranchManager.loadObjectives(0);
+			archiveTargets = PC_PairsManager.loadObjectives();
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 		evaluations = new ArrayList<>();
 		this.coveredObjectives = new HashSet<>();
-		newBatchObjectives = false;
 		
 		this.cfg = cfg;
 		parametersTypes = parameters;
 		this.config = config;
 		allottedTime = config.getExecutionTime();
+		
+		if (config.isRandomRun())
+			addRandom = 1.0;
+		else
+			addRandom = 0.1;
 		
 	}
 
@@ -158,35 +161,8 @@ public class MOSA_Generic extends OcelotAlgorithm {
 		long startTime = System.nanoTime();
 		while ( keepRunning(evaluations, maxEvaluations, startTime) && calculateCoverage() < maxCoverage) {
 			
-			
-			//System.out.println(evaluations + ":--:" + maxEvaluations);
-			/*if (evaluations > 100) {
-				try {
-					MOSAGenericCoverageProblem problem = new MOSAGenericCoverageProblem(this.cfg, this.parametersTypes, config.getTestArraysSize(), 
-							config.getTestRanges(), batchedObjectives);
-					this.problem_ = problem;
-				} catch (Exception e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
 				
-			}*/
-			
-			// Restar the population after a set budget is used
-			/*
-			if (evaluations > newSolutionEval) {
-				population = new SolutionSet(populationSize);
-				System.out.println("---------------------------------------newPopulation");
-				for (int i = 0; i < populationSize; i++) {
-					newSolution = new Solution(problem_);
-					problem_.evaluate(newSolution);
-					population.add(newSolution);
-				}
-				newSolutionEval += 2000;
-			}*/
-			
-				
-			offspringPopulation = new SolutionSet(populationSize+(int)(populationSize*0.1));
+			offspringPopulation = new SolutionSet(populationSize+(int)(populationSize*addRandom));
 			Solution[] parents = new Solution[2];
 			
 			for (int i = 0; i < populationSize * 0.1; i++) {
@@ -196,6 +172,7 @@ public class MOSA_Generic extends OcelotAlgorithm {
 				offspringPopulation.add(newSolution);
 			}
 
+			if (!config.isRandomRun()) {
 			for (int i = 0; i < (populationSize / 2); i++) {
 				if (evaluations < maxEvaluations) {
 					// obtain parents
@@ -212,7 +189,7 @@ public class MOSA_Generic extends OcelotAlgorithm {
 				} // if
 
 			} // for
-
+			} // If not random run
 			// Create the solutionSet union of solutionSet and offSpring
 			union = ((SolutionSet) population).union(offspringPopulation);
 			
@@ -230,7 +207,10 @@ public class MOSA_Generic extends OcelotAlgorithm {
 			}
 			System.out.println(globalFitness);
 			
+			
 			this.updateArchive(union, evaluations);
+			
+			if(!config.isRandomRun()) {
 
 			//modify the objectives before here
 			Front fronts = this.preferenceSorting(union);
@@ -272,6 +252,7 @@ public class MOSA_Generic extends OcelotAlgorithm {
 					population.add(front.get(i));
 				}
 			}
+			} // If not random run
 			
 			/*for (GenericObjective obj:allTargets) {
 				double objFitness = Double.MAX_VALUE;
@@ -289,32 +270,33 @@ public class MOSA_Generic extends OcelotAlgorithm {
 			evaluations++;
 
 		}// while
-		
-		Set<String> coveredBranches = new HashSet<String>();
-		Set<String> maybeUncoveredBranches = new HashSet<String>();
-		for (GenericObjective obj:allTargets) {
-			if (obj.isCovered()) {
-					coveredBranches.add(((PC_PairObjective) obj).sm.getTestObjOne());
-					coveredBranches.add(((PC_PairObjective) obj).sm.getTestObjTwo());
+		if (config.getOptimizeFor().equals("Pairs")) {
+			Set<String> coveredBranches = new HashSet<String>();
+			Set<String> maybeUncoveredBranches = new HashSet<String>();
+			for (GenericObjective obj:allTargets) {
+				if (obj.isCovered()) {
+						coveredBranches.add(((PC_PairObjective) obj).sm.getTestObjOne());
+						coveredBranches.add(((PC_PairObjective) obj).sm.getTestObjTwo());
+					}
+				else if (obj.isActive()){
+					maybeUncoveredBranches.add(((PC_PairObjective) obj).sm.getTestObjOne());
+					maybeUncoveredBranches.add(((PC_PairObjective) obj).sm.getTestObjTwo());
 				}
-			else if (obj.isActive()){
-				maybeUncoveredBranches.add(((PC_PairObjective) obj).sm.getTestObjOne());
-				maybeUncoveredBranches.add(((PC_PairObjective) obj).sm.getTestObjTwo());
 			}
+			maybeUncoveredBranches.removeAll(coveredBranches);
+			
+			try {
+			      FileWriter myWriter = new FileWriter("uncoveredBranches.txt");
+			      
+			      for (String branch : maybeUncoveredBranches)
+			    	  myWriter.write(branch + "\n");
+			      myWriter.close();
+			      
+			    } catch (IOException e) {
+			      System.out.println("Unable to generate file uncoveredBranches.txt");
+			      e.printStackTrace();
+			    }
 		}
-		maybeUncoveredBranches.removeAll(coveredBranches);
-		
-		try {
-		      FileWriter myWriter = new FileWriter("uncoveredBranches.txt");
-		      
-		      for (String branch : maybeUncoveredBranches)
-		    	  myWriter.write(branch + "\n");
-		      myWriter.close();
-		      
-		    } catch (IOException e) {
-		      System.out.println("Unable to generate file uncoveredBranches.txt");
-		      e.printStackTrace();
-		    }
 		
 		
 		this.algorithmStats.setEvaluations(evaluations);
@@ -370,7 +352,7 @@ public class MOSA_Generic extends OcelotAlgorithm {
 					// Add the solution that covered the objective to the objective object
 					//((PC_PairObjective) objective).DiscovererTestCase = currentCandidate;
 					if (triggeredPair != null && !triggeredPair.isCovered()) {
-						((PC_PairObjective) objective).TriggeredPair.setActive(true);
+						objective.TriggeredPair.setActive(true);
 						//System.out.println("Pair activated");
 					}
 					
@@ -382,6 +364,7 @@ public class MOSA_Generic extends OcelotAlgorithm {
 				}
 			} // while candidates
 		} // while targets
+		
 		int acc = 0;
 		for (GenericObjective target : allTargets) {
 			if (target.isActive() && !target.isCovered()) {

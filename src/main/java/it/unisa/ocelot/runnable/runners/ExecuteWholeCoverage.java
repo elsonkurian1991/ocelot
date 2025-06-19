@@ -7,6 +7,7 @@ import it.unisa.ocelot.c.cfg.CFGWindow;
 import it.unisa.ocelot.c.cfg.edges.LabeledEdge;
 import it.unisa.ocelot.c.types.CTypeHandler;
 import it.unisa.ocelot.conf.ConfigManager;
+import it.unisa.ocelot.genetic.objectives.BranchManager;
 import it.unisa.ocelot.genetic.objectives.GenericObjective;
 import it.unisa.ocelot.genetic.objectives.PC_PairsManager;
 import it.unisa.ocelot.simulator.CBridge;
@@ -57,7 +58,15 @@ public class ExecuteWholeCoverage implements Runnable {
 				showUI(cfg);
 	
 			//LUCA: load list of objectives
-			List<GenericObjective> objectives = PC_PairsManager.loadObjectives();	
+			// Martino: decide if you want to pass pair objectives or branch objectives
+			List<GenericObjective> objectives;
+			if (config.getOptimizeFor().equals("Pairs"))
+				 objectives = PC_PairsManager.loadObjectives();	
+			else if (config.getOptimizeFor().equals("Branches"))
+				objectives = BranchManager.loadObjectives(0);
+			else
+				throw new Exception("Don't know what you are optimizing for");
+
 			TestSuiteGenerator generator = TestSuiteGeneratorHandler.getInstance(config, cfg, objectives);
 			TestSuiteMinimizer minimizer = TestSuiteMinimizerHandler.getInstance(config);
 			
