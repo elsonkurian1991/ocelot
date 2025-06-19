@@ -500,5 +500,10 @@ public class ConfigManager {
 		return this.properties.getProperty("experiment.random", "false").equalsIgnoreCase("true");
 	}
 	
+	public boolean isDynamicObjectives() {
+		return this.properties.getProperty("experiment.dynamic", "false").equalsIgnoreCase("true");
+	}
+	
+	
 	
 }

@@ -329,7 +329,8 @@ public class MOSA_Generic extends OcelotAlgorithm {
 		// In the first run we use all objectives, then only the active's ones
 		if (firstRun) {
 			for (GenericObjective objective : allTargets) {
-				objective.setActive(false);
+				if (config.isDynamicObjectives())
+					objective.setActive(false);
 			}
 			firstRun = false;
 		}
