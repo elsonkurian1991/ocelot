@@ -192,10 +192,8 @@ public class ReadEFLfilesforPairCombination_V2 {
 		for(String param1: params1) {
 			for(String param2: params2) {
 				String testObjOne=param1.toString() ;
-				double fitValOne=Double.MAX_VALUE;
 				String testObjTwo=param2.toString();
-				double fitValTwo=Double.MAX_VALUE;
-				TestObjStateMachine testobjSM= new TestObjStateMachine(testObjOne,fitValOne,testObjTwo,fitValTwo);
+				TestObjStateMachine testobjSM= new TestObjStateMachine(testObjOne,testObjTwo);
 				//String pairCom=param1.toString()+","+param2.toString();
 				files_SM_PC_FitVals.add(testobjSM); 
 				//files_SM_PC_FitVals.put(pairCom, testobjSM);

@@ -471,10 +471,8 @@ public class StandardBuilder extends Builder {
 	    	for (int j = 0; j < indirectBraches.size(); j++) {
 	        	for (String k: indirectBraches.get(j)) {
 	                String testObjOne=i;
-					double fitValOne=Double.MAX_VALUE;
 					String testObjTwo=k;
-					double fitValTwo=Double.MAX_VALUE;
-					TestObjStateMachine testobjSM = new TestObjStateMachine(testObjOne,fitValOne,testObjTwo,fitValTwo); 
+					TestObjStateMachine testobjSM = new TestObjStateMachine(testObjOne,testObjTwo); 
 					cartesianSet.get(j).add(testobjSM);
 				}
 	        }

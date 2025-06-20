@@ -22,25 +22,6 @@ public class TestObjStateMachine implements Serializable {
 	boolean isGenerated;
 	String argumentList;
 	
-	public TestObjStateMachine(String testObjOne,double fitValOne,String testObjTwo,double fitValTwo,State currState, boolean isGenerated, String argumentList) {
-		this.testObjOne=testObjOne;
-		this.testObjTwo=testObjTwo;
-		this.fitValOne=fitValOne;
-		this.fitValTwo=fitValTwo;
-		this.currState=currState;
-		this.isGenerated=false;
-		this.argumentList=argumentList;
-	}
-	public TestObjStateMachine(String testObjOne,double fitValOne,String testObjTwo,double fitValTwo) {
-		this.testObjOne=testObjOne;
-		this.testObjTwo=testObjTwo;
-		this.fitValOne=fitValOne;
-		this.fitValTwo=fitValTwo;
-		this.currState=State.zeroCover;
-		this.isGenerated=false;
-		this.argumentList="null";
-	}
-	
 	public TestObjStateMachine(String testObjOne,String testObjTwo) {
 		this.testObjOne=testObjOne;
 		this.testObjTwo=testObjTwo;
