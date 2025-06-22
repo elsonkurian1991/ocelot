@@ -58,6 +58,8 @@ public class StandardBuilder extends Builder {
 	// Maps the caller function to an hashmap, that maps the called function 
 	// to the braches required to take that function
 	private Map<String, Map<String, List<String>>> nodeBranchMap;
+	
+	private ArrayList<String> SyntheticBranches;
 
 	public StandardBuilder(String pTestFilename, String pTestFunction, String[] pTestIncludes) {
 		super();
@@ -70,6 +72,8 @@ public class StandardBuilder extends Builder {
 		this.unitLevelComponents = readUnitLevelComponents();
 		this.componentsTestObjectives = new HashMap<String, ArrayList<String>>();
 		this.nodeBranchMap = new HashMap<String, Map<String, List<String>>>();
+		
+		this.SyntheticBranches = new ArrayList<String>();
 	}
 
 	private List<String> readUnitLevelComponents() {
@@ -166,7 +170,7 @@ public class StandardBuilder extends Builder {
 	}
 
 	private void instrumentUnitComponents() throws Exception {
-		int arr=0;
+		//int arr=0;
 		String[] testIncludesTemp= new String[1];
 		
 		// This function maps the caller function to an hashmap, that maps the called function 
@@ -206,8 +210,8 @@ public class StandardBuilder extends Builder {
 				translationUnit.accept(instrumentor);
 				 */
 				
-				//BooleanAssignmentTransformer at = new BooleanAssignmentTransformer(translationUnit);
-				//translationUnit.accept(at);
+				BooleanAssignmentTransformer at = new BooleanAssignmentTransformer(translationUnit);
+				translationUnit.accept(at);
 				
 
 				// Instruments unit-level components
@@ -228,8 +232,9 @@ public class StandardBuilder extends Builder {
 				
 			
 				// Used to print the structure of the AST for debugging
-				//StatementTreePrinter printer = new StatementTreePrinter();
-				//translationUnit.accept(printer);
+				StatementTreePrinter printer = new StatementTreePrinter();
+				translationUnit.accept(printer);
+				Utils.writeFile(tempUnitComponent+"printer.txt", printer.result.toString());
 				//Here we add a instrumention visitor for method call in the if condition.
 				ASTRewrite rewriter = ASTRewrite.create(translationUnit);
 				InstrumenterVisitForIfMethodCalls instrumentor_if_method_call = new InstrumenterVisitForIfMethodCalls(tempUnitComponent,rewriter);
@@ -241,6 +246,8 @@ public class StandardBuilder extends Builder {
 				componentsTestObjectives.put(tempUnitComponent, testObjectives);
 				// Need to store this one outside the loop to generate the branch pairs
 				nodeBranchMap.put(tempUnitComponent, instrumentor1.functionBranchPairMap);
+				
+				SyntheticBranches.addAll(instrumentor1.SyntheticBranches);
 				
 				System.out.println(tempUnitComponent + "::" + instrumentor1.functionBranchPairMap.keySet());
 				
@@ -329,6 +336,18 @@ public class StandardBuilder extends Builder {
 			}
 
 		}
+		
+		//Synthetic Branches
+		try { 
+            FileOutputStream fos = new FileOutputStream("SyntheticBranches"); 
+            ObjectOutputStream oos = new ObjectOutputStream(fos); 
+            oos.writeObject(SyntheticBranches); 
+            oos.close(); 
+            fos.close(); 
+        } 
+        catch (IOException ioe) { 
+            ioe.printStackTrace(); 
+        }
 		
 		// Martino
 		// This code generates the pairs
@@ -471,8 +490,10 @@ public class StandardBuilder extends Builder {
 	    	for (int j = 0; j < indirectBraches.size(); j++) {
 	        	for (String k: indirectBraches.get(j)) {
 	                String testObjOne=i;
+					double fitValOne=Double.MAX_VALUE;
 					String testObjTwo=k;
-					TestObjStateMachine testobjSM = new TestObjStateMachine(testObjOne,testObjTwo); 
+					double fitValTwo=Double.MAX_VALUE;
+					TestObjStateMachine testobjSM = new TestObjStateMachine(testObjOne,fitValOne,testObjTwo,fitValTwo); 
 					cartesianSet.get(j).add(testobjSM);
 				}
 	        }
