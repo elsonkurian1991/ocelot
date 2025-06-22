@@ -6,6 +6,8 @@ import org.eclipse.cdt.core.dom.ast.IASTCompoundStatement;
 import org.eclipse.cdt.core.dom.ast.IASTExpression;
 import org.eclipse.cdt.core.dom.ast.IASTExpressionStatement;
 import org.eclipse.cdt.core.dom.ast.IASTStatement;
+import org.eclipse.cdt.internal.core.dom.parser.c.CASTDeclarationStatement;
+import org.eclipse.cdt.internal.core.dom.parser.c.CASTSimpleDeclaration;
 import org.eclipse.cdt.core.dom.ast.IASTIfStatement;
 
 
@@ -13,6 +15,7 @@ import org.eclipse.cdt.core.dom.ast.IASTIfStatement;
 public class StatementTreePrinter extends ASTVisitor {
 
     private int indent = 0;
+    public StringBuilder result = new StringBuilder();
 
     public StatementTreePrinter() {
         super();
@@ -52,11 +55,25 @@ public class StatementTreePrinter extends ASTVisitor {
             for (IASTNode child : (stmt.getChildren())) {
             	child = (IASTExpression) child;
                 indent += 2;
-                printIndented("12Code: " + stmt.getRawSignature().replaceAll("\\s+", " "));
+                printIndented("Code: " + stmt.getRawSignature().replaceAll("\\s+", " "));
                 indent -= 2;
                 child.accept(this);
             }
-        } else {
+            
+        } else if (stmt instanceof CASTDeclarationStatement) {
+            for (IASTNode child : (stmt.getChildren())) {
+            	System.out.println(((CASTSimpleDeclaration) child).getRawSignature());
+            	if (((CASTSimpleDeclaration) child).getRawSignature().contains("IfBlock1_clock"))
+            		System.out.println(";");
+            	System.out.println(((CASTSimpleDeclaration) child).getDeclSpecifier().getRawSignature());
+                indent += 2;
+                printIndented("Code: " + stmt.getRawSignature().replaceAll("\\s+", " "));
+                indent -= 2;
+                child.accept(this);
+            }
+            
+        }
+        else {
             indent += 2;
             printIndented("Code: " + stmt.getRawSignature().replaceAll("\\s+", " "));
             indent -= 2;
@@ -75,6 +92,6 @@ public class StatementTreePrinter extends ASTVisitor {
 
 
     private void printIndented(String message) {
-        System.out.printf("%s%s%n", " ".repeat(indent), message);
+        result.append(String.format("%s%s%n", " ".repeat(indent), message));
     }
 }

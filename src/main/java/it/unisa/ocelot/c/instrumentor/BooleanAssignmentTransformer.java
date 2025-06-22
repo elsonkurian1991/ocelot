@@ -1,23 +1,69 @@
 package it.unisa.ocelot.c.instrumentor;
 
+import java.util.HashSet;
+import java.util.Set;
+
 import org.eclipse.cdt.core.dom.ast.*;
+import org.eclipse.cdt.core.dom.ast.c.ICASTSimpleDeclSpecifier;
 import org.eclipse.cdt.core.dom.ast.c.ICNodeFactory;
 import org.eclipse.cdt.internal.core.dom.parser.c.CASTCompoundStatement;
+import org.eclipse.cdt.internal.core.dom.parser.c.CASTDeclarationStatement;
+import org.eclipse.cdt.internal.core.dom.parser.c.CASTSimpleDeclaration;
  
 public class BooleanAssignmentTransformer extends ASTVisitor {
  
     private final IASTTranslationUnit tu;
     private final ICNodeFactory nodeFactory = ASTNodeFactoryFactory.getDefaultCNodeFactory();
+    private final Set<String> trackedBoolVars = new HashSet<>();
  
     public BooleanAssignmentTransformer(IASTTranslationUnit tu) {
         super();
         this.tu = tu;
         shouldVisitStatements = true;
+        shouldVisitDeclSpecifiers = true;
+        shouldVisitExpressions = true;
+        
+		this.shouldVisitDeclarations = true;
+		
+		this.shouldVisitDeclarators = true;
+		this.shouldVisitTranslationUnit = true;
+		this.shouldVisitStatements = true;
+		this.shouldVisitDeclSpecifiers = true;
+		this.shouldVisitNames = true;
     }
  
-    @Override
+
+    
+
+    public int visit(CASTSimpleDeclaration declaration) {
+    	if (((CASTSimpleDeclaration) declaration).getRawSignature().contains("IfBlock1_clock"))
+        	System.out.println(";");
+    	IASTDeclSpecifier spec = declaration.getDeclSpecifier();
+    	if (isBooleanType(spec)) {
+    		for(IASTDeclarator declarator : declaration.getDeclarators()) {
+    			if (declarator.getName() != null)
+    				trackedBoolVars.add(declarator.getName().toString());
+    		}
+    	}
+    	return PROCESS_CONTINUE;
+    }
+    
     public int visit(IASTStatement stmt) {
-        if (stmt instanceof IASTExpressionStatement) {
+    	if (stmt instanceof CASTDeclarationStatement) {
+            for (IASTNode child : (stmt.getChildren())) {
+            	CASTSimpleDeclaration simpleDec = ((CASTSimpleDeclaration) child);
+            	System.out.println(simpleDec.getRawSignature());
+            	if (((CASTSimpleDeclaration) child).getRawSignature().contains("IfBlock1_clock"))
+            		System.out.println(";");
+            	System.out.println(simpleDec.getDeclSpecifier().getRawSignature());
+            	if (isBooleanType(simpleDec.getDeclSpecifier())) {
+            		System.out.println(simpleDec.getChildren());
+            		for (IASTNode child2 : simpleDec.getDeclarators())
+            			trackedBoolVars.add(child2.getRawSignature());
+            	}
+            }
+    	}
+    	if (stmt instanceof IASTExpressionStatement) {
             IASTExpression expr = ((IASTExpressionStatement) stmt).getExpression();
  
             // Detect a = ...
@@ -29,22 +75,45 @@ public class BooleanAssignmentTransformer extends ASTVisitor {
                     IASTExpression rhs = assignment.getOperand2();
  
                     // Transform only if RHS is a boolean expression (heuristically)
-                    if (looksLikeBooleanExpression(rhs)) {
-                        IASTIfStatement ifStmt = createIfElseAssignment(lhs.copy(), rhs.copy());
- 
-                        // Replace the expression statement with the new if-statement
-                        replaceStatement(stmt, ifStmt);
+                    if (lhs instanceof IASTIdExpression) {
+                    	String varName = ((IASTIdExpression) lhs).getName().toString();
+                    	
+                    	if(trackedBoolVars.contains(varName)) {
+                    		IASTIfStatement ifStmt = createIfElseAssignment(lhs.copy(), rhs.copy());
+                    		// Replace the expression statement with the new if-statement
+                            replaceStatement(stmt, ifStmt);
+                    	}
                     }
                 }
             }
         }
- 
-        return PROCESS_CONTINUE;
+		return PROCESS_CONTINUE;
     }
+
  
-    private boolean looksLikeBooleanExpression(IASTExpression expr) {
-        //return expr instanceof IASTBinaryExpression || expr instanceof IASTUnaryExpression || expr instanceof IASTFunctionCallExpression;
-    	return expr instanceof IASTBinaryExpression || expr instanceof IASTUnaryExpression;
+    /*private boolean looksLikeBooleanExpression(IASTExpression expr) {
+    	if (expr instanceof IASTIdExpression) {
+    		IBinding binding = ((IASTIdExpression) expr).getName().resolveBinding();
+    		if (binding instanceof IVariable) {
+    			IType type = ((IVariable) binding).getType();
+    			return isItBool(type);
+    		}
+    	}
+    	
+    	return false;
+    }*/
+    
+
+	private boolean isBooleanType(IASTDeclSpecifier spec) {
+    	if (spec instanceof ICASTSimpleDeclSpecifier) {
+    		ICASTSimpleDeclSpecifier cspec =  (ICASTSimpleDeclSpecifier) spec;
+    		if (cspec.getType() ==  IASTSimpleDeclSpecifier.t_bool)
+    			return true;
+    		return false;
+    	}
+    	if (spec.getRawSignature().contains("kcg_bool"))
+			return true;
+    	return false;
     }
  
     private IASTIfStatement createIfElseAssignment(IASTExpression targetVar, IASTExpression condition) {
@@ -61,7 +130,7 @@ public class BooleanAssignmentTransformer extends ASTVisitor {
         elseBlock.addStatement(nodeFactory.newExpressionStatement(elseExpr));
  
         IASTIfStatement ifStmt = nodeFactory.newIfStatement(condition, thenBlock, elseBlock);
-        ifStmt.setPropertyInParent(new ASTNodeProperty("GENERATED"));
+        //ifStmt.setPropertyInParent(new ASTNodeProperty("GENERATED"));
         return ifStmt;
     }
  
@@ -77,6 +146,7 @@ public class BooleanAssignmentTransformer extends ASTVisitor {
                     break;
                 }
             }
+            newStmt.setPropertyInParent(new ASTNodeProperty("GENERATED"));
         }
     }
 }

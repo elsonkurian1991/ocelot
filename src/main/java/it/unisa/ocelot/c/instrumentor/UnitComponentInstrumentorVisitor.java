@@ -68,6 +68,9 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 
 	private Integer branchNumber;
 	private HashSet<String> targetFunctions;
+	
+	// For synthetic generated ifs from boolean variables, see BooleanAssignmentTransformer
+	public ArrayList<String> SyntheticBranches;
 
 	public UnitComponentInstrumentorVisitor(String pInstrumentFunction, ArrayList<String> testObjectives,
 			List<String> functionNames) {
@@ -94,6 +97,8 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 		this.functionBranchPairMap = new HashMap<>();
 		this.targetFunctions = new HashSet<String>(functionNames);
 		this.nodeBranchMap = new HashMap<IASTNode, List<String>>();
+		
+		this.SyntheticBranches = new ArrayList<String>();
 
 	}
 
@@ -386,7 +391,7 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 				|| expression instanceof IASTCastExpression || expression instanceof IASTFieldReference
 				|| expression instanceof IASTTypeIdExpression) {
 			if (!pTransPerformed) {
-				System.out.println(expression.getRawSignature());
+				//System.out.println(expression.getRawSignature());
 				IASTExpression[] arguments = new IASTExpression[1];
 				arguments[0] = expression;
 
@@ -485,6 +490,7 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 
 	// TODO start from here
 	public void visit(IASTIfStatement statement) {
+		System.out.println(statement.getPropertyInParent().getName());
 		statement.getChildren();
 		// System.out.println(statement.getConditionExpression().getRawSignature().toString());
 		IASTExpression[] instrArgs = new IASTExpression[5];
@@ -503,17 +509,26 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 
 		statement.setConditionExpression(resultExpression);
 
+		
 		List<String> thenClause = new ArrayList<String>();
 		List<String> elseClause = new ArrayList<String>();
 		thenClause.add(functionName + ":" + "branch" + branchNumber + "-" + "true");
 		elseClause.add(functionName + ":" + "branch" + branchNumber + "-" + "false");
+		
 		nodeBranchMap.put((IASTNode) statement.getThenClause(), thenClause);
 		if (statement.getElseClause() != null) {
 			nodeBranchMap.put(statement.getElseClause(), elseClause);
+			
 		}
-
+		// For synthetic generated ifs from boolean variables, see BooleanAssignmentTransformer
+		if (statement.getPropertyInParent() != null && statement.getPropertyInParent().getName().contains("GENERATED")) {
+			SyntheticBranches.add(functionName + ":" + "branch" + branchNumber + "-" + "true"); 
+			SyntheticBranches.add(functionName + ":" + "branch" + branchNumber + "-" + "false");
+			}
 		addTestObjectives(branchNumber);
 		branchNumber++;
+
+		
 	}
 
 	public void visit(IASTSwitchStatement statement) {
@@ -1001,9 +1016,7 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 	}
 
 	private void addTestObjectives(int branch) {
-		if (this.functionName == "ExpectationWindow_Calculator_BCAL_Lib_DM_TIM_BaliseMM_LMC") {
-			// System.out.println("here");
-		}
+
 		testObjectives.add(this.functionName + ":" + "branch" + branch + "-true");
 		testObjectives.add(this.functionName + ":" + "branch" + branch + "-false");
 	}
