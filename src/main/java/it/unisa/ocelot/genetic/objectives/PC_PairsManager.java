@@ -19,6 +19,7 @@ public class PC_PairsManager {
 	public ArrayList<TestObjStateMachine> files_SM_PC_FitVals = new ArrayList<>();// ok make to list todo
 	
 	public static List<List<TestObjStateMachine>> ListOfSMs;
+	public static List<String> SyntheticBranches;
 	
 	public static List<GenericObjective> generatedObjectives;
 
@@ -35,11 +36,22 @@ public class PC_PairsManager {
 	            
 	            in.close();
 	            file.close();
+	        } catch(Exception ex) {
+	        	System.err.println("Error reading PairsData file: " + ex.getMessage());
 	        }
-	        
-	        catch(Exception ex)
-	        {
-	        	System.err.println("Error reading testObjectives.to file: " + ex.getMessage());
+			
+			try
+	        {   
+	            // Reading the object from a file
+	            FileInputStream file = new FileInputStream("SyntheticBranches");
+	            ObjectInputStream in = new ObjectInputStream(file);
+	            
+	            SyntheticBranches = (List<String>)in.readObject();
+	            
+	            in.close();
+	            file.close();
+	        } catch(Exception ex) {
+	        	System.err.println("Error reading SyntheticBranches file: " + ex.getMessage());
 	        }
 	
 			List<GenericObjective> objectives = new ArrayList<GenericObjective>();
@@ -59,8 +71,14 @@ public class PC_PairsManager {
 			
 			// For every objective find it's triggering pair
 			for (GenericObjective obj : generatedObjectives) {
-				findTriggeredPair((PC_PairObjective) obj, generatedObjectives);
+				PC_PairObjective PCobj = (PC_PairObjective) obj;
+				findTriggeredPair(PCobj, generatedObjectives);
+				for(String branch : SyntheticBranches) {
+					if (branch.equals(PCobj.sm.getTestObjOne()) || branch.equals(PCobj.sm.getTestObjTwo()))
+						PCobj.isSynthetic = true;
+					}
 			}
+			
 			
 			return generatedObjectives;
 		}

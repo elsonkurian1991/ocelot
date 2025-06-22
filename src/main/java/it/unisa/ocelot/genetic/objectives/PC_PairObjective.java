@@ -16,17 +16,10 @@ public class PC_PairObjective extends GenericObjective {
 	public Solution DiscovererTestCase;
 	public int indirectionLevel;
 	
+	public boolean isSynthetic;
 	
 	
-	
-	public PC_PairObjective(boolean isCovered, int objectiveID, String testObj1, String testObj2, String direction, int indirectionLevel) {
-		super(isCovered, objectiveID);
-		sm = new TestObjStateMachine(testObj1, testObj2);
-		budget = 0;
-		this.direction = direction;
-		DiscovererTestCase = null;
-		this.indirectionLevel = indirectionLevel;
-	}
+
 	
 	public PC_PairObjective(boolean isCovered, int objectiveID, TestObjStateMachine SM, String direction, int indirectionLevel) {
 		super(isCovered, objectiveID);
@@ -35,6 +28,7 @@ public class PC_PairObjective extends GenericObjective {
 		this.direction = direction;
 		DiscovererTestCase = null;
 		this.indirectionLevel = indirectionLevel;
+		isSynthetic = false;
 	}
 	
 

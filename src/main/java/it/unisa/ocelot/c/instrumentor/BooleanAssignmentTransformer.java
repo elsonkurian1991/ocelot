@@ -36,8 +36,8 @@ public class BooleanAssignmentTransformer extends ASTVisitor {
     
 
     public int visit(CASTSimpleDeclaration declaration) {
-    	if (((CASTSimpleDeclaration) declaration).getRawSignature().contains("IfBlock1_clock"))
-        	System.out.println(";");
+    	//if (((CASTSimpleDeclaration) declaration).getRawSignature().contains("IfBlock1_clock"))
+        	//System.out.println(";");
     	IASTDeclSpecifier spec = declaration.getDeclSpecifier();
     	if (isBooleanType(spec)) {
     		for(IASTDeclarator declarator : declaration.getDeclarators()) {
@@ -52,12 +52,12 @@ public class BooleanAssignmentTransformer extends ASTVisitor {
     	if (stmt instanceof CASTDeclarationStatement) {
             for (IASTNode child : (stmt.getChildren())) {
             	CASTSimpleDeclaration simpleDec = ((CASTSimpleDeclaration) child);
-            	System.out.println(simpleDec.getRawSignature());
-            	if (((CASTSimpleDeclaration) child).getRawSignature().contains("IfBlock1_clock"))
-            		System.out.println(";");
-            	System.out.println(simpleDec.getDeclSpecifier().getRawSignature());
+            	//System.out.println(simpleDec.getRawSignature());
+            	//if (((CASTSimpleDeclaration) child).getRawSignature().contains("IfBlock1_clock"))
+            	//	System.out.println(";");
+            	//System.out.println(simpleDec.getDeclSpecifier().getRawSignature());
             	if (isBooleanType(simpleDec.getDeclSpecifier())) {
-            		System.out.println(simpleDec.getChildren());
+            		//System.out.println(simpleDec.getChildren());
             		for (IASTNode child2 : simpleDec.getDeclarators())
             			trackedBoolVars.add(child2.getRawSignature());
             	}

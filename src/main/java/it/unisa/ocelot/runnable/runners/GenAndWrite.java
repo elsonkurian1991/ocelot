@@ -5,6 +5,7 @@ import java.io.FileOutputStream;
 import java.io.PrintStream;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
@@ -17,6 +18,7 @@ import it.unisa.ocelot.c.types.CTypeHandler;
 import it.unisa.ocelot.conf.ConfigManager;
 import it.unisa.ocelot.genetic.objectives.BranchManager;
 import it.unisa.ocelot.genetic.objectives.GenericObjective;
+import it.unisa.ocelot.genetic.objectives.PC_PairObjective;
 import it.unisa.ocelot.genetic.objectives.PC_PairsManager;
 import it.unisa.ocelot.simulator.CBridge;
 import it.unisa.ocelot.simulator.CoverageCalculator;
@@ -75,7 +77,10 @@ public class GenAndWrite {
 			else if (config.getOptimizeFor().equals("Branches"))
 				objectivesToEvaluate = BranchManager.loadObjectives(0);
 			else
-				throw new Exception("Don't know what you are optimizing for");	
+				throw new Exception("Don't know what you are optimizing for");
+			
+			
+			
 			TestSuiteGenerator generator = TestSuiteGeneratorHandler.getInstance(config, cfg, objectives);
 			//TestSuiteMinimizer minimizer = TestSuiteMinimizerHandler.getInstance(config);
 			
@@ -85,6 +90,13 @@ public class GenAndWrite {
 	
 			//Set<TestCase> minimizedSuite = minimizer.minimize(suite);
 			Set<TestCase> minimizedSuite = suite;
+			List<GenericObjective> objectivesToRemove = new ArrayList<>();
+			
+			for (GenericObjective obj : objectivesToEvaluate) {
+				if (obj instanceof PC_PairObjective && ((PC_PairObjective) obj).isSynthetic)
+					objectivesToRemove.add(obj);
+			}
+			objectivesToEvaluate.removeAll(objectivesToRemove);
 			GenericCoverageCalculator calculator = new GenericCoverageCalculator(cfg, objectivesToEvaluate);
 			
 			calculator.calculateCoverage(minimizedSuite);

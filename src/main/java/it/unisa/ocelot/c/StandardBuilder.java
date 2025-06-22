@@ -232,9 +232,9 @@ public class StandardBuilder extends Builder {
 				
 			
 				// Used to print the structure of the AST for debugging
-				StatementTreePrinter printer = new StatementTreePrinter();
-				translationUnit.accept(printer);
-				Utils.writeFile(tempUnitComponent+"printer.txt", printer.result.toString());
+				//StatementTreePrinter printer = new StatementTreePrinter();
+				//translationUnit.accept(printer);
+				//Utils.writeFile(tempUnitComponent+"printer.txt", printer.result.toString());
 				//Here we add a instrumention visitor for method call in the if condition.
 				ASTRewrite rewriter = ASTRewrite.create(translationUnit);
 				InstrumenterVisitForIfMethodCalls instrumentor_if_method_call = new InstrumenterVisitForIfMethodCalls(tempUnitComponent,rewriter);
@@ -490,10 +490,8 @@ public class StandardBuilder extends Builder {
 	    	for (int j = 0; j < indirectBraches.size(); j++) {
 	        	for (String k: indirectBraches.get(j)) {
 	                String testObjOne=i;
-					double fitValOne=Double.MAX_VALUE;
 					String testObjTwo=k;
-					double fitValTwo=Double.MAX_VALUE;
-					TestObjStateMachine testobjSM = new TestObjStateMachine(testObjOne,fitValOne,testObjTwo,fitValTwo); 
+					TestObjStateMachine testobjSM = new TestObjStateMachine(testObjOne,testObjTwo); ; 
 					cartesianSet.get(j).add(testobjSM);
 				}
 	        }

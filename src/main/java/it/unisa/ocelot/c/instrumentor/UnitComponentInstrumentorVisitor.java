@@ -521,7 +521,7 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 			
 		}
 		// For synthetic generated ifs from boolean variables, see BooleanAssignmentTransformer
-		if (statement.getPropertyInParent() != null && statement.getPropertyInParent().getName().contains("GENERATED")) {
+		if (statement.getPropertyInParent() != null && statement.getPropertyInParent().getName().equals("GENERATED")) {
 			SyntheticBranches.add(functionName + ":" + "branch" + branchNumber + "-" + "true"); 
 			SyntheticBranches.add(functionName + ":" + "branch" + branchNumber + "-" + "false");
 			}
