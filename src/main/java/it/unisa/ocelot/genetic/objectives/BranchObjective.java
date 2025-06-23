@@ -4,7 +4,7 @@ import java.util.HashMap;
 import jmetal.core.Solution;
 
 public class BranchObjective extends GenericObjective{
-	String testObj;
+	public String testObj;
 	public Solution DiscovererTestCase;
 	
 	public BranchObjective(boolean isCovered, int objectiveID, String testObj) {

@@ -14,6 +14,7 @@ import it.unisa.ocelot.conf.ConfigManager;
 import it.unisa.ocelot.genetic.OcelotAlgorithm;
 import it.unisa.ocelot.genetic.many_objective.MOSAGenericCoverageProblem;
 import it.unisa.ocelot.genetic.objectives.BranchManager;
+import it.unisa.ocelot.genetic.objectives.BranchObjective;
 import it.unisa.ocelot.genetic.objectives.GenericObjective;
 import it.unisa.ocelot.genetic.objectives.PC_PairObjective;
 import it.unisa.ocelot.genetic.objectives.PC_PairsManager;
@@ -287,6 +288,25 @@ public class MOSA_Generic extends OcelotAlgorithm {
 			
 			try {
 			      FileWriter myWriter = new FileWriter("uncoveredBranches.txt");
+			      
+			      for (String branch : maybeUncoveredBranches)
+			    	  myWriter.write(branch + "\n");
+			      myWriter.close();
+			      
+			    } catch (IOException e) {
+			      System.out.println("Unable to generate file uncoveredBranches.txt");
+			      e.printStackTrace();
+			    }
+		}
+		else if (config.getOptimizeFor().equals("Branches")) {
+			Set<String> maybeUncoveredBranches = new HashSet<String>();
+			for (GenericObjective obj:allTargets) {
+				if (!obj.isCovered() & obj.isActive()) {
+				maybeUncoveredBranches.add(((BranchObjective) obj).testObj);
+				}
+			}
+			try {
+			      FileWriter myWriter = new FileWriter("uncoveredBranches_optimize.txt");
 			      
 			      for (String branch : maybeUncoveredBranches)
 			    	  myWriter.write(branch + "\n");
