@@ -1,5 +1,7 @@
 package it.unisa.ocelot.simulator;
 
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -10,6 +12,7 @@ import it.unisa.ocelot.TestCase;
 import it.unisa.ocelot.c.cfg.CFG;
 import it.unisa.ocelot.genetic.objectives.BranchDistanceCache;
 import it.unisa.ocelot.genetic.objectives.GenericObjective;
+import it.unisa.ocelot.genetic.objectives.PC_PairObjective;
 import it.unisa.ocelot.util.Utils;
 
 public class GenericCoverageCalculator {
@@ -63,6 +66,32 @@ public class GenericCoverageCalculator {
 			i = i + 1;
 		}
 		this.objectiveCoverage = ((double) this.coveredObjectives.size()) / this.objectives.size();
+		try {
+			FileWriter myWriter = new FileWriter("uncoveredPairs.txt");
+			//Set<String> maybeUncoveredBranches = new HashSet<String>();
+			for (GenericObjective objective : objectives) {
+				if(objective instanceof PC_PairObjective) {
+					PC_PairObjective pairObj= ((PC_PairObjective)objective);
+					if(!pairObj.isCovered()) {
+						myWriter.append(pairObj.sm.getTestObjOne());
+						myWriter.append(pairObj.sm.getTestObjTwo());
+						myWriter.append("\n");
+
+					}
+				}
+			}
+
+
+			myWriter.close();
+
+		} catch (IOException e) {
+			System.out.println("Unable to generate file uncoveredBranches.txt");
+			e.printStackTrace();
+		}
+
+
+
+
 	}
 
 	public double getObjectiveCoverage() {
