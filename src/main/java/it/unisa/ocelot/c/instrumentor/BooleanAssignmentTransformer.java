@@ -50,7 +50,7 @@ public class BooleanAssignmentTransformer extends ASTVisitor {
     
     public static boolean containsWords(String inputString) {
         boolean found = false;
-        String[] items = {"&", "|", "==", "!="};
+        String[] items = {"&", "|", "<", ">"};
         for (String item : items) {
             if (inputString.contains(item)) {
                 found = true;
