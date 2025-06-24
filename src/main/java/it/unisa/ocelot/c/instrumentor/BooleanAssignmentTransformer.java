@@ -35,7 +35,7 @@ public class BooleanAssignmentTransformer extends ASTVisitor {
 
     
 
-    public int visit(CASTSimpleDeclaration declaration) {
+    /*public int visit(CASTSimpleDeclaration declaration) {
     	//if (((CASTSimpleDeclaration) declaration).getRawSignature().contains("IfBlock1_clock"))
         	//System.out.println(";");
     	IASTDeclSpecifier spec = declaration.getDeclSpecifier();
@@ -46,6 +46,18 @@ public class BooleanAssignmentTransformer extends ASTVisitor {
     		}
     	}
     	return PROCESS_CONTINUE;
+    }*/
+    
+    public static boolean containsWords(String inputString) {
+        boolean found = false;
+        String[] items = {"&", "|", "==", "!="};
+        for (String item : items) {
+            if (inputString.contains(item)) {
+                found = true;
+                break;
+            }
+        }
+        return found;
     }
     
     public int visit(IASTStatement stmt) {
@@ -69,8 +81,9 @@ public class BooleanAssignmentTransformer extends ASTVisitor {
             // Detect a = ...
             if (expr instanceof IASTBinaryExpression) {
                 IASTBinaryExpression assignment = (IASTBinaryExpression) expr;
- 
-                if (assignment.getOperator() == IASTBinaryExpression.op_assign) {
+                //System.out.println(assignment.getRawSignature());
+                if (assignment.getOperator() == IASTBinaryExpression.op_assign && containsWords(assignment.getRawSignature())) {
+                	//System.out.println(assignment.getRawSignature());
                     IASTExpression lhs = assignment.getOperand1();
                     IASTExpression rhs = assignment.getOperand2();
  
@@ -143,6 +156,7 @@ public class BooleanAssignmentTransformer extends ASTVisitor {
                 if (stmts[i] == oldStmt) {
                     stmts[i] = newStmt;
                     block.replace(oldStmt, newStmt);
+                    //System.out.println(oldStmt.getRawSignature());
                     break;
                 }
             }
