@@ -490,7 +490,7 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 
 	// TODO start from here
 	public void visit(IASTIfStatement statement) {
-		System.out.println(statement.getPropertyInParent().getName());
+		//System.out.println(statement.getPropertyInParent().getName());
 		statement.getChildren();
 		// System.out.println(statement.getConditionExpression().getRawSignature().toString());
 		IASTExpression[] instrArgs = new IASTExpression[5];

@@ -209,9 +209,10 @@ public class StandardBuilder extends Builder {
 				translationUnit.accept(macroDefiner);
 				translationUnit.accept(instrumentor);
 				 */
-				
-				BooleanAssignmentTransformer at = new BooleanAssignmentTransformer(translationUnit);
-				translationUnit.accept(at);
+				if(config.isSplitBooleans()) {
+					BooleanAssignmentTransformer at = new BooleanAssignmentTransformer(translationUnit);
+					translationUnit.accept(at);
+				}
 				
 
 				// Instruments unit-level components

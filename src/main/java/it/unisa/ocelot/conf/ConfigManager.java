@@ -504,6 +504,10 @@ public class ConfigManager {
 		return this.properties.getProperty("experiment.dynamic", "false").equalsIgnoreCase("true");
 	}
 	
+	public boolean isSplitBooleans() {
+		return this.properties.getProperty("experiment.splitbooleans", "false").equalsIgnoreCase("true");
+	}
+	
 	
 	
 }
