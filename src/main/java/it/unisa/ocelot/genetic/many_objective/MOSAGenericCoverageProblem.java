@@ -74,6 +74,7 @@ public class MOSAGenericCoverageProblem extends StandardProblem {
 		//LUCA: read fitnessValues.txt (branch fitnesses) file and store it. More efficient than reading it for every objective.
 		BranchDistanceCache.cacheFitnessValues();
 		for (GenericObjective objective : objectives) {
+			//if (objective.isCovered() || !objective.isActive() )
 			if (objective.isCovered())
 				continue;
 			double fitness = objective.getFitness(arguments);

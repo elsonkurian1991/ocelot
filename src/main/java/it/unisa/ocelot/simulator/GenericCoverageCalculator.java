@@ -67,22 +67,35 @@ public class GenericCoverageCalculator {
 		}
 		this.objectiveCoverage = ((double) this.coveredObjectives.size()) / this.objectives.size();
 		try {
-			FileWriter myWriter = new FileWriter("uncoveredPairs.txt");
+			FileWriter uncoveredWriter = new FileWriter("uncoveredPairs.txt");
+			FileWriter coveredWriter = new FileWriter("coveredPairs.txt");
 			//Set<String> maybeUncoveredBranches = new HashSet<String>();
-			for (GenericObjective objective : objectives) {
+			for (GenericObjective objective : this.getUncoveredObjectives()) {
 				if(objective instanceof PC_PairObjective) {
 					PC_PairObjective pairObj= ((PC_PairObjective)objective);
-					if(!pairObj.isCovered()) {
-						myWriter.append(pairObj.sm.getTestObjOne());
-						myWriter.append(pairObj.sm.getTestObjTwo());
-						myWriter.append("\n");
 
-					}
+					uncoveredWriter.append(pairObj.sm.getTestObjOne());
+					uncoveredWriter.append(",");
+					uncoveredWriter.append(pairObj.sm.getTestObjTwo());
+					uncoveredWriter.append("\n");
 				}
 			}
+			
+			for (GenericObjective objective : this.coveredObjectives) {
+				if(objective instanceof PC_PairObjective) {
+					PC_PairObjective pairObj= ((PC_PairObjective)objective);
+					
+					coveredWriter.append(pairObj.sm.getTestObjOne());
+					coveredWriter.append(",");
+					coveredWriter.append(pairObj.sm.getTestObjTwo());
+					coveredWriter.append("\n");
+				}
+			}
+			
 
 
-			myWriter.close();
+			uncoveredWriter.close();
+			coveredWriter.close();
 
 		} catch (IOException e) {
 			System.out.println("Unable to generate file uncoveredBranches.txt");
