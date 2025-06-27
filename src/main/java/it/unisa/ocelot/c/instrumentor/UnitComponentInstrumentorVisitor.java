@@ -489,7 +489,7 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 	}
 
 	// TODO start from here
-	public void visit(IASTIfStatement statement) {
+	public void visit(IASTIfStatement statement) throws Exception {
 		//System.out.println(statement.getPropertyInParent().getName());
 		statement.getChildren();
 		// System.out.println(statement.getConditionExpression().getRawSignature().toString());
@@ -515,11 +515,16 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 		thenClause.add(functionName + ":" + "branch" + branchNumber + "-" + "true");
 		elseClause.add(functionName + ":" + "branch" + branchNumber + "-" + "false");
 		
+		// Tag the then else statements block
 		nodeBranchMap.put((IASTNode) statement.getThenClause(), thenClause);
 		if (statement.getElseClause() != null) {
 			nodeBranchMap.put(statement.getElseClause(), elseClause);
 			
 		}
+		
+		//Tag the code after the if/else
+		markOutsideIfStatement(statement);
+		
 		// For synthetic generated ifs from boolean variables, see BooleanAssignmentTransformer
 		if (statement.getPropertyInParent() != null && statement.getPropertyInParent().getName().equals("GENERATED")) {
 			SyntheticBranches.add(functionName + ":" + "branch" + branchNumber + "-" + "true"); 
@@ -689,6 +694,32 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 					if (present != null)
 						outsideWhile.addAll(present);
 					nodeBranchMap.put(stm, outsideWhile);
+				}
+				if (stm.equals(statement))
+					postStatement = true;
+
+			}
+		} else {
+			throw new Exception("While parent not a CompoundStatement");
+		}
+	}
+	
+	private void markOutsideIfStatement(IASTStatement statement) throws Exception {
+		List<String> outsideStatements = new ArrayList<String>();
+		outsideStatements.add(functionName + ":" + "branch" + branchNumber + "-" + "true");
+		outsideStatements.add(functionName + ":" + "branch" + branchNumber + "-" + "false");
+
+		IASTNode Parent = statement.getParent();
+		if (Parent instanceof IASTCompoundStatement) {
+			IASTCompoundStatement ParentCompound = (IASTCompoundStatement) Parent;
+			IASTStatement[] StatementsList = ParentCompound.getStatements();
+			boolean postStatement = false;
+			for (IASTStatement stm : StatementsList) {
+				if (postStatement) {
+					List<String> present = nodeBranchMap.get((IASTNode) stm);
+					if (present != null)
+						outsideStatements.addAll(present);
+					nodeBranchMap.put(stm, outsideStatements);
 				}
 				if (stm.equals(statement))
 					postStatement = true;
