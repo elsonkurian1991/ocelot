@@ -271,52 +271,55 @@ public class MOSA_Generic extends OcelotAlgorithm {
 			evaluations++;
 
 		}// while
+		
+		// Print to file covered and uncovered branches 
+		// different print whether we are in pair optimize or branch optimize
+		Set<String> coveredBranches = new HashSet<String>();
+		Set<String> maybeUncoveredBranches = new HashSet<String>();
 		if (config.getOptimizeFor().equals("Pairs")) {
-			Set<String> coveredBranches = new HashSet<String>();
-			Set<String> maybeUncoveredBranches = new HashSet<String>();
 			for (GenericObjective obj:allTargets) {
 				if (obj.isCovered()) {
 						coveredBranches.add(((PC_PairObjective) obj).sm.getTestObjOne());
 						coveredBranches.add(((PC_PairObjective) obj).sm.getTestObjTwo());
 					}
 				else if (obj.isActive()){
+					if(((PC_PairObjective) obj).sm.getFitValOne() == 0.0) {
+						coveredBranches.add(((PC_PairObjective) obj).sm.getTestObjOne());
+					}
 					maybeUncoveredBranches.add(((PC_PairObjective) obj).sm.getTestObjOne());
 					maybeUncoveredBranches.add(((PC_PairObjective) obj).sm.getTestObjTwo());
 				}
 			}
 			maybeUncoveredBranches.removeAll(coveredBranches);
-			
-			try {
-			      FileWriter myWriter = new FileWriter("uncoveredBranches.txt");
-			      
-			      for (String branch : maybeUncoveredBranches)
-			    	  myWriter.write(branch + "\n");
-			      myWriter.close();
-			      
-			    } catch (IOException e) {
-			      System.out.println("Unable to generate file uncoveredBranches.txt");
-			      e.printStackTrace();
-			    }
 		}
 		else if (config.getOptimizeFor().equals("Branches")) {
-			Set<String> maybeUncoveredBranches = new HashSet<String>();
 			for (GenericObjective obj:allTargets) {
 				if (!obj.isCovered() & obj.isActive()) {
-				maybeUncoveredBranches.add(((BranchObjective) obj).testObj);
+					maybeUncoveredBranches.add(((BranchObjective) obj).testObj);
 				}
+				else if(obj.isCovered()) {
+					coveredBranches.add(((BranchObjective) obj).testObj);
+				}
+				else
+					System.err.println("[Error] Line 311 Mosa_Generic");
 			}
-			try {
-			      FileWriter myWriter = new FileWriter("uncoveredBranches_optimize.txt");
-			      
-			      for (String branch : maybeUncoveredBranches)
-			    	  myWriter.write(branch + "\n");
-			      myWriter.close();
-			      
-			    } catch (IOException e) {
-			      System.out.println("Unable to generate file uncoveredBranches.txt");
-			      e.printStackTrace();
-			    }
 		}
+		try {
+		      FileWriter uncoveredWriter = new FileWriter("uncoveredBranches.txt");
+		      FileWriter coveredWriter = new FileWriter("coveredBranches.txt");
+		      
+		      for (String branch : maybeUncoveredBranches)
+		    	  uncoveredWriter.write(branch + "\n");
+		      uncoveredWriter.close();
+		      
+		      for (String branch : coveredBranches)
+		    	  coveredWriter.write(branch + "\n");
+		      coveredWriter.close();
+		      
+		    } catch (IOException e) {
+		      System.out.println("Unable to generate file uncoveredBranches.txt");
+		      e.printStackTrace();
+		    }
 		
 		
 		this.algorithmStats.setEvaluations(evaluations);
