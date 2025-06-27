@@ -173,8 +173,8 @@ public class StandardBuilder extends Builder {
 		//int arr=0;
 		String[] testIncludesTemp= new String[1];
 		
-		// This function maps the caller function to an hashmap, that maps the called function 
-		// to the braches required to take that function
+		
+		FileWriter cfgWriter = new FileWriter("callgraph.txt");
 
 		
 		for(String unitComponent:this.testIncludes) {
@@ -250,8 +250,23 @@ public class StandardBuilder extends Builder {
 				
 				SyntheticBranches.addAll(instrumentor1.SyntheticBranches);
 				
-				System.out.println(tempUnitComponent + "::" + instrumentor1.functionBranchPairMap.keySet());
-				
+				// Write down information for callgraph/CFG rapresentation
+				try {
+					  cfgWriter.append("Functions called by the component " + tempUnitComponent + "\n");
+				      cfgWriter.append(tempUnitComponent + "::" + instrumentor1.functionBranchPairMap.keySet());
+					  cfgWriter.append("\n");
+					  cfgWriter.append("Branches taken to call the functions\n");
+					  cfgWriter.append(instrumentor1.functionBranchPairMap.toString());
+					  cfgWriter.append("\n");
+					  cfgWriter.append("All branches in the component\n");
+					  cfgWriter.append(tempUnitComponent + "::" + testObjectives);
+					  cfgWriter.append("\n");
+					  
+				    } catch (IOException e) {
+				      System.out.println("Unable to generate file callgraph.txt");
+				      e.printStackTrace();
+				      }
+				    
 				
 				//}
 				
@@ -335,8 +350,13 @@ public class StandardBuilder extends Builder {
 					  }
 
 			}
-
+			
+			
 		}
+		
+		cfgWriter.close();
+		
+		
 		
 		//Synthetic Branches
 		try { 
