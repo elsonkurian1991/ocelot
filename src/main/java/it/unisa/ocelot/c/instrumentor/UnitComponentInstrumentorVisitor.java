@@ -5,6 +5,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.Stack;
 
 import org.eclipse.cdt.core.dom.ast.ASTVisitor;
@@ -456,10 +457,15 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 				List<String> branchesTaken = new ArrayList<String>();
 				// Traverse the AST from bottom to top and collect the branches take to reach
 				// the function call
+				System.out.println(functionName);
 				while (ParentExpression != null) {
+					//System.out.println(ParentExpression.getRawSignature());
 					List<String> present = nodeBranchMap.get(ParentExpression);
+					
 					if (present != null) {
 						branchesTaken.addAll(present);
+						System.out.println(present);
+						System.out.println(present.size());
 					}
 					ParentExpression = ParentExpression.getParent();
 				}
@@ -691,8 +697,12 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 			for (IASTStatement stm : StatementsList) {
 				if (postStatement) {
 					List<String> present = nodeBranchMap.get((IASTNode) stm);
-					if (present != null)
+					if (present != null) {
 						outsideWhile.addAll(present);
+						List<String> statementsSet = new ArrayList<>();
+						statementsSet.addAll(convertArrayToSet(outsideWhile));
+						outsideWhile = statementsSet;
+					}
 					nodeBranchMap.put(stm, outsideWhile);
 				}
 				if (stm.equals(statement))
@@ -715,11 +725,18 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 			IASTStatement[] StatementsList = ParentCompound.getStatements();
 			boolean postStatement = false;
 			for (IASTStatement stm : StatementsList) {
+				//System.out.println(stm.equals(statement));
 				if (postStatement) {
 					List<String> present = nodeBranchMap.get((IASTNode) stm);
-					if (present != null)
+					if (present != null) {
 						outsideStatements.addAll(present);
+						List<String> statementsSet = new ArrayList<>();
+						statementsSet.addAll(convertArrayToSet(outsideStatements));
+						outsideStatements = statementsSet;
+						}
 					nodeBranchMap.put(stm, outsideStatements);
+					//System.out.println(outsideStatements);
+					//System.out.println(outsideStatements.size());
 				}
 				if (stm.equals(statement))
 					postStatement = true;
@@ -729,6 +746,16 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 			throw new Exception("While parent not a CompoundStatement");
 		}
 	}
+	
+    public HashSet<String> convertArrayToSet(List<String> array)
+    {
+    	HashSet<String> set = new HashSet<String>();
+        for (String t : array) {
+            set.add(t);
+        }
+
+        return set;
+    }
 
 	public void visit(IASTWhileStatement statement) throws Exception {
 		IASTExpression[] instrArgs = new IASTExpression[5];
