@@ -74,10 +74,10 @@ public class GenAndWrite {
 			List<GenericObjective> objectivesToEvaluate;
 			if (config.getEvaluateOn().equals("Pairs"))
 				objectivesToEvaluate = PC_PairsManager.loadObjectives();	
-			else if (config.getOptimizeFor().equals("Branches"))
+			else if (config.getEvaluateOn().equals("Branches"))
 				objectivesToEvaluate = BranchManager.loadObjectives(0);
 			else
-				throw new Exception("Don't know what you are optimizing for");
+				throw new Exception("Don't know what you are Evaluate for");
 			
 			
 			
