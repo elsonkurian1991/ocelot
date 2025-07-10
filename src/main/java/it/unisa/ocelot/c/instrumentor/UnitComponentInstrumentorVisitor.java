@@ -39,8 +39,10 @@ import org.eclipse.cdt.core.dom.ast.IEnumeration;
 import org.eclipse.cdt.core.dom.ast.IType;
 import org.eclipse.cdt.core.dom.ast.c.ICPointerType;
 import org.eclipse.cdt.internal.core.dom.parser.c.CASTBinaryExpression;
+import org.eclipse.cdt.internal.core.dom.parser.c.CASTCaseStatement;
 import org.eclipse.cdt.internal.core.dom.parser.c.CASTCompositeTypeSpecifier;
 import org.eclipse.cdt.internal.core.dom.parser.c.CASTCompoundStatement;
+import org.eclipse.cdt.internal.core.dom.parser.c.CASTDefaultStatement;
 import org.eclipse.cdt.internal.core.dom.parser.c.CASTExpressionStatement;
 import org.eclipse.cdt.internal.core.dom.parser.c.CASTFunctionCallExpression;
 import org.eclipse.cdt.internal.core.dom.parser.c.CASTFunctionDefinition;
@@ -542,13 +544,36 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 		
 	}
 
-	public void visit(IASTSwitchStatement statement) {
+	public void visit(IASTSwitchStatement statement) throws Exception {
 		// OK, but handle types!!
 		CASTLiteralExpression cTrue = new CASTLiteralExpression(CASTLiteralExpression.lk_integer_constant,
 				new char[] { '1' });
 		CASTCompoundStatement substitute = new CASTCompoundStatement();
 		switchExpressions.push(new ArrayList<IASTStatement>());
-		statement.getBody().accept(this);
+		//statement.getBody().accept(this);
+		
+		List<String> outsideClause = new ArrayList<String>();
+
+		System.out.println(statement.getRawSignature());
+		int counter = -1; // the first case is branchNumber + 0
+		for(IASTNode child : statement.getBody().getChildren()) {
+			System.out.println(child.getRawSignature() + " --- " +  child.getClass().toString());
+			if (!(child instanceof CASTCaseStatement) && !(child instanceof CASTDefaultStatement)) {
+				List<String> caseClause = new ArrayList<String>();
+				caseClause.add(functionName + ":" + "branch" + (branchNumber + counter) + "-" + "true");
+				outsideClause.add(functionName + ":" + "branch" + (branchNumber + counter) + "-" + "false");
+				
+				nodeBranchMap.put((IASTNode) child, caseClause);
+			}
+			else {
+				this.switchExpressions.lastElement().add((IASTStatement) child);
+				counter++;
+				}
+		}
+		
+		
+		
+		
 		List<IASTStatement> caseStatements = switchExpressions.pop();
 		CASTBinaryExpression defaultExpression = new CASTBinaryExpression(CASTBinaryExpression.op_logicalAnd,
 				cTrue.copy(), cTrue.copy());
@@ -570,6 +595,12 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 				substitute.addStatement(registerFcall);
 			}
 		}
+		
+		
+		
+
+		//Tag the code after the switch
+		markOutsideSwitchStatement(statement, counter);
 
 		CASTBinaryExpression currentDefaultExpression = defaultExpression;
 
@@ -621,6 +652,11 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 				}
 				substitute.addStatement(new CASTExpressionStatement(makeFunctionCall("_f_ocelot_branch_out", arguments)));
 
+				
+				
+				
+				
+				
 				addTestObjectives(branchNumber);
 				branchNumber++;
 			}
@@ -690,6 +726,8 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 		nodeBranchMap.put(statementBody, Body);
 
 		IASTNode Parent = statement.getParent();
+		IASTNode statementToLoop = statement;
+		while (Parent != null) {
 		if (Parent instanceof IASTCompoundStatement) {
 			IASTCompoundStatement ParentCompound = (IASTCompoundStatement) Parent;
 			IASTStatement[] StatementsList = ParentCompound.getStatements();
@@ -705,13 +743,16 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 					}
 					nodeBranchMap.put(stm, outsideWhile);
 				}
-				if (stm.equals(statement))
+				if (stm.equals(statementToLoop))
 					postStatement = true;
 
 			}
 		} else {
-			throw new Exception("While parent not a CompoundStatement");
+			//throw new Exception("While parent not a CompoundStatement");
 		}
+		statementToLoop = Parent;
+		Parent = statementToLoop.getParent();
+	}
 	}
 	
 	private void markOutsideIfStatement(IASTStatement statement) throws Exception {
@@ -719,31 +760,79 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 		outsideStatements.add(functionName + ":" + "branch" + branchNumber + "-" + "true");
 		outsideStatements.add(functionName + ":" + "branch" + branchNumber + "-" + "false");
 
+		
 		IASTNode Parent = statement.getParent();
-		if (Parent instanceof IASTCompoundStatement) {
-			IASTCompoundStatement ParentCompound = (IASTCompoundStatement) Parent;
-			IASTStatement[] StatementsList = ParentCompound.getStatements();
-			boolean postStatement = false;
-			for (IASTStatement stm : StatementsList) {
-				//System.out.println(stm.equals(statement));
-				if (postStatement) {
-					List<String> present = nodeBranchMap.get((IASTNode) stm);
-					if (present != null) {
-						outsideStatements.addAll(present);
-						List<String> statementsSet = new ArrayList<>();
-						statementsSet.addAll(convertArrayToSet(outsideStatements));
-						outsideStatements = statementsSet;
-						}
-					nodeBranchMap.put(stm, outsideStatements);
-					//System.out.println(outsideStatements);
-					//System.out.println(outsideStatements.size());
+		IASTNode statementToLoop = statement;
+		while (Parent != null) {
+			if (Parent instanceof IASTCompoundStatement) {
+				IASTCompoundStatement ParentCompound = (IASTCompoundStatement) Parent;
+				IASTStatement[] StatementsList = ParentCompound.getStatements();
+				boolean postStatement = false;
+				for (IASTStatement stm : StatementsList) {
+					//System.out.println(stm.equals(statement));
+					if (postStatement) {
+						List<String> present = nodeBranchMap.get((IASTNode) stm);
+						if (present != null) {
+							outsideStatements.addAll(present);
+							List<String> statementsSet = new ArrayList<>();
+							statementsSet.addAll(convertArrayToSet(outsideStatements));
+							outsideStatements = statementsSet;
+							}
+						nodeBranchMap.put(stm, outsideStatements);
+						//System.out.println(outsideStatements);
+						//System.out.println(outsideStatements.size());
+					}
+					if (stm.equals(statementToLoop))
+						postStatement = true;
+	
 				}
-				if (stm.equals(statement))
-					postStatement = true;
-
+			} else {
+				//throw new Exception("If parent not a CompoundStatement\n" + functionName + "\n" + "Parent:" + Parent.getRawSignature() +"\n" + "if statement:" + statement.getRawSignature());
 			}
-		} else {
-			throw new Exception("While parent not a CompoundStatement");
+			statementToLoop = Parent;
+			Parent = statementToLoop.getParent();
+		}
+	}
+	
+	private void markOutsideSwitchStatement(IASTStatement statement, int counter) throws Exception {
+		List<String> outsideStatements = new ArrayList<String>();
+		
+		for (;counter >= 0; counter--) {
+			outsideStatements.add(functionName + ":" + "branch" + (branchNumber + counter) + "-" + "true");
+			outsideStatements.add(functionName + ":" + "branch" + (branchNumber + counter) + "-" + "false");
+			}
+
+		
+		IASTNode Parent = statement.getParent();
+		IASTNode statementToLoop = statement;
+		while (Parent != null) {
+			if (Parent instanceof IASTCompoundStatement) {
+				IASTCompoundStatement ParentCompound = (IASTCompoundStatement) Parent;
+				IASTStatement[] StatementsList = ParentCompound.getStatements();
+				boolean postStatement = false;
+				for (IASTStatement stm : StatementsList) {
+					//System.out.println(stm.equals(statement));
+					if (postStatement) {
+						List<String> present = nodeBranchMap.get((IASTNode) stm);
+						if (present != null) {
+							outsideStatements.addAll(present);
+							List<String> statementsSet = new ArrayList<>();
+							statementsSet.addAll(convertArrayToSet(outsideStatements));
+							outsideStatements = statementsSet;
+							}
+						nodeBranchMap.put(stm, outsideStatements);
+						//System.out.println(outsideStatements);
+						//System.out.println(outsideStatements.size());
+					}
+					if (stm.equals(statementToLoop))
+						postStatement = true;
+	
+				}
+			} else {
+				//throw new Exception("If parent not a CompoundStatement\n" + functionName + "\n" + "Parent:" + Parent.getRawSignature() +"\n" + "if statement:" + statement.getRawSignature());
+			}
+			statementToLoop = Parent;
+			Parent = statementToLoop.getParent();
 		}
 	}
 	
@@ -841,17 +930,24 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 				this.visit((IASTIfStatement) statement);
 			else if (statement instanceof IASTSwitchStatement) {
 				this.visit((IASTSwitchStatement) statement);
-				return PROCESS_SKIP; // Visits the statement on its own!
+				//return PROCESS_SKIP; // Visits the statement on its own! Problem, the function calls inside a statement are visited befor the switch branches are created
 			} else if (statement instanceof IASTWhileStatement)
 				this.visit((IASTWhileStatement) statement);
 			else if (statement instanceof IASTDoStatement)
 				this.visit((IASTDoStatement) statement);
-			else if (statement instanceof IASTForStatement)
-				this.visit((IASTForStatement) statement);
-			else if (statement instanceof IASTCaseStatement)
+			else if (statement instanceof IASTForStatement) {
+				//this.visit((IASTForStatement) statement);
+				return PROCESS_CONTINUE; // for this experiment we skip for-loops instrumentation. 
+			}
+			/*else if (statement instanceof IASTCaseStatement) {
 				this.visit((IASTCaseStatement) statement);
-			else if (statement instanceof IASTDefaultStatement)
+				return PROCESS_SKIP;
+			}
+			else if (statement instanceof IASTDefaultStatement) {
 				this.visit((IASTDefaultStatement) statement);
+				return PROCESS_SKIP;
+			}*/
+				
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
