@@ -8,12 +8,16 @@ public abstract class GenericObjective {
 	// Used in DynaMOSA to know if we are currenlty optimizing for this objective
 	private boolean isActive;
 	public GenericObjective TriggeredPair;
+	public int counter;
+	public double bestFitness;
 
 	public GenericObjective(boolean isCovered, int objectiveID) {
 		super();
 		this.isCovered = isCovered;
 		this.isActive = true;
 		this.objectiveID = objectiveID;
+		this.counter = 0;
+		this.bestFitness = Double.MAX_VALUE;
 	}
 
 	public boolean isCovered() {
