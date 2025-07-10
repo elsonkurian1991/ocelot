@@ -17,7 +17,12 @@ public class BranchDistanceCache {
 			String lineBr = f_Val_File.readLine();
 			while (lineBr != null) {
 				FunBranchNameAndFitness infoFromLinebr = readInfoFromLine(lineBr);
-				fitnessHashMap.put(infoFromLinebr.getFunBranchName(), infoFromLinebr.getCurrFitnessVal());
+				if(fitnessHashMap.containsKey(infoFromLinebr.getFunBranchName()) && fitnessHashMap.get(infoFromLinebr.getFunBranchName()) < infoFromLinebr.getCurrFitnessVal()) {
+					// Do nothing
+				}
+				else {
+					fitnessHashMap.put(infoFromLinebr.getFunBranchName(), infoFromLinebr.getCurrFitnessVal());
+				}
 				lineBr = f_Val_File.readLine();
 			}
 		} catch (IOException e) {
