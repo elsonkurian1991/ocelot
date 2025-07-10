@@ -508,6 +508,10 @@ public class ConfigManager {
 		return this.properties.getProperty("experiment.splitbooleans", "false").equalsIgnoreCase("true");
 	}
 	
+	public int maxIterForObjective() {
+		return Integer.parseInt(this.properties.getProperty("experiment.maxiterforobjective", "500000"));
+	}
+	
 	
 	
 }
