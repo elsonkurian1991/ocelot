@@ -58,6 +58,8 @@ public class MOSA_Generic extends OcelotAlgorithm {
 	
 	int allottedTime;
 	
+	private int itCounter;
+	
 	
 	//private Dominators<EdgeWrapper<LabeledEdge>, DefaultEdge> dominators;
 
@@ -97,6 +99,7 @@ public class MOSA_Generic extends OcelotAlgorithm {
 		else
 			addRandom = 0.1;
 		
+		itCounter = 0;
 	}
 
 	/**
@@ -161,7 +164,7 @@ public class MOSA_Generic extends OcelotAlgorithm {
 
 		long startTime = System.nanoTime();
 		while ( keepRunning(evaluations, maxEvaluations, startTime) && calculateCoverage() < maxCoverage) {
-			
+			itCounter++;
 				
 			offspringPopulation = new SolutionSet(populationSize+(int)(populationSize*addRandom));
 			Solution[] parents = new Solution[2];
@@ -266,6 +269,11 @@ public class MOSA_Generic extends OcelotAlgorithm {
 				globalFitness += objFitness;
 			}
 			System.out.println(globalFitness);*/
+			
+			for (GenericObjective target : allTargets) {
+				if(target.counter > config.maxIterForObjective())
+					target.setActive(false);
+			}
 
 			
 			evaluations++;
@@ -426,9 +434,15 @@ public class MOSA_Generic extends OcelotAlgorithm {
 				if (currentObjective < minimum_fitness) {
 					minimum_fitness = currentObjective;
 					t_best = currentSolution;
-				}// end-if
+				}
+				
+				if (currentObjective < target.bestFitness) {
+					target.counter = 0;
+					target.bestFitness = currentObjective;
+				}
 
 			} // end-while
+			target.counter++;
 			//System.out.println(target.toString() + minimum_fitness);
 			t_best.setRank(0); // set rank 0 for preference criterion
 			front_0.add(t_best); // adding to front 0
