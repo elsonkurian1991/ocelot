@@ -8,6 +8,7 @@ import org.eclipse.cdt.core.dom.ast.c.ICASTSimpleDeclSpecifier;
 import org.eclipse.cdt.core.dom.ast.c.ICNodeFactory;
 import org.eclipse.cdt.internal.core.dom.parser.c.CASTCompoundStatement;
 import org.eclipse.cdt.internal.core.dom.parser.c.CASTDeclarationStatement;
+import org.eclipse.cdt.internal.core.dom.parser.c.CASTFunctionDefinition;
 import org.eclipse.cdt.internal.core.dom.parser.c.CASTSimpleDeclaration;
  
 public class BooleanAssignmentTransformer extends ASTVisitor {
@@ -60,6 +61,23 @@ public class BooleanAssignmentTransformer extends ASTVisitor {
         return found;
     }
     
+    public int visit(IASTDeclaration decl) {
+    	
+    	if(decl instanceof IASTFunctionDefinition) {	
+    		IASTFunctionDefinition funDef = (IASTFunctionDefinition)decl;
+    		IASTStandardFunctionDeclarator declarator = (IASTStandardFunctionDeclarator) funDef.getDeclarator();
+    		IASTParameterDeclaration[] params= declarator.getParameters();  		
+    		for(IASTParameterDeclaration param:params) {
+    			//System.out.println(param.getRawSignature());
+    			if (isBooleanType(param.getDeclSpecifier())) {
+        			IASTDeclarator pramName= param.getDeclarator();
+    				trackedBoolVars.add(pramName.getRawSignature());
+    			}    			
+    		}    		
+    	}
+		return PROCESS_CONTINUE;
+    	
+    }
     public int visit(IASTStatement stmt) {
     	if (stmt instanceof CASTDeclarationStatement) {
             for (IASTNode child : (stmt.getChildren())) {
@@ -86,17 +104,22 @@ public class BooleanAssignmentTransformer extends ASTVisitor {
                 	//System.out.println(assignment.getRawSignature());
                     IASTExpression lhs = assignment.getOperand1();
                     IASTExpression rhs = assignment.getOperand2();
- 
+                    String varName ="";
                     // Transform only if RHS is a boolean expression (heuristically)
                     if (lhs instanceof IASTIdExpression) {
-                    	String varName = ((IASTIdExpression) lhs).getName().toString();
                     	
-                    	if(trackedBoolVars.contains(varName)) {
-                    		IASTIfStatement ifStmt = createIfElseAssignment(lhs.copy(), rhs.copy());
-                    		// Replace the expression statement with the new if-statement
-                            replaceStatement(stmt, ifStmt);
-                    	}
+                    	varName= ((IASTIdExpression) lhs).getName().toString();
+                    	
+                    	
                     }
+                    else if(lhs instanceof IASTUnaryExpression && ((IASTUnaryExpression) lhs).getOperator()==IASTUnaryExpression.op_star){
+                    	 varName = ((IASTUnaryExpression) lhs).getRawSignature();
+                    }
+                    if(trackedBoolVars.contains(varName)) {
+                		IASTIfStatement ifStmt = createIfElseAssignment(lhs.copy(), rhs.copy());
+                		// Replace the expression statement with the new if-statement
+                        replaceStatement(stmt, ifStmt);
+                	}
                 }
             }
         }
