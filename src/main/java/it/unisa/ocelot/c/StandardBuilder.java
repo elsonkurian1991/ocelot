@@ -43,6 +43,8 @@ import it.unisa.ocelot.c.instrumentor.UnitComponentInstrumentorVisitor;
 import it.unisa.ocelot.conf.ConfigManager;
 import it.unisa.ocelot.util.Utils;
 import it.unisa.ocelot.genetic.edges.TestObjStateMachine;
+import it.unisa.ocelot.genetic.objectives.GenericObjective;
+import it.unisa.ocelot.genetic.objectives.PC_PairObjective;
 
 public class StandardBuilder extends Builder {
 	private String testFilename;
@@ -467,6 +469,48 @@ public class StandardBuilder extends Builder {
 				}
 			}
 		}
+		
+		HashMap<String, Integer> cache = new HashMap<String, Integer>();
+		for (List<TestObjStateMachine> listSMs : indirectPairs) {
+			List<TestObjStateMachine> listSMstoRemove = new ArrayList<>();
+			for (TestObjStateMachine sm : listSMs) {
+				
+				if (cache.containsKey(sm.getTestObjOne() + sm.getTestObjTwo())) {
+					//System.out.println(sm.getTestObjOne() + "," + sm.getTestObjTwo()); 
+					listSMstoRemove.add(sm);
+				}
+
+				cache.put(sm.getTestObjOne() + sm.getTestObjTwo(),  1);
+			}
+
+			for (TestObjStateMachine smToRemove : listSMstoRemove) {
+				listSMs.remove(smToRemove);
+			}
+		}
+		
+		
+		
+		try {
+			
+			FileWriter generatedPairsWriter = new FileWriter("generatedPairs123.txt");
+			//Set<String> maybeUncoveredBranches = new HashSet<String>();
+			for (List<TestObjStateMachine> listSMs : indirectPairs) {
+				for (TestObjStateMachine sm : listSMs) {
+					
+					generatedPairsWriter.append(sm.getTestObjOne());
+					generatedPairsWriter.append(",");
+					generatedPairsWriter.append(sm.getTestObjTwo());
+					generatedPairsWriter.append("\n");
+				}
+			}
+			
+			generatedPairsWriter.close();
+
+		} catch (IOException e) {
+			System.out.println("Unable to generate file generatedPairs123.txt");
+			e.printStackTrace();
+		}
+		
 		try { 
 			FileOutputStream fos = new FileOutputStream("PairsData"); 
 			ObjectOutputStream oos = new ObjectOutputStream(fos); 
