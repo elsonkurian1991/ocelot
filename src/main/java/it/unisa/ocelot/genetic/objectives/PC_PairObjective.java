@@ -41,22 +41,28 @@ public class PC_PairObjective extends GenericObjective {
 	private double calculateFitness(Object[][][] arguments) {
 		double fitness = 0.0;
 		HashMap<String, Double> branchDistances = BranchDistanceCache.getBranchDistances();
+		double fitValOne = 1.0;
+		double fitValTwo = 1.0;
 
 		FunBranchNameAndFitness infoFromLinebr1;
-		if (branchDistances.containsKey(sm.getTestObjOne()))
+		if (branchDistances.containsKey(sm.getTestObjOne())) {
 			infoFromLinebr1 = new FunBranchNameAndFitness(sm.getTestObjOne(), branchDistances.get(sm.getTestObjOne()));
+			fitValOne = branchDistances.get(sm.getTestObjOne());
+		}
 		else
 			infoFromLinebr1 = new FunBranchNameAndFitness(sm.getTestObjOne(), 1);
 		sm.transition(infoFromLinebr1);
 
 		FunBranchNameAndFitness infoFromLinebr2;
-		if (branchDistances.containsKey(sm.getTestObjTwo()))
+		if (branchDistances.containsKey(sm.getTestObjTwo())) {
 			infoFromLinebr2 = new FunBranchNameAndFitness(sm.getTestObjTwo(), branchDistances.get(sm.getTestObjTwo()));
+			fitValTwo = branchDistances.get(sm.getTestObjTwo());
+		}
 		else
 			infoFromLinebr2 = new FunBranchNameAndFitness(sm.getTestObjTwo(), 1);
 		sm.transition(infoFromLinebr2);
 
-		fitness = (sm.getFitValOne() + sm.getFitValTwo())/2;
+		fitness = (fitValOne + fitValTwo)/2;
 		if (fitness == Double.POSITIVE_INFINITY) {
 			fitness = Double.MAX_VALUE;
 		}
