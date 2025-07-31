@@ -241,6 +241,7 @@ public class ConfigManager {
 			String[] rangeParts = StringUtils.split(rangeString, ":");
 			double from = Double.parseDouble(rangeParts[0]);
 			double to = Double.parseDouble(rangeParts[1]);
+			to= to+1;
 			result[i] = Range.between(from, to);
 		}
 		
