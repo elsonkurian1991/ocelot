@@ -25,15 +25,18 @@ import java.util.concurrent.Future;
 import java.util.stream.Collectors;
 
 import org.apache.commons.io.IOUtils;
+import org.eclipse.cdt.core.dom.ast.IASTDeclarationStatement;
 import org.eclipse.cdt.core.dom.ast.IASTNode;
 import org.eclipse.cdt.core.dom.ast.IASTPreprocessorIncludeStatement;
 import org.eclipse.cdt.core.dom.ast.IASTPreprocessorStatement;
 import org.eclipse.cdt.core.dom.ast.IASTTranslationUnit;
 import org.eclipse.cdt.core.dom.rewrite.ASTRewrite;
+import org.eclipse.cdt.internal.core.dom.rewrite.astwriter.ASTWriter;
 
 import it.unisa.ocelot.c.compiler.GCC;
 import it.unisa.ocelot.c.instrumentor.BooleanAssignmentTransformer;
 import it.unisa.ocelot.c.instrumentor.ExternalReferencesVisitor;
+import it.unisa.ocelot.c.instrumentor.ForLoopTransformer;
 import it.unisa.ocelot.c.instrumentor.InstrumenterVisitForIfMethodCalls;
 import it.unisa.ocelot.c.instrumentor.InstrumentorVisitor;
 import it.unisa.ocelot.c.instrumentor.InstrumentorVisitorToAddBranch;
@@ -63,6 +66,10 @@ public class StandardBuilder extends Builder {
 	private Map<String, Map<String, List<String>>> nodeBranchMap;
 
 	private ArrayList<String> SyntheticBranches;
+	
+	public int syntheticBranchesGeneratedWithBool;
+	public int syntheticBranchesGeneratedWithFor;
+	public int foundSynthetic;
 
 	public StandardBuilder(String pTestFilename, String pTestFunction, String[] pTestIncludes) {
 		super();
@@ -77,6 +84,9 @@ public class StandardBuilder extends Builder {
 		this.nodeBranchMap = new HashMap<String, Map<String, List<String>>>();
 
 		this.SyntheticBranches = new ArrayList<String>();
+		this.syntheticBranchesGeneratedWithBool = 0;
+		this.syntheticBranchesGeneratedWithFor = 0;
+		this.foundSynthetic = 0;
 	}
 
 	private List<String> readUnitLevelComponents() {
@@ -188,7 +198,7 @@ public class StandardBuilder extends Builder {
 			//System.out.println(tempUnitComponent);
 			if(unitLevelComponents.contains(tempUnitComponent)) {
 				String nameofComponent="jni/"+unitComponent.substring(lastIndex+1);
-				//System.out.println(nameofComponent);
+				System.out.println(nameofComponent);
 
 				testIncludesTemp[0]=unitComponent;
 				IASTTranslationUnit translationUnit = GCC.getTranslationUnit(unitComponent, testIncludesTemp).copy();
@@ -212,9 +222,25 @@ public class StandardBuilder extends Builder {
 				translationUnit.accept(macroDefiner);
 				translationUnit.accept(instrumentor);
 				 */
+				
+				// add instrumention for for-loop,
+				
+				Set<IASTNode> trackSynthetics = new HashSet<>();
+				
+				ForLoopTransformer forloopTrans = new ForLoopTransformer(translationUnit);
+			    translationUnit.accept(forloopTrans);
+			    syntheticBranchesGeneratedWithFor += forloopTrans.trackSynthetics.size();
+			    trackSynthetics.addAll(forloopTrans.trackSynthetics);
+			    
+			    
+			    
+				
+				BooleanAssignmentTransformer booleanTransfomer = null;
 				if(config.isSplitBooleans()) {
-					BooleanAssignmentTransformer at = new BooleanAssignmentTransformer(translationUnit);
-					translationUnit.accept(at);
+					booleanTransfomer = new BooleanAssignmentTransformer(translationUnit);
+					translationUnit.accept(booleanTransfomer);
+					syntheticBranchesGeneratedWithBool += booleanTransfomer.trackSynthetics.size();
+					trackSynthetics.addAll(booleanTransfomer.trackSynthetics);
 				}
 
 
@@ -233,6 +259,8 @@ public class StandardBuilder extends Builder {
 
 				// NOTE: macroDefine MUST preceed instrumentor in visit
 				translationUnit.accept(macroDefiner1);
+				
+				
 
 
 				// Used to print the structure of the AST for debugging
@@ -240,13 +268,20 @@ public class StandardBuilder extends Builder {
 				//translationUnit.accept(printer);
 				//Utils.writeFile(tempUnitComponent+"printer.txt", printer.result.toString());
 				//Here we add a instrumention visitor for method call in the if condition.
-				ASTRewrite rewriter = ASTRewrite.create(translationUnit);
-				InstrumenterVisitForIfMethodCalls instrumentor_if_method_call = new InstrumenterVisitForIfMethodCalls(tempUnitComponent,rewriter);
+				InstrumenterVisitForIfMethodCalls instrumentor_if_method_call = new InstrumenterVisitForIfMethodCalls(tempUnitComponent, trackSynthetics);
 				translationUnit.accept(instrumentor_if_method_call);
+				//trackSynthetics = instrumentor_if_method_call.trackSynthetics;
 				//till here...
 				UnitComponentInstrumentorVisitor instrumentor1 = new UnitComponentInstrumentorVisitor(tempUnitComponent,
-						testObjectives, unitLevelComponents);
+						testObjectives, unitLevelComponents, trackSynthetics);
 				translationUnit.accept(instrumentor1);//old ours
+				foundSynthetic += instrumentor1.foundSynthetics.size();
+				ASTWriter writer2 = new ASTWriter();
+				for ( IASTNode Synth : booleanTransfomer.trackSynthetics ) {
+					if (!(instrumentor1.foundSynthetics.contains(Synth)))
+						System.out.println(writer2.write(Synth));
+				}
+				
 				//here I need to add the case for function were does not have any branch
 				boolean isSpclFunWObranch=false;
 				if(testObjectives.isEmpty()) {
@@ -406,6 +441,10 @@ public class StandardBuilder extends Builder {
 
 
 
+		System.out.println("Number of synthetic branches generated with Bool: " + syntheticBranchesGeneratedWithBool);
+		System.out.println("Number of synthetic branches generated with For: " + syntheticBranchesGeneratedWithFor);
+		System.out.println("Number of synthetic branches founded in the code: " + foundSynthetic);
+		
 		//Synthetic Branches
 		try { 
 			FileOutputStream fos = new FileOutputStream("SyntheticBranches"); 
