@@ -3,6 +3,7 @@ package it.unisa.ocelot.c.instrumentor;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
 
 import org.aspectj.org.eclipse.jdt.core.dom.rewrite.ListRewrite;
 import org.eclipse.cdt.core.dom.ast.ASTVisitor;
@@ -41,11 +42,11 @@ import it.unisa.ocelot.c.cfg.CFGVisitor;
 
 public class InstrumenterVisitForIfMethodCalls extends ASTVisitor{
 	private final String functionName;
-	private final ASTRewrite rewriter;
 	private int booleanVariableCounter = 0;
+	public Set<IASTNode> trackSynthetics;
 
 
-	public InstrumenterVisitForIfMethodCalls(String pInstrumentFunction,ASTRewrite rewriter) {
+	public InstrumenterVisitForIfMethodCalls(String pInstrumentFunction, Set<IASTNode> trackSynthetics) {
 		this.shouldVisitExpressions = true;
 		this.shouldVisitStatements = true;
 		this.shouldVisitDeclarations = true;
@@ -54,7 +55,7 @@ public class InstrumenterVisitForIfMethodCalls extends ASTVisitor{
 		this.shouldVisitDeclSpecifiers = true;
 		this.shouldVisitPointerOperators = true;
 		this.functionName = pInstrumentFunction;
-		this.rewriter = rewriter;
+		this.trackSynthetics = trackSynthetics;
 	}
 	@Override
 	public int visit(IASTTranslationUnit tu) {
@@ -128,13 +129,22 @@ public class InstrumenterVisitForIfMethodCalls extends ASTVisitor{
 			IASTNode parent = ifStatement.getParent();
 			if (parent instanceof IASTCompoundStatement) {
 				IASTCompoundStatement compound = (IASTCompoundStatement) parent;
-
 				
-
-				// Replace the if-condition with the boolean variable reference
-				ifStatement.setConditionExpression(newCondition);
-				// Insert the boolean declaration before the if-statement
-				insertDeclarationBefore(compound, ifStatement, boolDeclaration);
+				if (trackSynthetics.contains(ifStatement)) {
+					trackSynthetics.remove(ifStatement);
+					// Replace the if-condition with the boolean variable reference
+					ifStatement.setConditionExpression(newCondition);
+					// Insert the boolean declaration before the if-statement
+					insertDeclarationBefore(compound, ifStatement, boolDeclaration);
+					trackSynthetics.add(ifStatement);
+				}
+				else {
+					// Replace the if-condition with the boolean variable reference
+					ifStatement.setConditionExpression(newCondition);
+					// Insert the boolean declaration before the if-statement
+					insertDeclarationBefore(compound, ifStatement, boolDeclaration);
+				}
+				
 			}
 
 		} catch (Exception e) {
@@ -172,7 +182,7 @@ public class InstrumenterVisitForIfMethodCalls extends ASTVisitor{
 	    
 	    // Copy statements before the target
 	    for (int i = 0; i < targetIndex; i++) {
-	        newCompound.addStatement(statements[i].copy(CopyStyle.withLocations));
+	        newCompound.addStatement(statements[i]);
 	    }
 	    
 	    // Insert the declaration
@@ -180,7 +190,7 @@ public class InstrumenterVisitForIfMethodCalls extends ASTVisitor{
 	    
 	    // Copy the remaining statements (including the target)
 	    for (int i = targetIndex; i < statements.length; i++) {
-	        newCompound.addStatement(statements[i].copy(CopyStyle.withLocations));
+	        newCompound.addStatement(statements[i]);
 	    }
 	    
 	    // Replace the compound statement based on its parent type
@@ -206,109 +216,7 @@ public class InstrumenterVisitForIfMethodCalls extends ASTVisitor{
 	        throw new UnsupportedOperationException("Unsupported parent type: " + parent.getClass().getSimpleName());
 	    }
 	}
-	/*private void insertDeclarationBefore(IASTCompoundStatement compound, IASTStatement target, 
-			IASTDeclarationStatement declaration) {
-		// Build new Compound statements
-		IASTCompoundStatement newCompound = makeCompoundStatement("pass the new statement");
-
-		// Make a copy of the original
-		IASTCompoundStatement copyOfCompoundStatement = compound.copy();
-
-		// Replace in compound block
-		IASTCompoundStatement block = (IASTCompoundStatement)compound.getParent();
-
-		// Replace the original with the new ones
-
-
-
-		ASTRewrite rewriter = ASTRewrite.create(compound.getTranslationUnit());
-
-		// Get the list rewriter for the compound statement
-		ListRewrite listRewrite = rewriter.getListRewrite(block, 
-				IASTCompoundStatement STATEMENTS_PROPERTY);
-
-		// Remove original and add new statements
-		listRewrite.remove(compound, null);
-		listRewrite.insertLast(newCompound, null);
-		listRewrite.insertLast(copyOfCompoundStatement, null);
-
-		// Apply changes
-		TextEdit edits = rewriter.rewriteAST();
-		IASTCompoundStatement newBlock = compound.getTranslationUnit().getASTNodeFactory()
-				.newCompoundStatement();
-		for (IASTStatement stmt : block.getStatements()) {
-			if(stmt ==compound) {
-				newBlock.addStatement(newCompound.copy());
-				newBlock.addStatement(copyOfCompoundStatement.copy());
-			}
-			else {
-				newBlock.addStatement(stmt.copy());
-			}
-		}
-		// Replace the entire block in its parent
-		block.getParent().replace(block, newBlock);
-
-		/* List<IASTStatement> stmts = new ArrayList<>(Arrays.asList(block.getStatements()));
-        int index = stmts.indexOf(compound);
-        stmts.remove(index);
-        stmts.add(index, newCompound);
-        stmts.add(index + 1, copyOfCompoundStatement);
-       // stmts.add(index + 2, after);
-        block.setStatements(stmts.toArray(new IASTStatement[0]));
-
-		 */
-
-		//IASTCompoundStatement newCompound = new CPPASTCompoundStatement();
-
-
-
-/*
-
-		IASTStatement[] statements = compound.getStatements();
-		int idx=0;
-		// Find the index of the target statement
-
-		for (int i = 0; i < statements.length+1; i++) {
-
-			if (statements[i] == target) {
-				newCompound.addStatement(target.copy());
-				i++;
-				// Insert the declaration before the target statement
-				idx=i;
-				System.err.println("inside each"+i);
-				System.out.println(statements[i].getRawSignature());
-				//rewriter.insertBefore(compound, target, declaration, null);
-				break;
-			}
-			newCompound.addStatement(statements[i].copy());
-		}
-		TextEditGroup editGroup = new TextEditGroup("Insert Statement");
-		ASTRewrite rewrite1= ASTRewrite.create(compound.getTranslationUnit());
-		rewrite1.insertBefore(compound, statements[idx-1], declaration,editGroup);
-		//rewrite1.replace(compound, newCompound, null);
-
-
-		/*IASTStatement[] statements1 = Arrays.copyOfRange(statements, 0, idx);
-		IASTStatement[] statements2 = Arrays.copyOfRange(statements, idx, statements.length);
-		IASTStatement[] newStatements= new IASTStatement[statements.length+1];
-		System.arraycopy(statements1, 0, newStatements, 0, statements1.length);
-		newStatements[statements1.length] = declaration;
-		System.arraycopy(statements2, 0, newStatements, statements1.length+1, statements2.length);
-		System.out.println(newStatements.length);
-
-		for(int i=0;i<newStatements.length;i++) {
-			newCompound.addStatement(newStatements[i]);
-			System.out.println(statements1.length);
-			System.out.println(i);
-			System.out.println(newStatements[i].getRawSignature());
-		}*/
-
-		//newCompound.setParent(compound.getParent());
-		//target.setParent(newCompound);
-		/*System.out.println(declaration.getRawSignature());
-		System.err.println(compound.getRawSignature());
-
-	}*/
+	
 	private IASTCompoundStatement makeCompoundStatement(String string) {
 		// TODO Auto-generated method stub
 		return null;
