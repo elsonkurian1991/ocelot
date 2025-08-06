@@ -32,7 +32,7 @@ public class StatementTreePrinter extends ASTVisitor {
         if (stmt instanceof IASTCompoundStatement) {
             indent += 2;
             // Inutile
-            // printIndented(((IASTCompoundStatement) stmt).NESTED_STATEMENT.getName());
+            printIndented(((IASTCompoundStatement) stmt).NESTED_STATEMENT.getName());
             for (IASTStatement child : ((IASTCompoundStatement) stmt).getStatements()) {
                 child.accept(this);
             }
@@ -62,7 +62,7 @@ public class StatementTreePrinter extends ASTVisitor {
             
         } else if (stmt instanceof CASTDeclarationStatement) {
             for (IASTNode child : (stmt.getChildren())) {
-            	System.out.println(((CASTSimpleDeclaration) child).getRawSignature());
+            	System.out.println(((CASTSimpleDeclaration) child).getRawSignature() + "DeclarationsStatementChildren");
             	if (((CASTSimpleDeclaration) child).getRawSignature().contains("IfBlock1_clock"))
             		System.out.println(";");
             	System.out.println(((CASTSimpleDeclaration) child).getDeclSpecifier().getRawSignature());
@@ -88,6 +88,7 @@ public class StatementTreePrinter extends ASTVisitor {
     	printIndented("Expression statement Code: " + stmt.getParent().getParent().getRawSignature().replaceAll("\\s+", " "));
     	return ASTVisitor.PROCESS_SKIP;
     }
+    
     
 
 
