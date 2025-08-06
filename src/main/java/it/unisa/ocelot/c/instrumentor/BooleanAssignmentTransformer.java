@@ -16,6 +16,7 @@ public class BooleanAssignmentTransformer extends ASTVisitor {
     private final IASTTranslationUnit tu;
     private final ICNodeFactory nodeFactory = ASTNodeFactoryFactory.getDefaultCNodeFactory();
     private final Set<String> trackedBoolVars = new HashSet<>();
+    public Set<IASTNode> trackSynthetics = new HashSet<>();
  
     public BooleanAssignmentTransformer(IASTTranslationUnit tu) {
         super();
@@ -183,7 +184,7 @@ public class BooleanAssignmentTransformer extends ASTVisitor {
                     break;
                 }
             }
-            newStmt.setPropertyInParent(new ASTNodeProperty("GENERATED"));
+            trackSynthetics.add(newStmt);
         }
     }
 }
