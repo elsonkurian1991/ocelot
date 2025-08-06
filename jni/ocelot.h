@@ -16,6 +16,7 @@ extern "C" {
 #ifndef _Included_OcelotHeader
 #define _Included_OcelotHeader
 
+#define OCELOT_K_FAKE 999
 #define OCELOT_K 0.5
 #define OCELOT_KIND_STDEV 1
 #define OCELOT_KIND_CASEV 2

@@ -7,15 +7,19 @@ _T_ocelot_list *_v_ocelot_events;
 _T_ocelot_list *_v_ocelot_fcalls;
 
 int _f_ocelot_branch_out(char* functionName, int count, int result, double distanceTrue, double distanceFalse) {
+	if(distanceTrue == OCELOT_K_FAKE)
+	{
+		distanceTrue = OCELOT_K;
+	}
+	if(distanceFalse == OCELOT_K_FAKE)
+	{
+		distanceFalse = OCELOT_K;
+	} 
+	
 	FILE *fptr;
 
 	// Open a file in writing mode
-	fptr = fopen("fitnessValues.txt", "a");
-
-	//The following if is for infeasible conditions eg: default case for switch cases involving enum with only two values.
-	if (distanceTrue==0.0 & distanceFalse==0.0) {
-	   distanceTrue=1.0;
-	}  
+	fptr = fopen("fitnessValues.txt", "a");  
 
 	//The following if is for some sanity checks. It will print warnings that should be checked to see if the isntrumentation is correct.
 	if ((distanceTrue == distanceFalse) | (((distanceTrue==1.0)&(distanceFalse!=0.0)) | ((distanceFalse==1.0)&(distanceTrue!=0.0))) | (!((distanceTrue==0.0)|(distanceFalse==0.0)))) {
@@ -69,6 +73,15 @@ int _f_ocelot_branch_out(char* functionName, int count, int result, double dista
 		fclose(fptr3);
 	} 
 
+	// Reduce the fitness range between 0.0 and 0.99. 1.0 is reserved for when a branch is not invoked at all.
+	distanceTrue = distanceTrue * 0.90;
+	distanceFalse = distanceFalse * 0.90;
+	
+	//The following if is for infeasible conditions eg: default case for switch cases involving enum with only two values.
+	if (distanceTrue==0.0 & distanceFalse==0.0) {
+	   distanceTrue=1.0;
+	}
+	
 	// Write some text to the file
 	fprintf(fptr, functionName);
 	fprintf(fptr, ";");
@@ -168,8 +181,6 @@ double _f_ocelot_eq_numeric(double op1, double op2) {
 	if (k == 0.0) {
 		result = 0.0;
 	} else {
-		//result = k+OCELOT_K;
-		k=(double)k+1.0;
 		result = (double)k/(1.0+(double)k);
 	}
 	return result;
@@ -181,8 +192,7 @@ double _f_ocelot_gt_numeric(double op1, double op2) {
 	if (k < 0.0) {
 		result = 0.0;
 	} else {
-		//result = (op2 - op1) + OCELOT_K;
-		k=(double)fabs(k)+1.0;
+		k = (double)k+0.001;
 		result = (double)k/(1.0+(double)k);
 	}
 	return result;
@@ -194,8 +204,6 @@ double _f_ocelot_ge_numeric(double op1, double op2) {
 	if (k <= 0.0) {
 		result = 0.0;
 	} else {
-		//result = (op2 - op1) + OCELOT_K;
-		k=(double)fabs(k)+1.0;
 		result = (double)k/(1.0+(double)k);
 	}
 	return result;
@@ -210,13 +218,13 @@ double _f_ocelot_le_numeric(double op1, double op2) {
 }
 
 double _f_ocelot_neq_numeric(double op1, double op2) {
-	double k = fabs(op1 - op2);
+	double k = (double)op2 - (double)op1;
 	double result;
 
 	if (k != 0.0)
 		result = 0.0;
 	else
-		result = OCELOT_K;
+		result = OCELOT_K_FAKE;
 
 	return result;
 }
@@ -252,6 +260,14 @@ double _f_ocelot_neq_pointer(void* op1, void* op2) {
 }
 
 double _f_ocelot_and(double op1, double op2) {
+	if(op1 == OCELOT_K_FAKE)
+	{
+		op1 = OCELOT_K;
+	} 
+	if(op2 == OCELOT_K_FAKE)
+	{
+		op2 = OCELOT_K;
+	} 
 	double result = ((double)op1+(double)op2)/(double)2.0;
 	return result;
 }
@@ -260,24 +276,30 @@ double _f_ocelot_or(double op1, double op2) {
 	if ((double)op1 < (double)op2)
 		return (double)op1;
 	else
-		return (double)op2;
+	{
+		if(op2 == OCELOT_K_FAKE)
+		{
+			return OCELOT_K;
+		}
+		else
+		{
+			return (double)op2;
+		}
+	}
 }
 
 double _f_ocelot_istrue(double flag) {
 	if (flag != 0.0)
 		return 0.0;
 	else
-		return OCELOT_K;
+		return OCELOT_K_FAKE;
 }
 
 double _f_ocelot_isfalse(double flag) {
-	double k = fabs(flag);
 	if (flag == 0.0)
 		return 0.0;
-	else if (flag == 1.0)
-		return OCELOT_K;
-	//else
-	//	return k;
+	else
+		return OCELOT_K_FAKE;
 }
 
 int _f_ocelot_pointertotab(void* ptr) {
