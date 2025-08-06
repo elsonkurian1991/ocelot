@@ -74,9 +74,12 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 	
 	// For synthetic generated ifs from boolean variables, see BooleanAssignmentTransformer
 	public ArrayList<String> SyntheticBranches;
+	public Set<IASTNode> trackSynthetics = new HashSet<>();
+	
+	public Set<IASTNode> foundSynthetics = new HashSet<>();
 
 	public UnitComponentInstrumentorVisitor(String pInstrumentFunction, ArrayList<String> testObjectives,
-			List<String> functionNames) {
+			List<String> functionNames, Set<IASTNode> trackSynthetics) {
 		this.shouldVisitExpressions = true;
 		this.shouldVisitStatements = true;
 		this.shouldVisitDeclarations = true;
@@ -94,6 +97,8 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 
 		this.branchNumber = 0;
 		this.testObjectives = testObjectives;
+		
+		this.trackSynthetics = trackSynthetics;
 
 		// Stores the names of the functions we are interested in for integration
 		// testing
@@ -534,9 +539,15 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 		markOutsideIfStatement(statement);
 		
 		// For synthetic generated ifs from boolean variables, see BooleanAssignmentTransformer
-		if (statement.getPropertyInParent() != null && statement.getPropertyInParent().getName().equals("GENERATED")) {
+		/*if (branchNumber == 12) {
+				System.out.println("Break");
+				System.out.println(statement.getPropertyInParent() != null);
+				System.out.println(statement.getPropertyInParent().getName());
+		}*/
+		if (trackSynthetics.contains(statement)) {
 			SyntheticBranches.add(functionName + ":" + "branch" + branchNumber + "-" + "true"); 
 			SyntheticBranches.add(functionName + ":" + "branch" + branchNumber + "-" + "false");
+			foundSynthetics.add(statement);
 			}
 		addTestObjectives(branchNumber);
 		branchNumber++;
@@ -554,10 +565,10 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 		
 		List<String> outsideClause = new ArrayList<String>();
 
-		System.out.println(statement.getRawSignature());
+		//System.out.println(statement.getRawSignature());
 		int counter = -1; // the first case is branchNumber + 0
 		for(IASTNode child : statement.getBody().getChildren()) {
-			System.out.println(child.getRawSignature() + " --- " +  child.getClass().toString());
+			//System.out.println(child.getRawSignature() + " --- " +  child.getClass().toString());
 			if (!(child instanceof CASTCaseStatement) && !(child instanceof CASTDefaultStatement)) {
 				List<String> caseClause = new ArrayList<String>();
 				caseClause.add(functionName + ":" + "branch" + (branchNumber + counter) + "-" + "true");
