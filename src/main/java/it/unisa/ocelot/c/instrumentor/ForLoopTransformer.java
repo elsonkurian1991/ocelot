@@ -166,7 +166,7 @@ public class ForLoopTransformer extends ASTVisitor {
 	// Helper: forLoopCount_N += 1;
 	private IASTExpressionStatement createIncrement(String name) {
 		IASTIdExpression var = new CASTIdExpression(new CASTName(name.toCharArray()));
-		IASTLiteralExpression one = new CASTLiteralExpression(IASTLiteralExpression.lk_float_constant, "1".toCharArray());
+		IASTLiteralExpression one = new CASTLiteralExpression(IASTLiteralExpression.lk_float_constant, "1.0".toCharArray());
 		IASTBinaryExpression expr = new CASTBinaryExpression(IASTBinaryExpression.op_plusAssign, var, one);
 		return new CASTExpressionStatement(expr);
 	}
@@ -187,7 +187,7 @@ public class ForLoopTransformer extends ASTVisitor {
 		//IASTCastExpression castExpr2 = nodeFactory.newCastExpression(IASTCastExpression.op_cast, typeId, nameExpr2);
 
 		// Create literal: 1
-		IASTLiteralExpression one = nodeFactory.newLiteralExpression(IASTLiteralExpression.lk_integer_constant, "1");
+		IASTLiteralExpression one = nodeFactory.newLiteralExpression(IASTLiteralExpression.lk_float_constant, "1.0");
 
 		// Create parentheses around the denominator: ((double)name + 1)
 		IASTBinaryExpression denominatorAddition = nodeFactory.newBinaryExpression(IASTBinaryExpression.op_plus, nameExpr2, one);
