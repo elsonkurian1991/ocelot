@@ -60,6 +60,8 @@ public class MOSA_Generic extends OcelotAlgorithm {
 	
 	private int itCounter;
 	
+	private int populationSize;
+	
 	
 	//private Dominators<EdgeWrapper<LabeledEdge>, DefaultEdge> dominators;
 
@@ -100,6 +102,7 @@ public class MOSA_Generic extends OcelotAlgorithm {
 			addRandom = 0.1;
 		
 		itCounter = 0;
+		
 	}
 
 	/**
@@ -119,18 +122,19 @@ public class MOSA_Generic extends OcelotAlgorithm {
 	 */
 	@Override
 	public SolutionSet execute() throws JMException, ClassNotFoundException {
-		int populationSize;
+		
 		int maxEvaluations;
 		int evaluations;
 		double maxCoverage;
 
 		// Read the parameters
-		populationSize = ((Integer) getInputParameter("populationSize")).intValue();
+		
 		maxEvaluations = ((Integer) getInputParameter("maxEvaluations")).intValue();
 		if (getInputParameter("maxCoverage") != null)
 			maxCoverage = ((Double) getInputParameter("maxCoverage")).doubleValue();
 		else
 			maxCoverage = 1.0;
+		populationSize = ((Integer) getInputParameter("populationSize")).intValue();
 
 		SolutionSet population;
 		SolutionSet offspringPopulation;
@@ -227,10 +231,14 @@ public class MOSA_Generic extends OcelotAlgorithm {
 			// Obtain the next front
 			front = fronts.getFront(frontIndex);
 			
+			int c = 0;
+			
 			// From NGSA-II select TC that are the best for a specific objectives then TC that are not dominated
 			while ((remain > 0) && (remain >= front.size())) {
-
-				this.crowdingDistanceAssignmentV2(front, problem_.getNumberOfObjectives());
+				if (c > 0)
+					//System.out.println(c);
+				c++;
+				//this.crowdingDistanceAssignmentV2(front, problem_.getNumberOfObjectives());
 
 				// Add the individuals of this front
 				for (int i = 0; i < front.size(); i++) {
@@ -245,11 +253,14 @@ public class MOSA_Generic extends OcelotAlgorithm {
 				if (remain > 0)
 					front = fronts.getFront(frontIndex);
 			} // while
+			//System.out.println("Remain: " + remain + " Front: " + front.size());
 
 			// if remain is less than current front size, insert only the best
 			if (remain > 0) {
+				if (c > 0)
+					//System.out.println(c);
 				// current front contains the individuals to insert
-				this.crowdingDistanceAssignmentV2(front, problem_.getNumberOfObjectives());
+				//this.crowdingDistanceAssignmentV2(front, problem_.getNumberOfObjectives());
 				front.sort(new CrowdingComparator());
 
 				for (int i = 0; i < remain; i++) {
@@ -279,23 +290,36 @@ public class MOSA_Generic extends OcelotAlgorithm {
 			evaluations++;
 
 		}// while
-		
+		long endTime = System.nanoTime();
+		long time=endTime-startTime;
+
+		long durationSeconds = time / 1_000_000_000;
+
+		long hours = durationSeconds / 3600;
+		long minutes = (durationSeconds % 3600) / 60;
+		long seconds = durationSeconds % 60;
+
+		System.err.println("Time taken for MOSA_Generic: " + hours + " hours, " + minutes + " minutes, " + seconds + " seconds");
 		// Print to file covered and uncovered branches 
 		// different print whether we are in pair optimize or branch optimize
+		
 		Set<String> coveredBranches = new HashSet<String>();
 		Set<String> maybeUncoveredBranches = new HashSet<String>();
 		if (config.getOptimizeFor().equals("Pairs")) {
 			for (GenericObjective obj:allTargets) {
+				if (obj instanceof PC_PairObjective) {
 				if (obj.isCovered()) {
 						coveredBranches.add(((PC_PairObjective) obj).sm.getTestObjOne());
 						coveredBranches.add(((PC_PairObjective) obj).sm.getTestObjTwo());
 					}
 				else if (obj.isActive()){
-					if(((PC_PairObjective) obj).sm.getFitValOne() == 0.0) {
-						coveredBranches.add(((PC_PairObjective) obj).sm.getTestObjOne());
+					
+						if(((PC_PairObjective) obj).sm.getFitValOne() == 0.0) {
+							coveredBranches.add(((PC_PairObjective) obj).sm.getTestObjOne());
+						}
+						maybeUncoveredBranches.add(((PC_PairObjective) obj).sm.getTestObjOne());
+						maybeUncoveredBranches.add(((PC_PairObjective) obj).sm.getTestObjTwo());
 					}
-					maybeUncoveredBranches.add(((PC_PairObjective) obj).sm.getTestObjOne());
-					maybeUncoveredBranches.add(((PC_PairObjective) obj).sm.getTestObjTwo());
 				}
 			}
 			maybeUncoveredBranches.removeAll(coveredBranches);
@@ -336,8 +360,9 @@ public class MOSA_Generic extends OcelotAlgorithm {
 	}
 
 	private boolean keepRunning(int evaluations, int maxEvaluations, long startTime) {
+		long endTime = System.nanoTime();
 		if (allottedTime != 0) {
-			long endTime = System.nanoTime();
+			
 			if ( (endTime - startTime) / 1000000000 < allottedTime)
 				return true;
 		}
@@ -345,7 +370,10 @@ public class MOSA_Generic extends OcelotAlgorithm {
 			if (evaluations < maxEvaluations) 
 				return true;
 		}
+
+		System.out.println("This is while loop keepRunning: "+(endTime - startTime) / 1000000000);
 		return false;
+		
 	}
 
 	/**
@@ -410,7 +438,11 @@ public class MOSA_Generic extends OcelotAlgorithm {
 
 		Front front = new Front();
 		SolutionSet population = candidates;
-		SolutionSet front_0 = new SolutionSet(allTargets.size());
+		SolutionSet front_0 = null;
+		if (populationSize < allTargets.size())
+			front_0 = new SolutionSet(populationSize);
+		else
+			front_0 = new SolutionSet(allTargets.size());
 
 		/*** preference criterion ***/
 		
@@ -420,12 +452,13 @@ public class MOSA_Generic extends OcelotAlgorithm {
 		for (GenericObjective target : allTargets) {
 			if (target.isCovered() || !target.isActive())
 				continue;
+			if (front_0.size() == front_0.getCapacity())
+				break; // Exit if front_0 is full
 			Iterator<Solution> populationIterator = population.iterator();
 			double minimum_fitness = Double.MAX_VALUE;
 			// best test case
 			Solution t_best = null;
 			while (populationIterator.hasNext()) {
-
 				
 				int idObjective = target.getObjectiveID();
 				Solution currentSolution = populationIterator.next();
@@ -445,13 +478,17 @@ public class MOSA_Generic extends OcelotAlgorithm {
 			target.counter++;
 			//System.out.println(target.toString() + minimum_fitness);
 			t_best.setRank(0); // set rank 0 for preference criterion
-			front_0.add(t_best); // adding to front 0
+			front_0.add(t_best);	// adding to front 0
+			
+			
 			solutionsToDelete.add(t_best);
 
 		} // end for
 
 		front.addFront(front_0);
-
+		/*if(front_0.size()>=populationSize) {
+			return front;
+		}*/
 		// Remotion of solution in first front from overall population
 		Iterator<Solution> populationIterator = population.iterator();
 		while (populationIterator.hasNext()) {
@@ -461,21 +498,38 @@ public class MOSA_Generic extends OcelotAlgorithm {
 		}
 
 		/*** fast-non dominated-sort ***/
-
-		MOSARanking_Generic ranking = new MOSARanking_Generic(population, allTargets);
+		ArrayList<GenericObjective> notCovTargets = new ArrayList<>();
+		for( GenericObjective tar: allTargets) {
+			if(!tar.isCovered() && tar.isActive()){
+				notCovTargets.add(tar);				
+			}
+		}
+		
+		MOSARanking_Generic ranking = new MOSARanking_Generic(population, notCovTargets, populationSize);//allTargets notCovTargets
 		
 
 
-		int remain = population.size();
+		int remain = populationSize;//populationSize candidates.size()
+		remain -=front.getFront(0).size();
 		int front_number = 0;
 		SolutionSet currentFront = new SolutionSet(candidates.size());
-
-		while (remain > 0) {
-			currentFront = ranking.getSubfront(front_number);
-			remain -= currentFront.size();
-			front.addFront(currentFront);
-			front_number++;
-		}
+		
+			while (remain > 0) {
+				try {
+				currentFront = ranking.getSubfront(front_number);
+				}catch (Exception e) {
+		            e.printStackTrace();
+		        }
+				
+				//System.out.println("remain1: " + remain);
+				//System.out.println("currentFront.size(): " + currentFront.size());
+				remain -= currentFront.size();
+				//System.out.println("remain2: " + remain);
+				front.addFront(currentFront);
+				front_number++;
+			}
+		
+		
 
 		return front;
 	}
