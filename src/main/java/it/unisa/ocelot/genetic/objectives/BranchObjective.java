@@ -6,10 +6,12 @@ import jmetal.core.Solution;
 public class BranchObjective extends GenericObjective{
 	public String testObj;
 	public Solution DiscovererTestCase;
+	public Boolean isSynthetic;
 	
 	public BranchObjective(boolean isCovered, int objectiveID, String testObj) {
 		super(isCovered, objectiveID);
 		this.testObj = testObj;
+		this.isSynthetic = false;
 	}
 	
 	@Override

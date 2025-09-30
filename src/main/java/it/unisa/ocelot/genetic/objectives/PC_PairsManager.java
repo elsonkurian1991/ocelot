@@ -55,29 +55,35 @@ public class PC_PairsManager {
 	        }
 	
 			List<GenericObjective> objectives = new ArrayList<GenericObjective>();
+			boolean Synthetic = false;
 			int j = 0;
 			int objectiveID = 0;
 			for (List<TestObjStateMachine> ListOfSMsindirectionLevel : ListOfSMs) {
 				int indirectionLevel = 1;
 				for (TestObjStateMachine sm : ListOfSMsindirectionLevel) {
+					for(String branch : SyntheticBranches) {
+						if (branch.equals(sm.getTestObjOne()) || branch.equals(sm.getTestObjTwo())) {
+							Synthetic = true;
+						}
+					}
+					if (Synthetic == false) {
 					PC_PairObjective PC_Pair = new PC_PairObjective(false, objectiveID, sm, "Forward", indirectionLevel);
 					objectives.add(PC_Pair);
-					objectiveID++;
+					objectiveID++;}
+					Synthetic = false;
 				}
 				indirectionLevel++;
 			}
+		
+			
 			
 			generatedObjectives = objectives;
 			
-			// For every objective find it's triggering pair
 			for (GenericObjective obj : generatedObjectives) {
-				PC_PairObjective PCobj = (PC_PairObjective) obj;
-				findTriggeredPair(PCobj, generatedObjectives);
-				for(String branch : SyntheticBranches) {
-					if (branch.equals(PCobj.sm.getTestObjOne()) || branch.equals(PCobj.sm.getTestObjTwo()))
-						PCobj.isSynthetic = true;
-					}
+				PC_PairObjective PairObj = (PC_PairObjective) obj;
+				findTriggeredPair(PairObj, generatedObjectives);
 			}
+			
 			
 			
 			return generatedObjectives;

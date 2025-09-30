@@ -45,8 +45,9 @@ public class PC_PairObjective extends GenericObjective {
 		double fitValTwo = 1.0;
 
 		FunBranchNameAndFitness infoFromLinebr1;
-		if (branchDistances.containsKey(sm.getTestObjOne())) {
-			infoFromLinebr1 = new FunBranchNameAndFitness(sm.getTestObjOne(), branchDistances.get(sm.getTestObjOne()));
+		Double testObj1 = branchDistances.get(sm.getTestObjOne());
+		if (testObj1 != null) {
+			infoFromLinebr1 = new FunBranchNameAndFitness(sm.getTestObjOne(), testObj1);
 			fitValOne = branchDistances.get(sm.getTestObjOne());
 		}
 		else
@@ -54,8 +55,9 @@ public class PC_PairObjective extends GenericObjective {
 		sm.transition(infoFromLinebr1);
 
 		FunBranchNameAndFitness infoFromLinebr2;
-		if (branchDistances.containsKey(sm.getTestObjTwo())) {
-			infoFromLinebr2 = new FunBranchNameAndFitness(sm.getTestObjTwo(), branchDistances.get(sm.getTestObjTwo()));
+		Double testObj2 = branchDistances.get(sm.getTestObjTwo());
+		if (testObj2 != null) {
+			infoFromLinebr2 = new FunBranchNameAndFitness(sm.getTestObjTwo(), testObj2);
 			fitValTwo = branchDistances.get(sm.getTestObjTwo());
 		}
 		else
@@ -75,20 +77,9 @@ public class PC_PairObjective extends GenericObjective {
 				+ ", hashCode()=" + hashCode() + ", toString()=" + super.toString() + ", getClass()=" + getClass()
 				+ "]";
 	}
-
-	public int compareTo(Integer budget2) {
-		// TODO Auto-generated method stub
-		return 0;
-	}
 	
 	public Integer getBudgetUsed() {
 		return this.budget;
 	}
-	
-    public static void sort(ArrayList<PC_PairObjective> list) {
-
-        list.sort((o1, o2) -> o1.getBudgetUsed().compareTo(o2.getBudgetUsed()));
-    }
-
 	
 }
