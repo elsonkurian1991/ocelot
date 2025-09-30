@@ -226,7 +226,7 @@ public class StandardBuilder extends Builder {
 				// add instrumention for for-loop,
 				
 				Set<IASTNode> trackSynthetics = new HashSet<>();
-				
+				//this one
 				ForLoopTransformer forloopTrans = new ForLoopTransformer(translationUnit);
 			    translationUnit.accept(forloopTrans);
 			    syntheticBranchesGeneratedWithFor += forloopTrans.trackSynthetics.size();
@@ -242,7 +242,9 @@ public class StandardBuilder extends Builder {
 					syntheticBranchesGeneratedWithBool += booleanTransfomer.trackSynthetics.size();
 					trackSynthetics.addAll(booleanTransfomer.trackSynthetics);
 				}
-
+               
+				//BooleanAssignmentTransformer booleanTransfomer = null;
+				
 
 				// Instruments unit-level components
 				//for (String component : unitLevelComponents) {
@@ -418,12 +420,15 @@ public class StandardBuilder extends Builder {
 			}
 			else {
 				//here, just copy the other supported files to jni folder, eg kcg_types, database etc.
+				//add the feature to copy the header files
 				File sourceFile = new File(unitComponent);
+				
 				File jniDir = new File("jni");
 				if (!sourceFile.exists()) {
 					System.out.println("Source file does not exist: " + unitComponent);
 					return;
 				}
+				
 				File destFile = new File(jniDir, sourceFile.getName());
 				try {
 					Files.copy(sourceFile.toPath(), destFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
@@ -431,7 +436,21 @@ public class StandardBuilder extends Builder {
 				} catch (IOException e) {
 					System.out.println("Error copying file: " + e.getMessage());
 				}
-
+				
+				String headerFile = unitComponent.replace(".c", ".h");
+				File sourceHeaderFile = new File(headerFile);
+				if (!sourceHeaderFile.exists()) {
+					System.out.println("Source file does not exist: " + headerFile);
+					continue; // skip this iteration and go to the next one some times only c files are needed.
+				}
+				File destHederFile = new File(jniDir, sourceHeaderFile.getName());
+				try {
+					Files.copy(sourceHeaderFile.toPath(), destHederFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+					System.out.println("File copied to: " + destHederFile.getAbsolutePath());
+				} catch (IOException e) {
+					System.out.println("Error copying file: " + e.getMessage());
+				}
+				//till here
 			}
 
 
@@ -465,7 +484,7 @@ public class StandardBuilder extends Builder {
 		// Martino
 		// This code generates the pairs
 		generatePairs();
-
+		generatePairsForSeqCal();
 		// This code generates BranchObjectives used to compare
 		// DynaMOSA with branches optimization with DynaMOSA with pairs obtimization
 		StringBuilder branchObjList = new StringBuilder();
@@ -486,6 +505,11 @@ public class StandardBuilder extends Builder {
 			}
 		}**/
 
+	}
+
+	private void generatePairsForSeqCal() {
+		// TODO Auto-generated method stub
+		
 	}
 
 	private void generatePairs() {
