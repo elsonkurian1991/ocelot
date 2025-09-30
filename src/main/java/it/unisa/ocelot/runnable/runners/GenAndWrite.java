@@ -17,6 +17,7 @@ import it.unisa.ocelot.c.cfg.CFGBuilder;
 import it.unisa.ocelot.c.types.CTypeHandler;
 import it.unisa.ocelot.conf.ConfigManager;
 import it.unisa.ocelot.genetic.objectives.BranchManager;
+import it.unisa.ocelot.genetic.objectives.BranchObjective;
 import it.unisa.ocelot.genetic.objectives.GenericObjective;
 import it.unisa.ocelot.genetic.objectives.PC_PairObjective;
 import it.unisa.ocelot.genetic.objectives.PC_PairsManager;
@@ -65,8 +66,10 @@ public class GenAndWrite {
 			//LUCA: load list of objectives
 			// Martino: decide if you want to pass pair objectives or branch objectives
 			List<GenericObjective> objectives;
-			if (config.getOptimizeFor().equals("Pairs"))
-				 objectives = PC_PairsManager.loadObjectives();	
+			if (config.getOptimizeFor().equals("Pairs")) {
+				objectives = PC_PairsManager.loadObjectives();
+				//objectives.addAll(BranchManager.loadObjectivesSynthetics(objectives.size()));
+				}
 			else if (config.getOptimizeFor().equals("Branches"))
 				objectives = BranchManager.loadObjectives(0);
 			else
@@ -78,6 +81,7 @@ public class GenAndWrite {
 				objectivesToEvaluate = BranchManager.loadObjectives(0);
 			else
 				throw new Exception("Don't know what you are Evaluate for");
+			
 			
 			
 			
@@ -95,18 +99,23 @@ public class GenAndWrite {
 			for (GenericObjective obj : objectivesToEvaluate) {
 				if (obj instanceof PC_PairObjective && ((PC_PairObjective) obj).isSynthetic)
 					objectivesToRemove.add(obj);
+				else if (obj instanceof BranchObjective && ((BranchObjective) obj).isSynthetic)
+					objectivesToRemove.add(obj);
 			}
 			objectivesToEvaluate.removeAll(objectivesToRemove);
+			
 			GenericCoverageCalculator calculator = new GenericCoverageCalculator(cfg, objectivesToEvaluate);
 			
 			calculator.calculateCoverage(minimizedSuite);
-	
+			
+			System.out.println("Size of objectivesToEvaluate: "+objectivesToEvaluate.size());
 			System.out.println("-------------------------------------------------------");
 			System.out.println("Minimized test cases: " + minimizedSuite.size());
 			System.out.println("Objective coverage achieved: " + calculator.getObjectiveCoverage());
 			//System.out.println("Branch coverage achieved: " + calculator.getBranchCoverage());
 			//System.out.println("Statement coverage achieved: " + calculator.getBlockCoverage());
 			System.out.println("-------------------------------------------------------");
+			
 			
 			/*String formattedFilename = config.getTestFilename();
 			formattedFilename = formattedFilename.replaceAll("[^A-Za-z0-9]", "_");

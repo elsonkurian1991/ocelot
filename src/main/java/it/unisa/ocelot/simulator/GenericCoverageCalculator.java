@@ -61,10 +61,11 @@ public class GenericCoverageCalculator {
 	public void calculateCoverage(Set<TestCase> pTestCases) {
 		int i = 0;
 		for (TestCase tc : pTestCases) {
-			System.out.println("Computing coverage for TC: " + i + " out of: " + pTestCases.size());
+			
 			calculateCoverage(tc.getParameters());
 			i = i + 1;
 		}
+		System.out.println("Computed coverage for " + (i + 1) + " test cases");
 		this.objectiveCoverage = ((double) this.coveredObjectives.size()) / this.objectives.size();
 		try {
 			FileWriter uncoveredWriter = new FileWriter("uncoveredPairs.txt");

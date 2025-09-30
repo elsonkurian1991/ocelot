@@ -78,6 +78,7 @@ public class MOSAGenericCoverageProblem extends StandardProblem {
 			if (objective.isCovered())
 				continue;
 			double fitness = objective.getFitness(arguments);
+			//System.out.println(objective.getObjectiveID());
 			solution.setObjective(objective.getObjectiveID(), fitness);
 		}
 		
