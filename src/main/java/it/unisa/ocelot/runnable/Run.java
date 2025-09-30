@@ -129,7 +129,7 @@ public class Run {
 			//logWriter.append("\n");
 			/*logWriter.append("files_PC_PairCom_FitnessVals");*/
 			logWriter.append("\n");
-			logWriter.append(generatedObjectives.toString());
+			//logWriter.append(generatedObjectives.toString());
 
 			/*for (TestObjStateMachine sm : ReadEFLfilesforPairCombination_V2.files_SM_PC_FitVals) {
 
@@ -171,8 +171,20 @@ public class Run {
             } else {
                 System.out.println("File not found: " + sourceFile.getAbsolutePath());
             }
-
-		}	
+            //delete the unwanted header files
+            String headerFileName=listFiles[i].substring(lastIndex+1);
+            headerFileName=headerFileName.replace(".c", ".h");
+            File headerFile = new File("jni/",headerFileName);
+            if(headerFile.exists()) {
+            	headerFile.delete();
+            }
+           
+		}
+		 //spcl case
+        File kcg_imported_functions = new File("jni/","kcg_imported_functions.h");
+        if(kcg_imported_functions.exists()) {
+        	kcg_imported_functions.delete();
+        }
 		 System.out.println("Files moved to "+outputJniFolder+"/ for backup.");
 
 	}
@@ -215,29 +227,31 @@ public class Run {
 		int forwardLevel1notCovered = 0;
 		int forwardLevel2notCovered = 0;
 		for (GenericObjective obj : generatedObjectives) {	
-			PC_PairObjective pairObj = (PC_PairObjective) obj;
-			
-			
-			// TODO: refactor to handle multiple indirections level and to allow non PC_PairObjective as objective
-			if (obj.isCovered()) {
-				if ( pairObj.indirectionLevel == 1) {
-					forwardLevel1covered++;
+			if (obj instanceof PC_PairObjective) {
+				PC_PairObjective pairObj = (PC_PairObjective) obj;
+				
+				
+				// TODO: refactor to handle multiple indirections level and to allow non PC_PairObjective as objective
+				if (obj.isCovered()) {
+					if ( pairObj.indirectionLevel == 1) {
+						forwardLevel1covered++;
+					}
+					else if (pairObj.indirectionLevel == 2) {
+						forwardLevel2covered++;
+					}
 				}
-				else if (pairObj.indirectionLevel == 2) {
-					forwardLevel2covered++;
+				else if (!obj.isCovered()) {
+					if ( pairObj.indirectionLevel == 1) {
+						forwardLevel1notCovered++;
+					}
+					else if (pairObj.indirectionLevel == 2) {
+						forwardLevel2notCovered++;
+					}
 				}
+				
+				
+				int acc = 0;
 			}
-			else if (!obj.isCovered()) {
-				if ( pairObj.indirectionLevel == 1) {
-					forwardLevel1notCovered++;
-				}
-				else if (pairObj.indirectionLevel == 2) {
-					forwardLevel2notCovered++;
-				}
-			}
-			
-			
-			int acc = 0;
 		}
 		//System.out.println(listofObjNotCov);
 		logWriter.append("\n");
