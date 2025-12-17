@@ -10,7 +10,9 @@ import java.io.IOException;
 import java.io.StringReader;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.UUID;
 
@@ -267,7 +269,37 @@ public class ConfigManager {
 		return includes;
 		
 	}
+	/**
+     * Reads the "test.pairComponents" property and parses it into a Map.
+     * Expected format: "key1:value1,key2:value2,key3:value3"
+     * 
+     * @return Map containing the parsed key-value pairs
+     * test.pairComponents: component1:pair1,component2:pair2,component3:pair3
+     */
 	
+	public Map<String, String> getPairComponents() {
+        String includeStrings = this.properties.getProperty("test.pairComponents", "");
+        Map<String, String> pairMap = new HashMap<>();
+     // Handle empty or null strings
+        if (includeStrings == null || includeStrings.trim().isEmpty()) {
+            return pairMap;
+        }
+        // Split by comma to get individual pairs
+        String[] pairs = includeStrings.split(";");
+        
+        for (String pair : pairs) {
+            // Split each pair by colon
+            String[] keyValue = pair.split(",");
+            
+            // Ensure we have exactly two parts (key and value)
+            if (keyValue.length == 2) {
+                String key = keyValue[0].trim();
+                String value = keyValue[1].trim();
+                pairMap.put(key, value);
+            }
+        }
+        return pairMap;
+	}
 	/**
 	 * Returns the output folder.
 	 * @return

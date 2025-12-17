@@ -1,8 +1,6 @@
 package it.unisa.ocelot.genetic.edges;
 
 import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Objects;
 
 enum State{
@@ -113,7 +111,7 @@ public class TestObjStateMachine implements Serializable {
 		}
 		
 	}*/
-	public  void transition(FunBranchNameAndFitness infoFromLinebr) {  
+	public  void transition(FunBranchNameAndFitness infoFromLinebr) {  // edit this code to handle both branch at a time.
 
 		if(this.getTestObjOne().contentEquals(infoFromLinebr.getFunBranchName())) {
 			if(infoFromLinebr.getCurrFitnessVal()==0.0) {

@@ -238,7 +238,7 @@ public class MOSA_Generic extends OcelotAlgorithm {
 				if (c > 0)
 					//System.out.println(c);
 				c++;
-				//this.crowdingDistanceAssignmentV2(front, problem_.getNumberOfObjectives());
+				this.crowdingDistanceAssignmentV2(front, problem_.getNumberOfObjectives());
 
 				// Add the individuals of this front
 				for (int i = 0; i < front.size(); i++) {
@@ -260,7 +260,7 @@ public class MOSA_Generic extends OcelotAlgorithm {
 				if (c > 0)
 					//System.out.println(c);
 				// current front contains the individuals to insert
-				//this.crowdingDistanceAssignmentV2(front, problem_.getNumberOfObjectives());
+				this.crowdingDistanceAssignmentV2(front, problem_.getNumberOfObjectives());
 				front.sort(new CrowdingComparator());
 
 				for (int i = 0; i < remain; i++) {

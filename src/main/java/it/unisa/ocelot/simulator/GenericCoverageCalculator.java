@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Set;
 
 import it.unisa.ocelot.TestCase;
+import it.unisa.ocelot.c.cdg.BranchChainManager;
 import it.unisa.ocelot.c.cfg.CFG;
 import it.unisa.ocelot.genetic.objectives.BranchDistanceCache;
 import it.unisa.ocelot.genetic.objectives.GenericObjective;
@@ -39,6 +40,7 @@ public class GenericCoverageCalculator {
 			// LUCA: read fitnessValues.txt (branch fitnesses) file and store it. More
 			// efficient than reading it for every objective.
 			BranchDistanceCache.cacheFitnessValues();
+			BranchChainManager.cacheFitnessValues();
 			for (GenericObjective objective : objectives) {
 				double fitness = objective.getFitness(params);
 				if (fitness == 0.0) {

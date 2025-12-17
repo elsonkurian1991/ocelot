@@ -22,6 +22,7 @@ import org.apache.commons.codec.digest.DigestUtils;
 import it.unisa.ocelot.c.Builder;
 import it.unisa.ocelot.c.BuildingException;
 import it.unisa.ocelot.c.StandardBuilder;
+import it.unisa.ocelot.c.StandardBuilder_new;
 import it.unisa.ocelot.c.makefile.DynamicMakefileGenerator;
 import it.unisa.ocelot.c.makefile.JNIMakefileGenerator;
 import it.unisa.ocelot.c.makefile.LinuxMakefileGenerator;
@@ -89,6 +90,10 @@ public class Run {
 		deleteFileIfExists(filePathToDelete3);
 		String filePathToDelete4 = localOcelotDir+"/testObjectives.to"; //do 
 		deleteFileIfExists(filePathToDelete4);
+		String filePathToDelete5 = localOcelotDir+"/fitnessValues.bin"; //do 
+		deleteFileIfExists(filePathToDelete5);
+		String filePathToDelete6 = localOcelotDir+"/cdg_output.txt"; //do 
+		deleteFileIfExists(filePathToDelete6);
 		deleteOldEvalPCfiles(localOcelotDir);
 
 		long startTime =System.currentTimeMillis();
@@ -399,7 +404,7 @@ public class Run {
 	public void build() throws Exception {
 		ConfigManager config = ConfigManager.getInstance();
 
-		Builder builder = new StandardBuilder(
+		Builder builder = new StandardBuilder_new( //here we use the new Standard builder to use new branch chains
 				config.getTestFilename(), 
 				config.getTestFunction(), 
 				config.getTestIncludePaths());

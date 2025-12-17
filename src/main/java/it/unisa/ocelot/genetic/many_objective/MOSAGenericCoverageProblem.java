@@ -3,6 +3,8 @@ package it.unisa.ocelot.genetic.many_objective;
 import java.util.List;
 import org.apache.commons.lang3.Range;
 
+import it.unisa.ocelot.c.cdg.BranchChain;
+import it.unisa.ocelot.c.cdg.BranchChainManager;
 import it.unisa.ocelot.c.cfg.CFG;
 import it.unisa.ocelot.c.types.CType;
 import it.unisa.ocelot.genetic.StandardProblem;
@@ -73,6 +75,8 @@ public class MOSAGenericCoverageProblem extends StandardProblem {
 		
 		//LUCA: read fitnessValues.txt (branch fitnesses) file and store it. More efficient than reading it for every objective.
 		BranchDistanceCache.cacheFitnessValues();
+		BranchChainManager.cacheFitnessValues();
+
 		for (GenericObjective objective : objectives) {
 			//if (objective.isCovered() || !objective.isActive() )
 			if (objective.isCovered())
