@@ -293,7 +293,7 @@ public class StandardBuilder_new extends Builder {
 
 				ArrayList<String> testObjSet = new ArrayList<>();
 				//testObjSet.addAll(instrumentor1.convertArrayToSet(testObjectives)); herehrehrheh
-				testObjectives =testObjSet;
+				//testObjectives =testObjSet;
 
 				componentsTestObjectives.put(tempUnitComponent, testObjectives);
 				// Need to store this one outside the loop to generate the branch pairs

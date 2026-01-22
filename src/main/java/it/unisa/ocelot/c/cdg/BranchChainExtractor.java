@@ -6,6 +6,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * Extracts branch-chains (paths from entry to leaf nodes) from a CDG.
@@ -60,11 +61,30 @@ public class BranchChainExtractor {
             List<PathStep> currentPath = new ArrayList<>();
             findPathsToLeaf(cdg.getEntryNode(), leaf, currentPath, new HashSet<>());
         }
+        
+        // 
+        branchChains =  branchChains.stream().filter(BranchChainExtractor::hasBranchChainWithCondition).collect(Collectors.toList());
+        branchChains =  branchChains.stream().filter(BranchChainExtractor::hasBranchChainWithEnd).collect(Collectors.toList());
      // Assign labels to all chains (1-indexed)
         for (int i = 0; i < branchChains.size(); i++) {
             branchChains.get(i).setLabel(unitComponentName, i + 1);
         }
         return branchChains;
+    }
+    
+    private static boolean hasBranchChainWithEnd(BranchChain branchChain) {
+      
+    	if(branchChain.getPath().size()==1) {
+    		if(branchChain.getPath().get(0).getTo().getLabel().contains("End")) {
+    			return false;
+    		}
+    	}
+    	return true;
+    }
+    
+    private static boolean hasBranchChainWithCondition(BranchChain branchChain) {
+      
+    	return branchChain.getPath().stream().anyMatch(pathStep -> pathStep.hasBranchCondition());
     }
     
     /**
@@ -107,7 +127,7 @@ public class BranchChainExtractor {
             		BranchChainExtractor.branchMap.put(current, branchNo);
             		BranchChainExtractor.branchNoCounter++;
             	}
-            	step.setBranchConditionLabel(unitComponentName+";branch"+branchNo+"-"+edge.branchCondition());
+            	step.setBranchConditionLabel(unitComponentName+":branch"+branchNo+"-"+edge.branchCondition());
             	
             }
             	

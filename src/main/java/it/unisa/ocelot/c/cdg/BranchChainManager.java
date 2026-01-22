@@ -12,17 +12,23 @@ import java.util.stream.Collectors;
 
 import org.aspectj.org.eclipse.jdt.core.dom.ThisExpression;
 
+import io.github.pavelicii.allpairs4j.AllPairs;
 import it.unisa.ocelot.c.cfg.CFG;
 import it.unisa.ocelot.c.cfg.nodes.CFGNode;
 import it.unisa.ocelot.conf.ConfigManager;
 import it.unisa.ocelot.genetic.edges.FunBranchNameAndFitness;
+import it.unisa.ocelot.genetic.edges.TestObjStateMachine;
+import it.unisa.ocelot.genetic.objectives.GenericObjective;
+import it.unisa.ocelot.genetic.objectives.PC_PairObjective;
 public class BranchChainManager {
 	private Map<String, List<BranchChain>> allBranchChains;
 	private static Map<String, List<BranchChain>> allBranchChainsSaved = new HashMap<String, List<BranchChain>>();
 	private ConfigManager config;
-	List<BranchChainPair> allPairs = new ArrayList<>();
+	private static List<BranchChainPair> allPairs = new ArrayList<>();
 	private static final File outputFile = new File("cdg_output.txt");
-	private static HashMap<String, Double> newFitnessHashMap = new HashMap<String, Double>();
+	public static HashMap<String, Double> newFitnessHashMap = new HashMap<String, Double>();
+	public static List<GenericObjective> generatedBranchChainObjectives;
+	
 	public BranchChainManager() {
 		// TODO Auto-generated constructor stub
 		this.allBranchChains=new HashMap<String, List<BranchChain>>();
@@ -114,7 +120,7 @@ public class BranchChainManager {
 		}catch (IOException e) {
 			System.err.println("Error writing CDG file: " + e.getMessage());
 		}
-		try { 
+		/*try { 
 			FileOutputStream fos = new FileOutputStream("allPairsData"); 
 			ObjectOutputStream oos = new ObjectOutputStream(fos); 
 			oos.writeObject(allPairs); 
@@ -123,7 +129,7 @@ public class BranchChainManager {
 		} 
 		catch (IOException ioe) { 
 			ioe.printStackTrace(); 
-		} 
+		} */
 	}
 	/**
 	 * Generates Cartesian product of branch-chains between two components.
@@ -173,7 +179,7 @@ public class BranchChainManager {
 				else {
 					newFitnessHashMap.put(infoFromLinebr.getFunBranchName(), infoFromLinebr.getCurrFitnessVal());
 				}
-				allBranchChainsSaved.get(infoFromLinebr.getFunBranchName());
+				//allBranchChainsSaved.get(infoFromLinebr.getFunBranchName());
 				lineBr = f_Val_File.readLine();
 			}
 		} catch (IOException e) {
@@ -195,5 +201,31 @@ public class BranchChainManager {
 				infoFromLinebr.setCurrFitnessVal(currFitness);
 				return infoFromLinebr;
 			}
+
+			public static List<GenericObjective> loadObjectives() {
+				// TODO Auto-generated method stub
+				if (generatedBranchChainObjectives == null) {
+					//public static List<BranchChainPairStateMachine> ListOfSMs;
+					List<GenericObjective> objectives = new ArrayList<GenericObjective>();
+					int j = 0;
+					int objectiveID = 0;
+					for (BranchChainPair ListOfBranchChains : allPairs) {
+						BranchChainPairStateMachine BC_Pair = new BranchChainPairStateMachine(objectiveID,ListOfBranchChains.getChain1(), ListOfBranchChains.getChain2());
+						//PC_PairObjective PC_Pair = new PC_PairObjective(false, objectiveID, sm, "Forward", indirectionLevel);
+						objectives.add(BC_Pair);
+						objectiveID++;
+						//objectives.add(newObj);
+					}
+					
+					generatedBranchChainObjectives=(List<GenericObjective>)objectives;
+					System.out.println(generatedBranchChainObjectives);
+					return generatedBranchChainObjectives ;
+				}
+				else {
+					return generatedBranchChainObjectives ;
+				}
+			}
+
+			
 			
 }

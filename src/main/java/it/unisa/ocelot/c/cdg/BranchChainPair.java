@@ -110,7 +110,7 @@ public class BranchChainPair {
 	            String branchConditionsNew= step.getBranchConditionLabel();
 		        sb.append(" "+branchConditionsNew+" -> ");
 	        }  
-	        sb.append("--->  Conditions (Chain 2):");
+	        sb.append("==>  Conditions (Chain 2):");
 	        for (int i = 0; i < path2.size(); i++) {
 	            PathStep step = path2.get(i);
 	            String branchConditionsNew= step.getBranchConditionLabel();

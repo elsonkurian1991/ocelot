@@ -12,6 +12,7 @@ import java.util.Set;
 import org.apache.commons.io.output.TeeOutputStream;
 
 import it.unisa.ocelot.TestCase;
+import it.unisa.ocelot.c.cdg.BranchChainManager;
 import it.unisa.ocelot.c.cfg.CFG;
 import it.unisa.ocelot.c.cfg.CFGBuilder;
 import it.unisa.ocelot.c.types.CTypeHandler;
@@ -66,6 +67,7 @@ public class GenAndWrite {
 			//LUCA: load list of objectives
 			// Martino: decide if you want to pass pair objectives or branch objectives
 			List<GenericObjective> objectives;
+			
 			if (config.getOptimizeFor().equals("Pairs")) {
 				objectives = PC_PairsManager.loadObjectives();
 				//objectives.addAll(BranchManager.loadObjectivesSynthetics(objectives.size()));
@@ -82,10 +84,12 @@ public class GenAndWrite {
 			else
 				throw new Exception("Don't know what you are Evaluate for");
 			
+			//here wwe are generating the new branch Chain Objectives
+			List<GenericObjective> branchChainObjectives;
+			branchChainObjectives= BranchChainManager.loadObjectives();
 			
-			
-			
-			TestSuiteGenerator generator = TestSuiteGeneratorHandler.getInstance(config, cfg, objectives);
+			TestSuiteGenerator generator = TestSuiteGeneratorHandler.getInstance(config, cfg, branchChainObjectives);
+			//TestSuiteGenerator generator = TestSuiteGeneratorHandler.getInstance(config, cfg, objectives);
 			//TestSuiteMinimizer minimizer = TestSuiteMinimizerHandler.getInstance(config);
 			
 			System.out.println("Generator: " + generator.getClass().getSimpleName());
