@@ -151,53 +151,13 @@ public class BranchChainPairStateMachine extends GenericObjective implements Ser
 		double fitValOne = 0.0;
 		FunBranchNameAndFitness infoFromLinebr1;
 		BranchChain bcOne = this.branchChainOne;	
-		System.out.println("BC One:"+bcOne.toString()+bcOne.getLabel());
+		//System.out.println("BC One:"+bcOne.toString()+bcOne.getLabel());
 		
 		//here we need to consider the first branch chain.
 		//String objOne= this.getBranchChainOne().getLabel();
-		int bcOnePathSize=bcOne.getPath().size();
-		Double testObj1;
-		for(int i=0;i<bcOnePathSize;i++) {
-			String bcLabel = bcOne.getPath().get(i).getBranchConditionLabel();			
-			if(bcLabel!=null){
-				//this is branch with conditions
-	
-				testObj1 = BranchChainManager.newFitnessHashMap.get(bcLabel);
-				if(testObj1!=null) {
-					infoFromLinebr1 = new FunBranchNameAndFitness(bcLabel, testObj1);
-					fitValOne += BranchChainManager.newFitnessHashMap.get(bcLabel);
-				}
-				else {
-					infoFromLinebr1 = new FunBranchNameAndFitness(bcLabel, 1);
-					transition(infoFromLinebr1);
-				}
-				System.out.println(bcLabel+"->"+fitValOne);
-			}			
-		}
-		FunBranchNameAndFitness infoFromLinebr2;
+		fitValOne = computeBCFitness( bcOne);
 		BranchChain bcTwo = this.branchChainTwo;
-		double fitValTwo = 0.0;
-		int bcTwoPathSize=bcTwo.getPath().size();
-		Double testObj2;
-		System.out.println("BC Two:"+bcTwo.toString()+bcTwo.getLabel());
-		for(int i=0;i<bcTwoPathSize;i++) {
-			String bcLabel = bcTwo.getPath().get(i).getBranchConditionLabel();
-			//System.out.println(bcLabel);
-			if(bcLabel!=null){
-				//this is branch with conditions
-
-				testObj2 = BranchChainManager.newFitnessHashMap.get(bcLabel);
-				if(testObj2!=null) {
-					infoFromLinebr2 = new FunBranchNameAndFitness(bcLabel, testObj2);
-					fitValTwo += BranchChainManager.newFitnessHashMap.get(bcLabel);
-				}
-				else {
-					infoFromLinebr2 = new FunBranchNameAndFitness(bcLabel, 1);
-					transition(infoFromLinebr2);
-				}
-				System.out.println(bcLabel+"->"+fitValTwo);
-			}
-		}
+		double fitValTwo = computeBCFitness( bcTwo);
 		
 		fitness = (fitValOne + fitValTwo)/2;
 		if (fitness == Double.POSITIVE_INFINITY) {
@@ -205,6 +165,38 @@ public class BranchChainPairStateMachine extends GenericObjective implements Ser
 		}
 		
 		return fitness;
+	}
+
+	private double computeBCFitness( BranchChain bc) {
+		int bcPathSize=bc.getPath().size();
+		double fitVal=0.0;
+		int numObj=0;
+		
+		for(int i=0;i<bcPathSize;i++) {
+			String bcLabel = bc.getPath().get(i).getBranchConditionLabel();			
+			if(bcLabel!=null){
+				numObj++;
+				//this is branch with conditions
+	
+				Double testObj = BranchChainManager.newFitnessHashMap.get(bcLabel);
+				if(testObj!=null) {
+					//infoFromLinebr1 = new FunBranchNameAndFitness(bcLabel, testObj1);
+					fitVal += testObj;
+				}
+				else {
+					fitVal+=1.0;
+					//infoFromLinebr1 = new FunBranchNameAndFitness(bcLabel, 1);
+					//transition(infoFromLinebr1);
+				}
+				System.out.println(bcLabel+"->"+testObj);
+			}			
+		}
+		if(numObj>0) {
+			fitVal =fitVal/(double)numObj;
+		}
+		
+		//System.out.println(bc.getLabel()+"="+fitVal);
+		return fitVal;
 	}
 	
 	public  void transition(FunBranchNameAndFitness infoFromLinebr) {  // edit this code to handle both branch at a time.
