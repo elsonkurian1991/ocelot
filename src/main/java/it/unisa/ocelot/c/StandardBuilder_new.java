@@ -53,12 +53,14 @@ import it.unisa.ocelot.c.instrumentor.BooleanAssignmentTransformer;
 import it.unisa.ocelot.c.instrumentor.ControlDependenceGraph;
 import it.unisa.ocelot.c.instrumentor.ExternalReferencesVisitor;
 import it.unisa.ocelot.c.instrumentor.ForLoopTransformer;
+import it.unisa.ocelot.c.instrumentor.ForLoopTransformer_forCDG;
 import it.unisa.ocelot.c.instrumentor.InstrumenterVisitForIfMethodCalls;
 import it.unisa.ocelot.c.instrumentor.InstrumentorVisitor;
 import it.unisa.ocelot.c.instrumentor.InstrumentorVisitorToAddBranch;
 import it.unisa.ocelot.c.instrumentor.MacroDefinerVisitor;
 import it.unisa.ocelot.c.instrumentor.StatementTreePrinter;
 import it.unisa.ocelot.c.instrumentor.UnitComponentInstrumentorVisitor;
+import it.unisa.ocelot.c.instrumentor.UnitComponentInstrumentorVisitorForCDG;
 import it.unisa.ocelot.conf.ConfigManager;
 import it.unisa.ocelot.util.Utils;
 import it.unisa.ocelot.genetic.edges.TestObjStateMachine;
@@ -226,7 +228,7 @@ public class StandardBuilder_new extends Builder {
 				// add instrumention for for-loop,
 				Set<IASTNode> trackSynthetics = new HashSet<>();
 				// not using the for loop instrumentation now!!!!!!!!!!!!!!!!!!!!!!!!!
-				/*ForLoopTransformer forloopTrans = new ForLoopTransformer(translationUnit);
+				/*ForLoopTransformer_forCDG forloopTrans = new ForLoopTransformer_forCDG(translationUnit);
 				translationUnit.accept(forloopTrans);
 				syntheticBranchesGeneratedWithFor += forloopTrans.trackSynthetics.size();
 				trackSynthetics.addAll(forloopTrans.trackSynthetics);
@@ -259,7 +261,7 @@ public class StandardBuilder_new extends Builder {
 				*/
 				ArrayList<String> testObjectives = new ArrayList<String>();
 				// Instruments unit-level components out main instrumenation
-				UnitComponentInstrumentorVisitor instrumentor1 = new UnitComponentInstrumentorVisitor(tempUnitComponent,
+				UnitComponentInstrumentorVisitorForCDG instrumentor1 = new UnitComponentInstrumentorVisitorForCDG(tempUnitComponent,
 						testObjectives, unitLevelComponents, trackSynthetics);
 				translationUnit.accept(instrumentor1);
 				foundSynthetic += instrumentor1.foundSynthetics.size();
@@ -278,11 +280,11 @@ public class StandardBuilder_new extends Builder {
 
 					isSpclFunWObranch=true;
 					// not using the isSpclFunWObranch instrumentation now!!!!!!!!!!!!!!!!!!!!!!!!!
-					/*testObjectives.add(tempUnitComponent + ":" + "branch0-true");
+					testObjectives.add(tempUnitComponent + ":" + "branch0-true");
 					ASTRewrite rewriterBranch = ASTRewrite.create(translationUnit);
 					InstrumentorVisitorToAddBranch InstAddBranch = new InstrumentorVisitorToAddBranch(tempUnitComponent,rewriterBranch);
 					translationUnit.accept(InstAddBranch);
-					*/
+					
 					System.out.println("File modified with temp branch:"+tempUnitComponent);
 
 				}
@@ -407,7 +409,7 @@ public class StandardBuilder_new extends Builder {
 						e.printStackTrace();
 					}
 				}*/
-				reportComponentsTestObjectives(componentsTestObjectives);
+				//reportComponentsTestObjectives(componentsTestObjectives);
 				//this.callMacro = macroDefiner.getCallMacro();
 				//this.externDeclarations = referencesVisitor.getExternalDeclarations();
 				//From here, the new try for the CFG to  CDG -> bracnch chains->
