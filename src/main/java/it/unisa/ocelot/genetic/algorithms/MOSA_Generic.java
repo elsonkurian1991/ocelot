@@ -157,6 +157,7 @@ public class MOSA_Generic extends OcelotAlgorithm {
 		// Create the initial solutionSet
 		Solution newSolution;
 		for (int i = 0; i < populationSize; i++) {
+			//System.err.println("Population count: " + i);
 			newSolution = new Solution(problem_);
 			problem_.evaluate(newSolution);
 			evaluations++;
@@ -174,6 +175,7 @@ public class MOSA_Generic extends OcelotAlgorithm {
 			Solution[] parents = new Solution[2];
 			
 			for (int i = 0; i < populationSize * 0.1; i++) {
+				//System.err.println("Population count: " + i);
 				newSolution = new Solution(problem_);
 				problem_.evaluate(newSolution);
 				evaluations++;
@@ -182,6 +184,7 @@ public class MOSA_Generic extends OcelotAlgorithm {
 
 			if (!config.isRandomRun()) {
 			for (int i = 0; i < (populationSize / 2); i++) {
+				//System.err.println("Population count: " + i);
 				if (evaluations < maxEvaluations) {
 					// obtain parents
 					parents[0] = (Solution) selectionOperator.execute(population);

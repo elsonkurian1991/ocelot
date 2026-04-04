@@ -49,7 +49,13 @@ public class Run {
 	public static final String VERSION = "1.0";
 
 	public static final String HASH_FILENAME = ".lastbuild.cks";
-	private static final String CONFIG_FILENAME = "config.properties";
+	/*
+	 * config_lmc_cdg
+	 * config_emdm_cdg
+	 * config_toyseven_cdg
+	 * config_toysix_cdg
+	 */
+	private static final String CONFIG_FILENAME = "config_toysix_cdg.properties";
 
 	private static final int RUNNER_ILLEGAL = -1;
 	private static final int RUNNER_SIMPLE_EXECUTE = 0;
@@ -106,7 +112,7 @@ public class Run {
 			//logWriter.append("Info:");
 			//logWriter.append("\n");
 			//ReadEFLfilesforPairCombination_V2.RunEFLfilesforPairCombination(); // run this to read the efl file and create pairwise combinations. find a best place to call this
-			generatedObjectives = PC_PairsManager.loadObjectives();
+			//generatedObjectives = PC_PairsManager.loadObjectives();
 			branchObjective = BranchManager.loadObjectives(0);
 			//logWriter.append("\n");
 			//logWriter.append("List of PC PairCombinations:");
@@ -127,7 +133,7 @@ public class Run {
 			long minutes = (time / 60000) % 60;
 			long seconds = (time / 1000) % 60;
 
-			PrintNumOfPathCovered();
+			//PrintNumOfPathCovered();
 			System.out.println("Execution time: " + hours + " hours, " + minutes + " minutes, " + seconds + " seconds");
 			logWriter.append("Execution time: " + hours + " hours, " + minutes + " minutes, " + seconds + " seconds");
 			logWriter.append("\n");

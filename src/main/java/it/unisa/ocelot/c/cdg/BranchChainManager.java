@@ -25,7 +25,10 @@ public class BranchChainManager {
 	private static Map<String, List<BranchChain>> allBranchChainsSaved = new HashMap<String, List<BranchChain>>();
 	private ConfigManager config;
 	private static List<BranchChainPair> allPairs = new ArrayList<>();
-	private static final File outputFile = new File("cdg_output.txt");
+	// Prefix for all generated output filenames (loaded from config or set to default)
+	private static final String CONFIG_FILENAME = ""; // If desired, set a directory or prefix here, e.g. "output/"
+	static String filename = CONFIG_FILENAME + "cdg_output.txt";
+	private static final File outputFile = new File(filename);
 	public static HashMap<String, Double> newFitnessHashMap = new HashMap<String, Double>();
 	public static List<GenericObjective> generatedBranchChainObjectives;
 	
@@ -73,11 +76,8 @@ public class BranchChainManager {
 	}
 	public void generatePairsForBranchChains() {
 
-		// Get component pairs from configuration
-		Map<String, String> pairComponentsMap = this.config.getPairComponents();
-		List<ComponentPair> componentPairs = pairComponentsMap.entrySet().stream()
-				.map(entry -> new ComponentPair(entry.getKey(), entry.getValue()))
-				.collect(Collectors.toList());
+		// Get component pairs from configuration (preserves duplicates)
+		List<ComponentPair> componentPairs = this.config.getPairComponents();
 		try (BufferedWriter writer = new BufferedWriter(new FileWriter(outputFile,true))) {
 			System.out.println("\n=== GENERATING BRANCH-CHAIN PAIRS ===");
 			System.out.println("Component pairs from configuration: " + componentPairs.size());
@@ -172,6 +172,7 @@ public class BranchChainManager {
 		try (BufferedReader f_Val_File = new BufferedReader(new FileReader("./fitnessValues.txt"))) {
 			String lineBr = f_Val_File.readLine();
 			while (lineBr != null) {
+				//System.err.println(lineBr);
 				FunBranchNameAndFitness infoFromLinebr = readInfoFromLine(lineBr);
 				if(newFitnessHashMap.containsKey(infoFromLinebr.getFunBranchName()) && newFitnessHashMap.get(infoFromLinebr.getFunBranchName()) < infoFromLinebr.getCurrFitnessVal()) {
 					// Do nothing
@@ -226,6 +227,6 @@ public class BranchChainManager {
 				}
 			}
 
-			
-			
+				
+				
 }

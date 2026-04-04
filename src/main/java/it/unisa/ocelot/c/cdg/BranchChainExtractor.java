@@ -101,12 +101,27 @@ public class BranchChainExtractor {
         // Cycle detection
         if (visited.contains(current)) return;
         visited.add(current);
-        
+        System.out.printf("[findPathsToLeaf] enter: current=%s (id=%d), target=%s (id=%d), pathLen=%d\n",
+                current.getLabel(), current.getId(), target.getLabel(), target.getId(), currentPath.size());
+   
         // Base case: reached the target leaf String unitComponentName, int chainNumber
         if (current.equals(target)) {
+        	// Print the current path in a readable form
+            StringBuilder pathSb = new StringBuilder();
+            for (PathStep ps : currentPath) {
+                pathSb.append(ps.getFrom().getLabel()).append("->").append(ps.getTo().getLabel());
+                if (ps.hasBranchCondition()) {
+                    pathSb.append(" [cond=").append(ps.getBranchLabel()).append("]");
+                }
+                pathSb.append(" | ");
+            }
+            System.out.printf("[findPathsToLeaf] reached target: %s (id=%d). fullPath=[%s]\n", target.getLabel(), target.getId(), pathSb.toString());
+       
             BranchChain chain = new BranchChain(target, new ArrayList<>(currentPath), unitComponentName,0);
             branchChains.add(chain);
             visited.remove(current);
+            System.out.printf("[findPathsToLeaf] backtrack after adding chain: current=%s (id=%d)\n", current.getLabel(), current.getId());
+            
             return;
         }
         
@@ -114,7 +129,8 @@ public class BranchChainExtractor {
         Set<ControlDependenceEdge> outEdges = cdg.outgoingEdgesOf(current);
         for (ControlDependenceEdge edge : outEdges) {
             CDGNode successor = cdg.getEdgeTarget(edge);
-            
+            System.out.printf("[findPathsToLeaf] exploring edge from %s (id=%d) to %s (id=%d)\n",current.getLabel(), current.getId(), successor.getLabel(), successor.getId());
+      
             // Add this step to path
             PathStep step = new PathStep(current, successor, edge);
             if(step.hasBranchCondition()) {
@@ -128,7 +144,9 @@ public class BranchChainExtractor {
             		BranchChainExtractor.branchNoCounter++;
             	}
             	step.setBranchConditionLabel(unitComponentName+":branch"+branchNo+"-"+edge.branchCondition());
-            	
+            	System.out.printf("[findPathsToLeaf] set branch label for node %s (id=%d): %s\n",
+                        current.getLabel(), current.getId(), step.getBranchLabel());
+          
             }
             	
             currentPath.add(step);
@@ -138,6 +156,8 @@ public class BranchChainExtractor {
             
             // Backtrack
             currentPath.remove(currentPath.size() - 1);
+            System.out.printf("[findPathsToLeaf] backtracking from %s (id=%d) to %s (id=%d). pathLen=%d\n",
+            		                       successor.getLabel(), successor.getId(), current.getLabel(), current.getId(), currentPath.size());           
         }
         
         visited.remove(current);

@@ -4,6 +4,7 @@ import it.unisa.ocelot.c.cfg.CFG;
 import it.unisa.ocelot.c.cfg.edges.LabeledEdge;
 import it.unisa.ocelot.c.cfg.nodes.CFGNode;
 import it.unisa.ocelot.c.cfg.nodes.CFGNodeNavigator;
+import it.unisa.ocelot.c.cdg.ComponentPair;
 
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -270,36 +271,42 @@ public class ConfigManager {
 		
 	}
 	/**
-     * Reads the "test.pairComponents" property and parses it into a Map.
-     * Expected format: "key1:value1,key2:value2,key3:value3"
-     * 
-     * @return Map containing the parsed key-value pairs
-     * test.pairComponents: component1:pair1,component2:pair2,component3:pair3
+     * Reads the "test.pairComponents" property and parses it into a List of ComponentPair.
+     * Expected format: "compA,compB;compC,compD;compE,compF"
+     * Pairs are separated by ';' and components inside a pair are separated by ','.
+     * Duplicates are preserved (returned as separate list entries).
+     *
+     * @return List containing the parsed component pairs (may be empty)
      */
-	
-	public Map<String, String> getPairComponents() {
-        String includeStrings = this.properties.getProperty("test.pairComponents", "");
-        Map<String, String> pairMap = new HashMap<>();
-     // Handle empty or null strings
-        if (includeStrings == null || includeStrings.trim().isEmpty()) {
-            return pairMap;
+    public List<ComponentPair> getPairComponents() {
+        String raw = this.properties.getProperty("test.pairComponents", "");
+        List<ComponentPair> pairsList = new ArrayList<>();
+
+        if (raw == null || raw.trim().isEmpty()) {
+            return pairsList;
         }
-        // Split by comma to get individual pairs
-        String[] pairs = includeStrings.split(";");
-        
+
+        // Split into pairs using ';' as separator (allow optional surrounding whitespace)
+        String[] pairs = raw.split("\\s*;\\s*");
         for (String pair : pairs) {
-            // Split each pair by colon
-            String[] keyValue = pair.split(",");
-            
-            // Ensure we have exactly two parts (key and value)
-            if (keyValue.length == 2) {
-                String key = keyValue[0].trim();
-                String value = keyValue[1].trim();
-                pairMap.put(key, value);
+            if (pair == null || pair.trim().isEmpty())
+                continue;
+
+            // Split components inside a pair using ',' (allow optional surrounding whitespace)
+            String[] comps = pair.split("\\s*,\\s*");
+            if (comps.length == 2) {
+                String c1 = comps[0].trim();
+                String c2 = comps[1].trim();
+                // preserve duplicates by always adding a new ComponentPair
+                pairsList.add(new ComponentPair(c1, c2));
+            } else {
+                // malformed entry, warn and skip
+                System.err.println("WARNING: Invalid component-pair format: '" + pair + "' (expected 'comp1,comp2')");
             }
         }
-        return pairMap;
-	}
+
+        return pairsList;
+    }
 	/**
 	 * Returns the output folder.
 	 * @return

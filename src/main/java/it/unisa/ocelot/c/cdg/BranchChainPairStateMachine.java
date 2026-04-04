@@ -157,13 +157,14 @@ public class BranchChainPairStateMachine extends GenericObjective implements Ser
 		//String objOne= this.getBranchChainOne().getLabel();
 		fitValOne = computeBCFitness( bcOne);
 		BranchChain bcTwo = this.branchChainTwo;
+		//System.out.println("BC Two:"+bcTwo.toString()+bcTwo.getLabel());
 		double fitValTwo = computeBCFitness( bcTwo);
 		
 		fitness = (fitValOne + fitValTwo)/2;
 		if (fitness == Double.POSITIVE_INFINITY) {
 			fitness = Double.MAX_VALUE;
 		}
-		
+		//System.out.println("Fitness for "+this.getBranchChainOne().getLabel()+" and "+this.getBranchChainTwo().getLabel()+" is: "+fitness);
 		return fitness;
 	}
 
@@ -179,6 +180,7 @@ public class BranchChainPairStateMachine extends GenericObjective implements Ser
 				//this is branch with conditions
 	
 				Double testObj = BranchChainManager.newFitnessHashMap.get(bcLabel);
+				//System.out.println("Branch condition label: "+bcLabel+" fitness value from cache: "+testObj);
 				if(testObj!=null) {
 					//infoFromLinebr1 = new FunBranchNameAndFitness(bcLabel, testObj1);
 					fitVal += testObj;
@@ -188,14 +190,15 @@ public class BranchChainPairStateMachine extends GenericObjective implements Ser
 					//infoFromLinebr1 = new FunBranchNameAndFitness(bcLabel, 1);
 					//transition(infoFromLinebr1);
 				}
-				System.out.println(bcLabel+"->"+testObj);
+				//System.out.println(bcLabel+"->"+testObj);
 			}			
 		}
 		if(numObj>0) {
 			fitVal =fitVal/(double)numObj;
 		}
+		//System.out.println("numObj="+numObj);
+		//System.out.println("Fitness value for branch chain "+bc.getLabel()+" is: "+fitVal);
 		
-		//System.out.println(bc.getLabel()+"="+fitVal);
 		return fitVal;
 	}
 	

@@ -57,8 +57,8 @@ public class MOSAGenericCoverageProblem extends StandardProblem {
 		VariableTranslator translator = new VariableTranslator(solution);
 		Object[][][] arguments = translator.translateArray(this.parameters);
 		
-		if (debug)
-			System.out.println(Utils.printParameters(arguments));
+		
+		//System.out.println(Utils.printParameters(arguments));
 
 		CBridge bridge = getCurrentBridge();
 		EventsHandler handler = new EventsHandler();
@@ -76,7 +76,7 @@ public class MOSAGenericCoverageProblem extends StandardProblem {
 		//LUCA: read fitnessValues.txt (branch fitnesses) file and store it. More efficient than reading it for every objective.
 		//BranchDistanceCache.cacheFitnessValues();// old version 
 		BranchChainManager.cacheFitnessValues();
-		StringBuilder args= new StringBuilder();
+		/*StringBuilder args= new StringBuilder();
 		args.append("arguments:                                                       ");
 		for (Object[][] layer : arguments) {
 		    for (Object[] row : layer) {
@@ -85,15 +85,17 @@ public class MOSAGenericCoverageProblem extends StandardProblem {
 		        }
 		    }
 		}
-		System.out.println(args.toString());
+		System.err.println(args.toString());*/
 		for (GenericObjective objective : objectives) {
 			//if (objective.isCovered() || !objective.isActive() )
-			if (objective.isCovered())
-				continue;
 			
 			double fitness = objective.getFitness(arguments);
-			//System.out.println(objective.getObjectiveID());
+			//System.out.println(fitness);
+			if (objective.isCovered()) {
+				continue;
+			}
 			//solution.setObjective(objective.getObjectiveID(), fitness);
+			//System.err.println("NOT COVERED OBJ:"+objective.getObjectiveID()+": "+fitness);
 			solution.setObjective(objective.getObjectiveID(), fitness);
 		}
 		
