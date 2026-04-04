@@ -33,7 +33,7 @@ int _f_ocelot_branch_out(char* functionName, int count, int result, double dista
 		fprintf(fptr2, "-");
 		fprintf(fptr2, "true");
 		fprintf(fptr2, ";");
-		fprintf(fptr2, "%f", distanceTrue);
+		fprintf(fptr2, "%.17f", distanceTrue);
 		fprintf(fptr2, "\n");
 
 		fprintf(fptr2, functionName);
@@ -42,7 +42,7 @@ int _f_ocelot_branch_out(char* functionName, int count, int result, double dista
 		fprintf(fptr2, "-");
 		fprintf(fptr2, "false");
 		fprintf(fptr2, ";");
-		fprintf(fptr2, "%f", distanceFalse);
+		fprintf(fptr2, "%.17f", distanceFalse);
 		fprintf(fptr2, "\n");
 		fclose(fptr2);
 	}  
@@ -59,7 +59,7 @@ int _f_ocelot_branch_out(char* functionName, int count, int result, double dista
 		fprintf(fptr3, "-");
 		fprintf(fptr3, "true");
 		fprintf(fptr3, ";");
-		fprintf(fptr3, "%f", distanceTrue);
+		fprintf(fptr3, "%.17f", distanceTrue);
 		fprintf(fptr3, "\n");
 
 		fprintf(fptr3, functionName);
@@ -68,7 +68,7 @@ int _f_ocelot_branch_out(char* functionName, int count, int result, double dista
 		fprintf(fptr3, "-");
 		fprintf(fptr3, "false");
 		fprintf(fptr3, ";");
-		fprintf(fptr3, "%f", distanceFalse);
+		fprintf(fptr3, "%.17f", distanceFalse);
 		fprintf(fptr3, "\n");
 		fclose(fptr3);
 	} 
@@ -89,7 +89,7 @@ int _f_ocelot_branch_out(char* functionName, int count, int result, double dista
 	fprintf(fptr, "-");
 	fprintf(fptr, "true");
 	fprintf(fptr, ";");
-	fprintf(fptr, "%f", distanceTrue);
+	fprintf(fptr, "%.17f", distanceTrue);
 	fprintf(fptr, "\n");
 
 	fprintf(fptr, functionName);
@@ -98,7 +98,7 @@ int _f_ocelot_branch_out(char* functionName, int count, int result, double dista
 	fprintf(fptr, "-");
 	fprintf(fptr, "false");
 	fprintf(fptr, ";");
-	fprintf(fptr, "%f", distanceFalse);
+	fprintf(fptr, "%.17f", distanceFalse);
 	fprintf(fptr, "\n");
 
 	//fflush(fptr);
@@ -187,14 +187,18 @@ double _f_ocelot_eq_numeric(double op1, double op2) {
 }
 
 double _f_ocelot_gt_numeric(double op1, double op2) {
+			
 	double k = (double)op2 - (double)op1;
 	double result;
 	if (k < 0.0) {
 		result = 0.0;
 	} else {
-		k = (double)k+0.001;
+		
+		k = (double)k+0.001; //due to 0; to avoid we add 0.001
+		//k=log(k); 
 		result = (double)k/(1.0+(double)k);
 	}
+	
 	return result;
 }
 
@@ -203,7 +207,8 @@ double _f_ocelot_ge_numeric(double op1, double op2) {
 	double result;
 	if (k <= 0.0) {
 		result = 0.0;
-	} else {
+	} else { 
+		//k=log(k);
 		result = (double)k/(1.0+(double)k);
 	}
 	return result;
@@ -260,6 +265,8 @@ double _f_ocelot_neq_pointer(void* op1, void* op2) {
 }
 
 double _f_ocelot_and(double op1, double op2) {
+
+		
 	if(op1 == OCELOT_K_FAKE)
 	{
 		op1 = OCELOT_K;
