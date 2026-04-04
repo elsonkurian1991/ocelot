@@ -8,11 +8,17 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.util.Map;
+import java.util.HashMap;
 
 import org.apache.commons.io.output.TeeOutputStream;
 
 import it.unisa.ocelot.TestCase;
 import it.unisa.ocelot.c.cdg.BranchChainManager;
+import it.unisa.ocelot.c.cdg.BranchChainPairStateMachine;
+import it.unisa.ocelot.c.cdg.BranchChain;
 import it.unisa.ocelot.c.cfg.CFG;
 import it.unisa.ocelot.c.cfg.CFGBuilder;
 import it.unisa.ocelot.c.types.CTypeHandler;
@@ -76,14 +82,14 @@ public class GenAndWrite {
 				objectives = BranchManager.loadObjectives(0);
 			else
 				throw new Exception("Don't know what you are optimizing for");
-			List<GenericObjective> objectivesToEvaluate;
-			if (config.getEvaluateOn().equals("Pairs"))
+			List<GenericObjective> objectivesToEvaluate = null;
+			/*if (config.getEvaluateOn().equals("Pairs"))
 				objectivesToEvaluate = PC_PairsManager.loadObjectives();	
 			else if (config.getEvaluateOn().equals("Branches"))
 				objectivesToEvaluate = BranchManager.loadObjectives(0);
 			else
 				throw new Exception("Don't know what you are Evaluate for");
-			
+			*/
 			//here wwe are generating the new branch Chain Objectives
 			List<GenericObjective> branchChainObjectives;
 			branchChainObjectives= BranchChainManager.loadObjectives();
@@ -100,19 +106,30 @@ public class GenAndWrite {
 			Set<TestCase> minimizedSuite = suite;
 			List<GenericObjective> objectivesToRemove = new ArrayList<>();
 			
-			for (GenericObjective obj : objectivesToEvaluate) {
+			/*for (GenericObjective obj : objectivesToEvaluate) {
 				if (obj instanceof PC_PairObjective && ((PC_PairObjective) obj).isSynthetic)
 					objectivesToRemove.add(obj);
 				else if (obj instanceof BranchObjective && ((BranchObjective) obj).isSynthetic)
 					objectivesToRemove.add(obj);
 			}
-			objectivesToEvaluate.removeAll(objectivesToRemove);
+			objectivesToEvaluate.removeAll(objectivesToRemove);*/
 			
-			GenericCoverageCalculator calculator = new GenericCoverageCalculator(cfg, objectivesToEvaluate);
+			for (GenericObjective obj : branchChainObjectives) {
+				if (obj instanceof PC_PairObjective && ((PC_PairObjective) obj).isSynthetic)
+					objectivesToRemove.add(obj);
+				else if (obj instanceof BranchObjective && ((BranchObjective) obj).isSynthetic)
+					objectivesToRemove.add(obj);
+			}
+			branchChainObjectives.removeAll(objectivesToRemove);
+			
+			GenericCoverageCalculator calculator = new GenericCoverageCalculator(cfg, branchChainObjectives);
 			
 			calculator.calculateCoverage(minimizedSuite);
 			
-			System.out.println("Size of objectivesToEvaluate: "+objectivesToEvaluate.size());
+			// Print and write uncovered branch-chain objectives to file (include coverage counts)
+			printUncoveredBCobjectives(calculator, branchChainObjectives, minimizedSuite);
+			
+			System.out.println("Size of objectivesToEvaluate: "+branchChainObjectives.size());
 			System.out.println("-------------------------------------------------------");
 			System.out.println("Minimized test cases: " + minimizedSuite.size());
 			System.out.println("Objective coverage achieved: " + calculator.getObjectiveCoverage());
@@ -135,6 +152,74 @@ public class GenAndWrite {
 		} catch (Exception e) {
 			e.printStackTrace();
 			throw new RuntimeException(e);
+		}
+	}
+
+	// Helper: prints uncovered branch-chain objectives (human readable) and writes them to uncoveredBCobjectives.txt
+	// Also computes how many times each branch chain is covered across the provided test suite
+	private void printUncoveredBCobjectives(GenericCoverageCalculator calculator, List<GenericObjective> branchChainObjectives, Set<TestCase> suite) {
+		List<GenericObjective> uncovered = calculator.getUncoveredObjectives();
+		System.out.println("Uncovered Branch-Chain Objectives: " + uncovered.size());
+		// Build counts for each branch chain label
+		Map<String, Integer> coverageCounts = new HashMap<>();
+		for (GenericObjective obj : branchChainObjectives) {
+			if (obj instanceof BranchChainPairStateMachine) {
+				BranchChainPairStateMachine bcsm = (BranchChainPairStateMachine) obj;
+				BranchChain bc1 = bcsm.getBranchChainOne();
+				BranchChain bc2 = bcsm.getBranchChainTwo();
+				coverageCounts.putIfAbsent(bc1.getLabel(), 0);
+				coverageCounts.putIfAbsent(bc2.getLabel(), 0);
+			} else {
+				coverageCounts.putIfAbsent(obj.toString(), 0);
+			}
+		}
+		// Re-evaluate objectives for each test and increment counts when objective is covered
+		for (TestCase tc : suite) {
+			Object[][][] params = tc.getParameters();
+			for (GenericObjective obj : branchChainObjectives) {
+				double fitness = obj.getFitness(params);
+				if (fitness == 0.0) {
+					if (obj instanceof BranchChainPairStateMachine) {
+						BranchChainPairStateMachine bcsm = (BranchChainPairStateMachine) obj;
+						String l1 = bcsm.getBranchChainOne().getLabel();
+						String l2 = bcsm.getBranchChainTwo().getLabel();
+						coverageCounts.put(l1, coverageCounts.getOrDefault(l1, 0) + 1);
+						coverageCounts.put(l2, coverageCounts.getOrDefault(l2, 0) + 1);
+					} else {
+						String key = obj.toString();
+						coverageCounts.put(key, coverageCounts.getOrDefault(key, 0) + 1);
+					}
+				}
+			}
+		}
+		
+		try (FileWriter fw = new FileWriter("uncoveredBCobjectives.txt")) {
+			for (GenericObjective obj : uncovered) {
+				if (obj instanceof BranchChainPairStateMachine) {
+					BranchChainPairStateMachine bcsm = (BranchChainPairStateMachine) obj;
+					BranchChain bc1 = bcsm.getBranchChainOne();
+					BranchChain bc2 = bcsm.getBranchChainTwo();
+					String idLine = "ObjectiveID:" + obj.getObjectiveID();
+					int count1 = coverageCounts.getOrDefault(bc1.getLabel(), 0);
+					int count2 = coverageCounts.getOrDefault(bc2.getLabel(), 0);
+					String summary = idLine + " | " + bc1.getLabel() + " (covered " + count1 + " times)  <->  " + bc2.getLabel() + " (covered " + count2 + " times)";
+					//System.out.println(summary);
+					fw.write(summary + "\n");
+					fw.write("--- Chain 1 (text) ---\n");
+					fw.write(bc1.toTextRepresentation() + "\n");
+					fw.write("--- Chain 2 (text) ---\n");
+					fw.write(bc2.toTextRepresentation() + "\n");
+					fw.write("--------------------------------------------------\n");
+				} else {
+					String s = obj.toString();
+					int count = coverageCounts.getOrDefault(s, 0);
+					String line = s + " (covered " + count + " times)";
+					System.out.println(line);
+					fw.write(line + "\n");
+				}
+			}
+		} catch (IOException e) {
+			System.err.println("Unable to write uncoveredBCobjectives.txt: " + e.getMessage());
 		}
 	}
 }
