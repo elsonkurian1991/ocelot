@@ -1,0 +1,2 @@
+int *c;int z;typedef int gint;int test() {	int a; int b; int zz = a+b+*c;}
+void test2() {gint a;c = a-z;}

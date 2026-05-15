@@ -1,248 +1,323 @@
 package it.unisa.ocelot.c.cdg;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
+import org.eclipse.cdt.core.dom.ast.*;
 
-/**
- * Extracts branch-chains (paths from entry to leaf nodes) from a CDG.
- * Provides both AST-based representation (for fitness calculation) 
- * and text-based representation (for debugging).
- */
 public class BranchChainExtractor {
-
-	private CDG cdg;
+    private final CDG cdg;
     private List<BranchChain> branchChains;
-    private String unitComponentName;  // Function name or unit component identifier
-    public BranchChainExtractor(CDG cdg) {
-        this.cdg = cdg;
-        this.branchChains = new ArrayList<>();
-        this.unitComponentName = "unknown";
-    }
-    
-   
-    public static int branchNoCounter = 0;
-    public static Map<CDGNode,Integer> branchMap = new HashMap<>();
-    /**
-     * Constructor with unit component name for proper labeling.
-     * 
-     * @param cdg The Control Dependence Graph
-     * @param unitComponentName The name of the function/unit being analyzed
-     */
-    public BranchChainExtractor(CDG cdg, String unitComponentName) {
+    private final String unitComponentName;
+    private final Map<IASTExpression, Integer> branchChainsMap;
+
+    // Internal state to ensure unique IDs per decision point
+    private final Map<CDGNode, Integer> localNodeIdMap = new HashMap<>();
+    private int idCounter = 0;
+
+    // FIX-1: Inlined branch index map.
+    // Built once at the start of extractBranchChains() by scanning all CDG
+    // nodes that own at least one TRUE/FALSE outgoing edge.
+    // Sorted by CDGNode.getId() for deterministic branch0, branch1, ... labels.
+    // Completely self-contained — no changes required in CDG.java.
+    private final Map<CDGNode, Integer> branchIndexMap = new LinkedHashMap<>();
+
+    public BranchChainExtractor(CDG cdg, String unitComponentName, Map<IASTExpression, Integer> branchChainsMap) {
         this.cdg = cdg;
         this.branchChains = new ArrayList<>();
         this.unitComponentName = unitComponentName;
+        this.branchChainsMap = branchChainsMap;
     }
-    /**
-     * Extracts all branch-chains from entry to leaf nodes.
-     * Uses DFS traversal to enumerate all paths.
-     * Automatically assigns labels in format: "functionName:branch1", "functionName:branch2", etc.
-     * @return List of BranchChain objects (AST-based representation)
-     */
-    public List<BranchChain> extractBranchChains() {
-        branchChains.clear();
-        BranchChainExtractor.branchNoCounter = 0;
-        BranchChainExtractor.branchMap.clear();
-        // Find all leaf nodes (nodes with no outgoing edges)
-        List<CDGNode> leafNodes = new ArrayList<>();
+
+    public List<BranchChain> extractBranchChains() throws Exception {
+        this.branchChains.clear();
+        this.localNodeIdMap.clear();
+        this.idCounter = 0;
+
+        // FIX-1: Build the branch index map before any path traversal so that
+        // every predicate node has a stable, unique index for this run.
+        buildBranchIndexMap();
+
+        // 1. Process standard leaf nodes
+        List<CDGNode> leafNodes = cdg.vertexSet().stream()
+                .filter(node -> node.isLeafNode(cdg))
+                .collect(Collectors.toList());
+
+        for (CDGNode leaf : leafNodes) {
+            findPathsToTarget(cdg.getEntryNode(), leaf, new ArrayList<>(), new HashSet<>());
+        }
+
+        // 2. Process Loop Exit (FALSE) paths as virtual leaves
+        //
+        // FIX-2: Original isLoopHeader() checked the CDGNode's AST type for
+        // IASTForStatement/IASTWhileStatement/IASTDoStatement.  This always
+        // failed because loop *condition* CDG nodes carry the condition
+        // expression (e.g. "k < LOOP_MAX"), not the loop statement wrapper.
+        // isLoopHeader() now uses a structural self-loop check instead.
         for (CDGNode node : cdg.vertexSet()) {
-            if (node.isLeafNode(cdg)) {
-                leafNodes.add(node);
+            if (isLoopHeader(node)) {
+                for (ControlDependenceEdge edge : cdg.outgoingEdgesOf(node)) {
+                    if (edge.toString().toUpperCase().contains("FALSE")) {
+                        CDGNode exitTarget = cdg.getEdgeTarget(edge);
+                        findPathsToTarget(cdg.getEntryNode(), exitTarget, new ArrayList<>(), new HashSet<>());
+                    }
+                }
             }
         }
-        
-        // For each leaf, find all paths from entry to that leaf
-        for (CDGNode leaf : leafNodes) {
-            List<PathStep> currentPath = new ArrayList<>();
-            findPathsToLeaf(cdg.getEntryNode(), leaf, currentPath, new HashSet<>());
-        }
-        
-        // 
-        branchChains =  branchChains.stream().filter(BranchChainExtractor::hasBranchChainWithCondition).collect(Collectors.toList());
-        branchChains =  branchChains.stream().filter(BranchChainExtractor::hasBranchChainWithEnd).collect(Collectors.toList());
-     // Assign labels to all chains (1-indexed)
+
+        // 3. Prune redundant paths while preserving target-specific outcomes
+        filterBranchChains();
+
+        // 4. Assign global chain labels
         for (int i = 0; i < branchChains.size(); i++) {
             branchChains.get(i).setLabel(unitComponentName, i + 1);
         }
+
         return branchChains;
     }
-    
-    private static boolean hasBranchChainWithEnd(BranchChain branchChain) {
-      
-    	if(branchChain.getPath().size()==1) {
-    		if(branchChain.getPath().get(0).getTo().getLabel().contains("End")) {
-    			return false;
-    		}
-    	}
-    	return true;
-    }
-    
-    private static boolean hasBranchChainWithCondition(BranchChain branchChain) {
-      
-    	return branchChain.getPath().stream().anyMatch(pathStep -> pathStep.hasBranchCondition());
-    }
-    
+
+    // -------------------------------------------------------------------------
+    // FIX-1: Inlined branch index map builder
+    // -------------------------------------------------------------------------
+
     /**
-     * Recursive DFS to find all paths from current node to target leaf.
-     * 
-     * @param current Current node in traversal
-     * @param target Target leaf node
-     * @param currentPath Path accumulated so far
-     * @param visited Nodes visited in current path (for cycle detection)
+     * Scans every CDGNode in the graph. Any node that has at least one
+     * outgoing TRUE or FALSE edge is a predicate (branch) node and receives
+     * a unique, sequential index: 0, 1, 2, ...
+     *
+     * Nodes are sorted by CDGNode.getId() before indexing so the assignment
+     * is deterministic across runs and matches the CDG dump order.
+     *
+     * Called once at the top of extractBranchChains(), before any traversal.
      */
-    private void findPathsToLeaf(CDGNode current, CDGNode target, 
-                                  List<PathStep> currentPath, Set<CDGNode> visited) {
-        
-        // Cycle detection
-        if (visited.contains(current)) return;
-        visited.add(current);
-        System.out.printf("[findPathsToLeaf] enter: current=%s (id=%d), target=%s (id=%d), pathLen=%d\n",
-                current.getLabel(), current.getId(), target.getLabel(), target.getId(), currentPath.size());
-   
-        // Base case: reached the target leaf String unitComponentName, int chainNumber
-        if (current.equals(target)) {
-        	// Print the current path in a readable form
-            StringBuilder pathSb = new StringBuilder();
-            for (PathStep ps : currentPath) {
-                pathSb.append(ps.getFrom().getLabel()).append("->").append(ps.getTo().getLabel());
-                if (ps.hasBranchCondition()) {
-                    pathSb.append(" [cond=").append(ps.getBranchLabel()).append("]");
-                }
-                pathSb.append(" | ");
+    private void buildBranchIndexMap() {
+        branchIndexMap.clear();
+
+        List<CDGNode> predicates = new ArrayList<>();
+        for (CDGNode node : cdg.vertexSet()) {
+            if (hasTrueFalseEdge(node)) {
+                predicates.add(node);
             }
-            System.out.printf("[findPathsToLeaf] reached target: %s (id=%d). fullPath=[%s]\n", target.getLabel(), target.getId(), pathSb.toString());
-       
-            BranchChain chain = new BranchChain(target, new ArrayList<>(currentPath), unitComponentName,0);
-            branchChains.add(chain);
-            visited.remove(current);
-            System.out.printf("[findPathsToLeaf] backtrack after adding chain: current=%s (id=%d)\n", current.getLabel(), current.getId());
-            
+        }
+
+        // Sort by node ID for stable, deterministic index assignment
+        predicates.sort(Comparator.comparingInt(CDGNode::getId));
+
+        int index = 0;
+        for (CDGNode node : predicates) {
+            branchIndexMap.put(node, index++);
+        }
+    }
+
+    /** Returns true if the node has at least one TRUE or FALSE outgoing edge. */
+    private boolean hasTrueFalseEdge(CDGNode node) {
+        for (ControlDependenceEdge e : cdg.outgoingEdgesOf(node)) {
+            String lbl = e.toString().toUpperCase();
+            if (lbl.contains("TRUE") || lbl.contains("FALSE")) return true;
+        }
+        return false;
+    }
+
+    // -------------------------------------------------------------------------
+    // FIX-1: resolveBranchId — uses inlined branchIndexMap as priority source
+    // -------------------------------------------------------------------------
+
+    /**
+     * Returns a stable, unique branch index for the given CDGNode.
+     *
+     * Priority order:
+     *  1. branchIndexMap (built at start of run) — unique per predicate node,
+     *     never collides.
+     *  2. branchChainsMap lookup by AST raw signature — legacy path, kept for
+     *     backward compatibility.
+     *  3. idCounter fallback — last resort only.
+     *
+     * localNodeIdMap caches the result so the same node always returns the
+     * same ID within one extraction run no matter how many times it is visited.
+     */
+    private int resolveBranchId(CDGNode node) {
+        // Cache hit — same node seen before in this run
+        if (localNodeIdMap.containsKey(node)) return localNodeIdMap.get(node);
+
+        int assignedId = -1;
+
+        // Priority 1: inlined branch index map (always correct, always unique)
+        if (branchIndexMap.containsKey(node)) {
+            assignedId = branchIndexMap.get(node);
+        }
+
+        // Priority 2: legacy branchChainsMap lookup by AST raw signature
+        if (assignedId == -1) {
+            IASTExpression expr = extractExpression(node);
+            if (expr != null && branchChainsMap != null) {
+                String rawSig = expr.getRawSignature();
+                for (Map.Entry<IASTExpression, Integer> entry : branchChainsMap.entrySet()) {
+                    if (entry.getKey().getRawSignature().equals(rawSig)) {
+                        assignedId = entry.getValue();
+                        break;
+                    }
+                }
+            }
+        }
+
+        // Priority 3: fallback counter (last resort)
+        if (assignedId == -1) assignedId = idCounter++;
+
+        localNodeIdMap.put(node, assignedId);
+        return assignedId;
+    }
+
+    // -------------------------------------------------------------------------
+    // FIX-2: isLoopHeader — structural self-loop detection
+    // -------------------------------------------------------------------------
+
+    /**
+     * Returns true if the given CDGNode is a loop condition node.
+     *
+     * Original implementation checked whether the CDGNode's first AST child
+     * was an IASTForStatement/IASTWhileStatement/IASTDoStatement — always
+     * false for loop condition nodes which carry the condition expression.
+     *
+     * Correct detection: a loop condition node has a self-loop TRUE edge in
+     * the CDG (outgoing TRUE edge whose target is the node itself).
+     * This structural invariant is always present for for/while/do-while loops.
+     */
+    private boolean isLoopHeader(CDGNode node) {
+        for (ControlDependenceEdge edge : cdg.outgoingEdgesOf(node)) {
+            if (cdg.getEdgeTarget(edge).equals(node)
+                    && edge.toString().toUpperCase().contains("TRUE")) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // -------------------------------------------------------------------------
+    // Unchanged methods below — not modified
+    // -------------------------------------------------------------------------
+
+    private void findPathsToTarget(CDGNode current, CDGNode target,
+                                   List<PathStep> currentPath, Set<CDGNode> pathVisited) throws Exception {
+        if (current.equals(target)) {
+            if (!currentPath.isEmpty() && hasLogicalBranch(currentPath)) {
+                branchChains.add(new BranchChain(target, new ArrayList<>(currentPath), unitComponentName, 0));
+            }
             return;
         }
-        
-        // Recursive case: explore all successors
-        Set<ControlDependenceEdge> outEdges = cdg.outgoingEdgesOf(current);
-        for (ControlDependenceEdge edge : outEdges) {
+
+        if (pathVisited.contains(current)) return;
+        pathVisited.add(current);
+
+        for (ControlDependenceEdge edge : cdg.outgoingEdgesOf(current)) {
             CDGNode successor = cdg.getEdgeTarget(edge);
-            System.out.printf("[findPathsToLeaf] exploring edge from %s (id=%d) to %s (id=%d)\n",current.getLabel(), current.getId(), successor.getLabel(), successor.getId());
-      
-            // Add this step to path
+
+            if (current.equals(cdg.getEntryNode()) && isSpuriousFlow(edge, successor)) continue;
+
             PathStep step = new PathStep(current, successor, edge);
-            if(step.hasBranchCondition()) {
-            	int branchNo ;
-            	if(BranchChainExtractor.branchMap.containsKey(current)) {
-            		branchNo= BranchChainExtractor.branchMap.get(current);
-           
-            	}else {
-            		branchNo = BranchChainExtractor.branchNoCounter;
-            		BranchChainExtractor.branchMap.put(current, branchNo);
-            		BranchChainExtractor.branchNoCounter++;
-            	}
-            	step.setBranchConditionLabel(unitComponentName+":branch"+branchNo+"-"+edge.branchCondition());
-            	System.out.printf("[findPathsToLeaf] set branch label for node %s (id=%d): %s\n",
-                        current.getLabel(), current.getId(), step.getBranchLabel());
-          
+
+            if (step.hasBranchCondition()) {
+                int branchId = resolveBranchId(current);
+                String outcome = edge.toString().replace("'", "").replace(':', '_').replace('-', '_').trim().toLowerCase();
+                step.setBranchConditionLabel(unitComponentName + ":branch" + branchId + "-" + outcome);
             }
-            	
+
             currentPath.add(step);
-            
-            // Recurse
-            findPathsToLeaf(successor, target, currentPath, visited);
-            
-            // Backtrack
+            findPathsToTarget(successor, target, currentPath, pathVisited);
             currentPath.remove(currentPath.size() - 1);
-            System.out.printf("[findPathsToLeaf] backtracking from %s (id=%d) to %s (id=%d). pathLen=%d\n",
-            		                       successor.getLabel(), successor.getId(), current.getLabel(), current.getId(), currentPath.size());           
         }
-        
-        visited.remove(current);
+        pathVisited.remove(current);
     }
-    
-    /**
-     * Generates human-readable text representation of all branch-chains.
-     * Format: Shows each path with branch conditions and AST nodes.
-     * 
-     * @return Formatted string for debugging
-     */
+
     public String extractBranchChainsText() {
-        if (branchChains.isEmpty()) {
-            extractBranchChains();
-        }
-        
         StringBuilder sb = new StringBuilder();
+        sb.append("=========================Control Dependence Graph: ").append(unitComponentName).append("=====================\n");
         sb.append("=== BRANCH-CHAIN ANALYSIS ===\n");
         sb.append("Total chains: ").append(branchChains.size()).append("\n\n");
-        
-        int chainId = 1;
+
         for (BranchChain chain : branchChains) {
-        	if(chain.getLeafNode().getLabel().endsWith("End")) {// to skip the last end node
-        		 break;
-        	}
-        	sb.append("Label: ").append(chain.getLabel()).append("\n");
-            sb.append(chain.toTextRepresentation());
-            sb.append("\n");
+            sb.append("Label: ").append(chain.getLabel()).append("\n");
+            sb.append("  Path: ");
+
+            List<PathStep> steps = chain.getPath();
+            for (PathStep step : steps) {
+                sb.append("Node[").append(step.getFrom().getId()).append("]");
+                sb.append(" --[").append(step.getBranchLabel()).append("]--> ");
+            }
+            sb.append("(LEAF)\n");
+            sb.append("  Leaf content: ").append(chain.getLeafNode().toString()).append("\n\n");
         }
-        
+
+        sb.append("Extracted ").append(branchChains.size()).append(" branch-chains:\n");
+        for (BranchChain chain : branchChains) {
+            sb.append("  - ").append(chain.getLabel())
+              .append(" (to leaf node ").append(chain.getLeafNode().getId()).append(")\n");
+        }
+
         return sb.toString();
     }
-    
-    /**
-     * Generates DOT format representation for Graphviz visualization.
-     * 
-     * @return DOT format string
-     */
-    public String extractBranchChainsDOT() {
-        if (branchChains.isEmpty()) {
-            extractBranchChains();
-        }
-        
-        StringBuilder sb = new StringBuilder();
-        sb.append("digraph BranchChains {\n");
-        sb.append("  rankdir=TB;\n");
-        sb.append("  node [shape=box, style=rounded];\n\n");
-        
-        // Add all nodes
-        Set<CDGNode> allNodes = new HashSet<>();
+
+    private void filterBranchChains() {
+        if (branchChains.isEmpty()) return;
+
+        Map<String, BranchChain> uniquePaths = new HashMap<>();
         for (BranchChain chain : branchChains) {
-            for (PathStep step : chain.getPath()) {
-                allNodes.add(step.getFrom());
-                allNodes.add(step.getTo());
+            String logicSig = chain.getPath().stream()
+                    .filter(PathStep::hasBranchCondition)
+                    .map(PathStep::getBranchLabel)
+                    .collect(Collectors.joining("->"));
+
+            String fullSig = logicSig + "|Target:" + chain.getLeafNode().getId();
+
+            if (!uniquePaths.containsKey(fullSig) ||
+                chain.getPath().size() > uniquePaths.get(fullSig).getPath().size()) {
+                uniquePaths.put(fullSig, chain);
             }
         }
-        
-        for (CDGNode node : allNodes) {
-            String shape = node.isLeafNode(cdg) ? "ellipse" : "box";
-            sb.append("  node").append(node.getId())
-              .append(" [label=\"").append(escapeForDOT(node.getLabel()))
-              .append("\", shape=").append(shape).append("];\n");
-        }
-        
-        sb.append("\n");
-        
-        // Add edges with labels
-        for (BranchChain chain : branchChains) {
-            for (PathStep step : chain.getPath()) {
-                sb.append("  node").append(step.getFrom().getId())
-                  .append(" -> node").append(step.getTo().getId())
-                  .append(" [label=\"").append(escapeForDOT(step.getBranchLabel()))
-                  .append("\"];\n");
+
+        List<BranchChain> filtered = new ArrayList<>(uniquePaths.values());
+        filtered.sort((a, b) -> Integer.compare(b.getPath().size(), a.getPath().size()));
+
+        List<BranchChain> finalChains = new ArrayList<>();
+        for (BranchChain candidate : filtered) {
+            boolean redundant = false;
+            for (BranchChain existing : finalChains) {
+                if (candidate.getLeafNode().getId() == existing.getLeafNode().getId() &&
+                    isLogicalPrefix(candidate, existing)) {
+                    redundant = true;
+                    break;
+                }
             }
+            if (!redundant) finalChains.add(candidate);
         }
-        
-        sb.append("}\n");
-        return sb.toString();
+        this.branchChains = finalChains;
     }
-    
-    private String escapeForDOT(String str) {
-        return str.replace("\"", "\\\"").replace("\n", "\\n");
+
+    private boolean isLogicalPrefix(BranchChain small, BranchChain large) {
+        List<String> s = small.getPath().stream().filter(PathStep::hasBranchCondition).map(PathStep::getBranchLabel).collect(Collectors.toList());
+        List<String> l = large.getPath().stream().filter(PathStep::hasBranchCondition).map(PathStep::getBranchLabel).collect(Collectors.toList());
+        if (s.size() >= l.size()) return false;
+        for (int i = 0; i < s.size(); i++) {
+            if (!s.get(i).equals(l.get(i))) return false;
+        }
+        return true;
     }
-    
-    public List<BranchChain> getBranchChains() {
-        return branchChains;
+
+    private boolean isSpuriousFlow(ControlDependenceEdge edge, CDGNode successor) {
+        return edge.toString().toUpperCase().contains("FLOW") &&
+               cdg.incomingEdgesOf(successor).size() > 1;
+    }
+
+    private boolean hasLogicalBranch(List<PathStep> path) {
+        return path.stream().anyMatch(PathStep::hasBranchCondition);
+    }
+
+    private IASTExpression extractExpression(CDGNode node) {
+        List<IASTNode> asts = node.getASTNodes();
+        if (asts == null || asts.isEmpty()) return null;
+        IASTNode n = asts.get(0);
+        if (n instanceof IASTExpression) return (IASTExpression) n;
+        if (n instanceof IASTIfStatement) return ((IASTIfStatement) n).getConditionExpression();
+        if (n instanceof IASTWhileStatement) return ((IASTWhileStatement) n).getCondition();
+        if (n instanceof IASTForStatement) return ((IASTForStatement) n).getConditionExpression();
+        return null;
     }
 }

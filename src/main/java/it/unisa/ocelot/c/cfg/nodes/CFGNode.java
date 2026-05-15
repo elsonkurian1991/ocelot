@@ -154,8 +154,7 @@ public class CFGNode implements Comparable<CFGNode> {
 	}
 
 	public boolean isBreak() {
-		if (this.nodes.size() == 1
-				&& this.nodes.get(0) instanceof IASTBreakStatement)
+		if (this.nodes.size() == 1 && this.nodes.get(0) instanceof IASTBreakStatement)
 			return true;
 		return false;
 	}

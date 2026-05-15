@@ -61,6 +61,7 @@ public class BranchChain {
 	    public void setLabel(String unitComponentName, int chainNumber) {
 	        this.chainNumber = chainNumber;
 	        this.label = unitComponentName + ":branchChain" + chainNumber;
+	        this.unitComponentName = unitComponentName; // ensure stored for later use
 	    }
 	    /**
 	     * Gets the fitness value for this branch chain.
@@ -100,27 +101,27 @@ public class BranchChain {
 	     * Returns all branch conditions (predicates) along this path.
 	     * Useful for constraint solving and test generation.
 	     * Conditions are labeled as "unitname:branch<num>-true/false".
+	     *
+	     * NOTE: prefer to reuse the precise label assigned by the extractor (PathStep.branchConditionLabel)
+	     * if present. This ensures consistent numbering and naming.
 	     */
 	    public List<BranchCondition> getBranchConditions() {
 	        List<BranchCondition> conditions = new ArrayList<>();
-	        int branchNum = -1;
-	        
+
 	        for (PathStep step : path) {
 	            if (step.hasBranchCondition()) {
-	                branchNum++;
+	                String assignedLabel = step.getBranchConditionLabel();
 	                String branchLabel = step.getBranchLabel();
-	                
-	                // Create label: "unitname:branch1-true" or "unitname:branch2-false"
-	                String conditionLabel = this.unitComponentName + ":branch" + branchNum + "-";
-	                if (branchLabel.equalsIgnoreCase("TRUE")) {
-	                    conditionLabel += "true";
-	                } else if (branchLabel.equalsIgnoreCase("FALSE")) {
-	                    conditionLabel += "false";
-	                } else {
-	                    conditionLabel += branchLabel.toLowerCase();
+
+	                String conditionLabel = assignedLabel;
+	                if (conditionLabel == null || conditionLabel.isEmpty()) {
+	                    // Fallback: construct a label using available unitComponentName and the branchLabel
+	                    String unit = (this.unitComponentName != null) ? this.unitComponentName : "unit";
+	                    conditionLabel = unit + ":" + branchLabel;
 	                }
-	                
+
 	                BranchCondition condition = new BranchCondition(
+	                    // Use the AST condition node from the source CDGNode if available
 	                    step.getFrom().getLeadingASTNode(),
 	                    branchLabel,
 	                    conditionLabel
@@ -128,10 +129,9 @@ public class BranchChain {
 	                conditions.add(condition);
 	            }
 	        }
-	        
+
 	        return conditions;
 	    }
-	    
 	    
 	    /**
 	     * Returns all branch conditions (predicates) along this path.
@@ -184,8 +184,8 @@ public class BranchChain {
 	                sb.append(" --> ");
 	            }
 	            // new branch conditions printing
-		        String branchConditionsNew= step.getBranchConditionLabel();
-		        sb.append("\n  branchConditions: "+branchConditionsNew+"\n");
+		        //String branchConditionsNew= step.getBranchConditionLabel();
+		        //sb.append("\n  branchConditions: "+branchConditionsNew+"\n");
 	        }
 	        sb.append("Node[").append(leafNode.getId()).append("] (LEAF)\n");
 	        

@@ -227,22 +227,22 @@ public class StandardBuilder extends Builder {
 				
 				Set<IASTNode> trackSynthetics = new HashSet<>();
 				//this one
-				ForLoopTransformer forloopTrans = new ForLoopTransformer(translationUnit);
+				/*ForLoopTransformer forloopTrans = new ForLoopTransformer(translationUnit);
 			    translationUnit.accept(forloopTrans);
 			    syntheticBranchesGeneratedWithFor += forloopTrans.trackSynthetics.size();
 			    trackSynthetics.addAll(forloopTrans.trackSynthetics);
 			    
-			    
+			    */
 			    
 				
 				BooleanAssignmentTransformer booleanTransfomer = null;
-				if(config.isSplitBooleans()) {
+				/*if(config.isSplitBooleans()) {
 					booleanTransfomer = new BooleanAssignmentTransformer(translationUnit);
 					translationUnit.accept(booleanTransfomer);
 					syntheticBranchesGeneratedWithBool += booleanTransfomer.trackSynthetics.size();
 					trackSynthetics.addAll(booleanTransfomer.trackSynthetics);
 				}
-               
+               */
 				//BooleanAssignmentTransformer booleanTransfomer = null;
 				
 
@@ -270,8 +270,8 @@ public class StandardBuilder extends Builder {
 				//translationUnit.accept(printer);
 				//Utils.writeFile(tempUnitComponent+"printer.txt", printer.result.toString());
 				//Here we add a instrumention visitor for method call in the if condition.
-				InstrumenterVisitForIfMethodCalls instrumentor_if_method_call = new InstrumenterVisitForIfMethodCalls(tempUnitComponent, trackSynthetics);
-				translationUnit.accept(instrumentor_if_method_call);
+			//	InstrumenterVisitForIfMethodCalls instrumentor_if_method_call = new InstrumenterVisitForIfMethodCalls(tempUnitComponent, trackSynthetics);
+			//	translationUnit.accept(instrumentor_if_method_call);
 				//trackSynthetics = instrumentor_if_method_call.trackSynthetics;
 				//till here...
 				UnitComponentInstrumentorVisitor instrumentor1 = new UnitComponentInstrumentorVisitor(tempUnitComponent,

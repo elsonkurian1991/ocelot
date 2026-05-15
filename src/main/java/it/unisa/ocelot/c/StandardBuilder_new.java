@@ -27,6 +27,7 @@ import java.util.stream.Collectors;
 
 import org.apache.commons.io.IOUtils;
 import org.eclipse.cdt.core.dom.ast.IASTDeclarationStatement;
+import org.eclipse.cdt.core.dom.ast.IASTExpression;
 import org.eclipse.cdt.core.dom.ast.IASTNode;
 import org.eclipse.cdt.core.dom.ast.IASTPreprocessorIncludeStatement;
 import org.eclipse.cdt.core.dom.ast.IASTPreprocessorStatement;
@@ -60,6 +61,7 @@ import it.unisa.ocelot.c.instrumentor.InstrumentorVisitorToAddBranch;
 import it.unisa.ocelot.c.instrumentor.MacroDefinerVisitor;
 import it.unisa.ocelot.c.instrumentor.StatementTreePrinter;
 import it.unisa.ocelot.c.instrumentor.UnitComponentInstrumentorVisitor;
+import it.unisa.ocelot.c.instrumentor.UnitComponentInstrumentorVisitor2;
 import it.unisa.ocelot.c.instrumentor.UnitComponentInstrumentorVisitorForCDG;
 import it.unisa.ocelot.conf.ConfigManager;
 import it.unisa.ocelot.util.Utils;
@@ -261,7 +263,7 @@ public class StandardBuilder_new extends Builder {
 				*/
 				ArrayList<String> testObjectives = new ArrayList<String>();
 				// Instruments unit-level components out main instrumenation
-				UnitComponentInstrumentorVisitorForCDG instrumentor1 = new UnitComponentInstrumentorVisitorForCDG(tempUnitComponent,
+				UnitComponentInstrumentorVisitor2 instrumentor1 = new UnitComponentInstrumentorVisitor2(tempUnitComponent,
 						testObjectives, unitLevelComponents, trackSynthetics);
 				translationUnit.accept(instrumentor1);
 				foundSynthetic += instrumentor1.foundSynthetics.size();
@@ -418,7 +420,7 @@ public class StandardBuilder_new extends Builder {
 				CFGVisitor cfgVistor = new CFGVisitor(cfg, tempUnitComponent);
 				translationUnit.accept(cfgVistor);
 				
-			    bcm.Process(cfg, tempUnitComponent);
+			    bcm.Process(cfg, tempUnitComponent,instrumentor1.branchChainsMap);
 				
 			}
 			else {

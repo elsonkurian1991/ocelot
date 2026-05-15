@@ -54,8 +54,10 @@ public class Run {
 	 * config_emdm_cdg
 	 * config_toyseven_cdg
 	 * config_toysix_cdg
+	 * config_toyeight_cdg
+	 * config_toynine_cdg
 	 */
-	private static final String CONFIG_FILENAME = "config_toysix_cdg.properties";
+	private static final String CONFIG_FILENAME = "config_toynine_cdg.properties";
 
 	private static final int RUNNER_ILLEGAL = -1;
 	private static final int RUNNER_SIMPLE_EXECUTE = 0;
