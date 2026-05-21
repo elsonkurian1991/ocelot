@@ -1,6 +1,7 @@
 package it.unisa.ocelot.c.cdg;
 
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.List;
 
 import org.eclipse.cdt.core.dom.ast.IASTNode;
@@ -15,18 +16,44 @@ public class CDGNode implements Serializable {
     private static final long serialVersionUID = 1L;
 
 	private CFGNode originalCFGNode;
-    private String label;
-    private int id;
+	/** True-branch successor id (-1 if none). Used for conditional nodes. */
+    public int trueSuccessor;
+
+    /** False-branch successor id (-1 if none). Used for conditional nodes. */
+    public int falseSuccessor;
+
+    /** All successor node ids (outgoing edges). */
+    public final List<Integer> successors;
+
+    /** All predecessor node ids (incoming edges). */
+    public final List<Integer> predecessors;
+
+    /** Human-readable label (e.g. the statement text). */
+    public final String label;
+    /** Unique identifier for this node. */
+    public final int id;
     private static int idCounter = 0;
+    /** Whether this node is a conditional branching node. */
+    public boolean isCondition;
     
     public CDGNode(CFGNode cfgNode) {
         this.originalCFGNode = cfgNode;
         this.label = cfgNode.toString();
         this.id = idCounter++;
+        this.trueSuccessor = -1;
+        this.falseSuccessor = -1;
+        this.successors = new ArrayList<>();
+        this.predecessors = new ArrayList<>();
+        this.isCondition = false;
     }
     
     public CDGNode(CFGNode cfgNode, String customLabel) {
         this.originalCFGNode = cfgNode;
+        this.trueSuccessor = -1;
+        this.falseSuccessor = -1;
+        this.successors = new ArrayList<>();
+        this.predecessors = new ArrayList<>();
+        this.isCondition = false;
         this.label = customLabel;
         this.id = idCounter++;
     }
@@ -79,4 +106,5 @@ public class CDGNode implements Serializable {
     public static void resetIdCounter() {
         idCounter = 0;
     }
+
 }
