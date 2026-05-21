@@ -72,5 +72,13 @@ testobject/
 fitnessValues.txt
 testObjectives.to
 unitLevelComponents.txt
+uncoveredPairs.txt
+uncoveredBranches.txt
+uncoveredBCobjectives.txt
+generatedPairs123.txt
+coveredPairs.txt
+coveredBranches.txt
+callgraph.txt
+branchObjectives.txt
 
-config.properties
+*.properties
