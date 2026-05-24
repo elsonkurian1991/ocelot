@@ -45,7 +45,52 @@ public class BranchChainManager {
 		// TODO Auto-generated constructor stub
 		this.allBranchChains=new HashMap<String, List<BranchChain>>();
 	}
+	public void Process(CFG cfg, String tempUnitComponent,Map<IASTExpression, Integer> branchChainsMap) throws Exception {
+		this.config = ConfigManager.getInstance();
+		this.allBranchChains=new HashMap<String, List<BranchChain>>();
+		//build the CDG graph from CFG
+		// CRITICAL: Reset CFGNode and CDGNode IDs for each unit component
+		CFGNode.reset();      // Your existing CFGNode reset method
+		CDG.resetNodeIds();   // New CDGNode reset method
+		CDG cdg = new CDG(cfg);
+		//BranchChainExtractor extractor = new BranchChainExtractor(cdg,tempUnitComponent,branchChainsMap);
+		BranchChainExtractor2 extractor = new BranchChainExtractor2(cdg,tempUnitComponent,branchChainsMap);
+		List<BranchChain> chains = extractor.extractBranchChains();//// Get AST-based representation (for fitness calculation)
+		// Get text representation (for debugging)
+		String textOutput = extractor.extractBranchChainsText();
+		allBranchChains.put(tempUnitComponent, chains);
+		System.out.println("Processed " + tempUnitComponent + ": " + chains.size() + " branch-chains");
 
+		// Write a consistent header and the textual representation, ensuring newlines are present
+		appendLine("");
+		appendLine("=========================Control Dependence Graph: " + tempUnitComponent + "=====================" );
+		System.out.println(textOutput);
+		// write textOutput; ensure terminated by newline(s)
+		if (textOutput != null && !textOutput.isEmpty()) {
+			for (String line : textOutput.split("\r?\n")) {
+				appendLine(line);
+			}
+		}
+
+		appendLine("Extracted " + chains.size() + " branch-chains:");
+		for (BranchChain chain : chains) {
+			String line = "  - " + chain.getLabel() + " (to leaf node " + chain.getLeafNode().getId() + ")";
+			System.out.println(line);
+			appendLine(line);
+		}
+
+		// Also write a human-readable CFG+CDG dump to cfg_cdg.txt (same directory as cdg_output.txt)
+		try {
+			writeCfgAndCdg(cfg, cdg, tempUnitComponent);
+		} catch (Exception e) {
+			System.err.println("Warning: failed to write cfg_cdg dump: " + e.getMessage());
+		}
+
+		// store chains for later pairing
+		allBranchChainsSaved.put(tempUnitComponent, chains);
+		System.err.println(allBranchChains);
+		System.err.println(allBranchChainsSaved); //map where all chains are saved. 
+	}
 	/** Helper: append a single line to the cdg output file. Ensures newline termination and closes the writer.
 	 * Using a small helper keeps all writes consistent and avoids missing newlines.
 	 */
@@ -182,7 +227,7 @@ public class BranchChainManager {
 		try (BufferedWriter writer = new BufferedWriter(new FileWriter(out, true))) {
 			writer.write("");
 			writer.newLine();
-			/* writer.write("========================= CFG: " + componentName + " =====================");
+			 writer.write("========================= CFG: " + componentName + " =====================");
             writer.newLine();
 
             // Print CFG nodes
@@ -225,7 +270,7 @@ public class BranchChainManager {
                 writer.write("Edge " + s.getId() + " -> " + t.getId() + " : '" + lbl + "' [objID=" + e.getObjectiveID() + "]");
                 writer.newLine();
             }
-			 */
+			 
 			// Print CDG
 			writer.write("");
 			writer.newLine();
@@ -265,51 +310,7 @@ public class BranchChainManager {
 		}
 	}
 
-	public void Process(CFG cfg, String tempUnitComponent,Map<IASTExpression, Integer> branchChainsMap) throws Exception {
-		this.config = ConfigManager.getInstance();
-		this.allBranchChains=new HashMap<String, List<BranchChain>>();
-		//build the CDG graph from CFG
-		// CRITICAL: Reset CFGNode and CDGNode IDs for each unit component
-		CFGNode.reset();      // Your existing CFGNode reset method
-		CDG.resetNodeIds();   // New CDGNode reset method
-		CDG cdg = new CDG(cfg);
-		BranchChainExtractor extractor = new BranchChainExtractor(cdg,tempUnitComponent,branchChainsMap);
-		List<BranchChain> chains = extractor.extractBranchChains();//// Get AST-based representation (for fitness calculation)
-		// Get text representation (for debugging)
-		String textOutput = extractor.extractBranchChainsText();
-		allBranchChains.put(tempUnitComponent, chains);
-		System.out.println("Processed " + tempUnitComponent + ": " + chains.size() + " branch-chains");
 
-		// Write a consistent header and the textual representation, ensuring newlines are present
-		appendLine("");
-		appendLine("=========================Control Dependence Graph: " + tempUnitComponent + "=====================" );
-		System.out.println(textOutput);
-		// write textOutput; ensure terminated by newline(s)
-		if (textOutput != null && !textOutput.isEmpty()) {
-			for (String line : textOutput.split("\r?\n")) {
-				appendLine(line);
-			}
-		}
-
-		appendLine("Extracted " + chains.size() + " branch-chains:");
-		for (BranchChain chain : chains) {
-			String line = "  - " + chain.getLabel() + " (to leaf node " + chain.getLeafNode().getId() + ")";
-			System.out.println(line);
-			appendLine(line);
-		}
-
-		// Also write a human-readable CFG+CDG dump to cfg_cdg.txt (same directory as cdg_output.txt)
-		try {
-			writeCfgAndCdg(cfg, cdg, tempUnitComponent);
-		} catch (Exception e) {
-			System.err.println("Warning: failed to write cfg_cdg dump: " + e.getMessage());
-		}
-
-		// store chains for later pairing
-		allBranchChainsSaved.put(tempUnitComponent, chains);
-		System.err.println(allBranchChains);
-		System.err.println(allBranchChainsSaved); //map where all chains are saved. 
-	}
 
 	public void generatePairsForBranchChains() {
 
