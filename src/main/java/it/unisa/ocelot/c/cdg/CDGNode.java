@@ -79,7 +79,7 @@ public class CDGNode implements Serializable {
     }
     
     public boolean isLeafNode(CDG cdg) {
-        return cdg.outgoingEdgesOf(this).isEmpty();
+        return cdg.incomingEdgesOf(this).isEmpty();
     }
     
     public boolean isBranchNode(CDG cdg) {

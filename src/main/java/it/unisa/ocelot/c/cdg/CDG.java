@@ -12,6 +12,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import com.jgraph.algebra.JGraphFibonacciHeap.Node;
+
 import it.unisa.ocelot.c.cfg.CFG;
 import it.unisa.ocelot.c.cfg.edges.CaseEdge;
 import it.unisa.ocelot.c.cfg.edges.FalseEdge;
@@ -225,6 +227,7 @@ public class CDG {
         this.exitId  = exitNode.id;
 
         buildCDG();
+        printSummary();
     }
 
     /** Resets the CDGNode id counter (call between compilation units). */
@@ -237,12 +240,13 @@ public class CDG {
     // -----------------------------------------------------------------------
 
     private void buildCDG() {
+    	//PED to PEF are not important 
         ped   = computePreDominators();
         iped  = computeImmediatePreDominators(ped);
         rPed  = computeReversePreDomination(ped);
         rIped = computeReverseImmediatePreDomination(iped);
         pef   = computePreDominanceFrontier(iped, rIped);
-
+        //POD to POF is important
         pod   = computePostDominators();
         ipod  = computeImmediatePostDominators(pod);
         rPod  = computeReversePostDomination(pod);
@@ -252,12 +256,12 @@ public class CDG {
         cd    = computeControlDependencies(pod, pof);
 
         materialiseEdges();
-        if (originalCFG != null) {
+        /*if (originalCFG != null) {
             computeEntryFlowNodeIds();
             attachEntryFlowEdges();
         } else {
             attachFlowToNodesWithoutIncoming();
-        }
+        }*/
     }
 
     // -----------------------------------------------------------------------
@@ -278,19 +282,33 @@ public class CDG {
             outgoingEdges.put(id, new ArrayList<>());
             incomingEdges.put(id, new ArrayList<>());
         }
-
+        
         for (Map.Entry<Integer, Set<CDGEdge>> entry : cd.entrySet()) {
             int dependentId = entry.getKey();
 
             for (CDGEdge raw : entry.getValue()) {
                 int    conditionId = raw.conditionNodeId;
                 String rawLabel    = raw.label;
-
-                LabeledEdge originalCfgEdge = resolveCfgEdge(conditionId, dependentId, rawLabel);
-                String normLabel = normaliseBranchLabel(rawLabel, originalCfgEdge);
-                ControlDependenceEdge cde = new ControlDependenceEdge(normLabel, originalCfgEdge);
-
+                
+                 ControlDependenceEdge cde = new ControlDependenceEdge(nodes.get(dependentId),nodes.get(conditionId), rawLabel);
+                 registerEdge(dependentId, conditionId, cde);
+                 
+                 /* reverse direction: to check if it makes a difference for the builder / is more intuitive for debugging
+                 // Edge direction: condition --label--> dependent
+                ControlDependenceEdge cde = new ControlDependenceEdge(
+                    nodes.get(conditionId),   // from = condition (source)
+                    nodes.get(dependentId),   // to   = dependent (target)
+                    rawLabel);
+                // Register: outgoing FROM condition, incoming TO dependent
                 registerEdge(conditionId, dependentId, cde);
+                  */
+                 
+                 
+                //LabeledEdge originalCfgEdge = resolveCfgEdge(conditionId, dependentId, rawLabel);
+                //String normLabel = normaliseBranchLabel(rawLabel, originalCfgEdge);
+                //ControlDependenceEdge cde = new ControlDependenceEdge(normLabel, originalCfgEdge);
+
+                
             }
         }
     }
@@ -302,12 +320,12 @@ public class CDG {
         edgeTarget.put(cde, targetId);
     }
 
-    private void addFlowEdge(int sourceId, int targetId) {
+    /*private void addFlowEdge(int sourceId, int targetId) {
         if (hasEdge(sourceId, targetId, "FLOW")) return;
         registerEdge(sourceId, targetId, new ControlDependenceEdge("FLOW", null));
-    }
+    }*/
 
-    private boolean hasEdge(int sourceId, int targetId, String label) {
+    /*private boolean hasEdge(int sourceId, int targetId, String label) {
         for (ControlDependenceEdge e : outgoingEdges.getOrDefault(sourceId, Collections.emptyList())) {
             if (edgeTarget.get(e) == targetId && label.equals(e.toString())) {
                 return true;
@@ -315,7 +333,7 @@ public class CDG {
         }
         return false;
     }
-
+*/
     /**
      * Tries to locate the original {@link LabeledEdge} in the CFG that
      * corresponds to the transition from the condition node to the branch
@@ -325,7 +343,7 @@ public class CDG {
      * the one whose label matches {@code rawLabel}.  If the original CFG is
      * not available (Map-based constructor) this returns {@code null}.
      */
-    private LabeledEdge resolveCfgEdge(int conditionId, int dependentId, String rawLabel) {
+    /*private LabeledEdge resolveCfgEdge(int conditionId, int dependentId, String rawLabel) {
         if (originalCFG == null) return null;
         CDGNode condNode = nodes.get(conditionId);
         if (condNode == null) return null;
@@ -351,12 +369,12 @@ public class CDG {
         }
         return null;
     }
-
-    private LabeledEdge findCfgEdge(CFGNode src, CFGNode tgt) {
+*/
+    /*private LabeledEdge findCfgEdge(CFGNode src, CFGNode tgt) {
         if (src == null || tgt == null) return null;
         return originalCFG.getEdge(src, tgt);
     }
-
+*/
     private static long packPair(int a, int b) {
         return (((long) a) << 32) | (b & 0xffffffffL);
     }
@@ -365,12 +383,12 @@ public class CDG {
      * Converts an internal "T"/"F"/case label to a {@link ControlDependenceEdge}
      * display label ("TRUE", "FALSE", or the case string).
      */
-    private static String normaliseBranchLabel(String rawLabel, LabeledEdge cfgEdge) {
+   /* private static String normaliseBranchLabel(String rawLabel, LabeledEdge cfgEdge) {
         if ("T".equals(rawLabel)) return "TRUE";
         if ("F".equals(rawLabel)) return "FALSE";
         // For case edges the raw label is the case value string already
         return rawLabel != null ? rawLabel : "FLOW";
-    }
+    }*/
 
     // -----------------------------------------------------------------------
     // Pre-Dominators  (PED)
@@ -663,6 +681,7 @@ public class CDG {
         }
         return result;
     }
+    
 
     // -----------------------------------------------------------------------
     // Control Dependencies  (CD)
@@ -704,11 +723,11 @@ public class CDG {
      * from a condition that has no explicit false successor).
      */
     private String getBranchLabel(CDGNode cond, int succId) {
-        if (cond.trueSuccessor == succId) return "T";
-        if (cond.falseSuccessor == succId) return "F";
+        if (cond.trueSuccessor == succId) return "TRUE";
+        if (cond.falseSuccessor == succId) return "FALSE";
         String caseLbl = caseEdgeLabels.get(packPair(cond.id, succId));
         if (caseLbl != null) return caseLbl;
-        return "F";
+        return "FALSE"; // consistent fallback — was "F"
     }
 
     // -----------------------------------------------------------------------
@@ -884,7 +903,7 @@ public class CDG {
         System.out.println("\n--- Immediate Post-Dominators (IPOD) ---");
         for (int id : sorted)
             System.out.printf("  IPOD[N%d] = %s%n", id, ipod.get(id));
-
+		
         System.out.println("\n--- CDG Edges ---");
         for (ControlDependenceEdge e : edgeSet()) {
             CDGNode src = getEdgeSource(e);
@@ -961,7 +980,7 @@ public class CDG {
         if (cdgEntry != null) entryFlowNodeIds.add(cdgEntry.id);
     }
 
-    private void attachEntryFlowEdges() {
+    /*private void attachEntryFlowEdges() {
         if (entryFlowNodeIds == null) return;
         for (int targetId : entryFlowNodeIds) {
             if (targetId == entryId) continue;
@@ -979,16 +998,16 @@ public class CDG {
                 addFlowEdge(entryId, targetId);
             }
         }
-    }
+    }*/
 
-    private void attachFlowToNodesWithoutIncoming() {
+    /*private void attachFlowToNodesWithoutIncoming() {
         for (int id : nodes.keySet()) {
             if (id == entryId) continue;
             if (incomingEdges.getOrDefault(id, Collections.emptyList()).isEmpty()) {
                 addFlowEdge(entryId, id);
             }
         }
-    }
+    }*/
 
     private Set<CFGNode> forwardReachableFrom(CFGNode start) {
         Set<CFGNode> visited = new HashSet<>();

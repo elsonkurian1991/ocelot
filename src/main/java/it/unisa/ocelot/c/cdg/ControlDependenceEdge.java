@@ -9,46 +9,23 @@ import it.unisa.ocelot.c.cfg.edges.LabeledEdge;
 public class ControlDependenceEdge {
 
     private Object branchLabel;  // "TRUE", "FALSE", "case 1", etc.
-    private LabeledEdge originalCFGEdge;
+	private CDGNode from;
+	private CDGNode to;
 
-    public ControlDependenceEdge(Object label, LabeledEdge cfgEdge) {
-        this.branchLabel = label;
-        this.originalCFGEdge = cfgEdge;
-    }
+	// ControlDependenceEdge.java
+	public ControlDependenceEdge(CDGNode from, CDGNode to, Object branchLabel) {
+	    this.from = from;       // condition node (source)
+	    this.to   = to;         // dependent node (target)
+	    this.branchLabel = branchLabel;
+	}
 
     public Object getBranchLabel() {
         return branchLabel;
     }
 
-    public LabeledEdge getOriginalCFGEdge() {
-        return originalCFGEdge;
-    }
-
     @Override
     public String toString() {
-        // Normalize boolean-like labels to "TRUE"/"FALSE" for consistency
-        if (branchLabel instanceof String) {
-            String s = ((String) branchLabel).trim();
-            if (isTrueString(s)) return "TRUE";
-            if (isFalseString(s)) return "FALSE";
-            return s;
-        }
-        // Try to derive from original CFG edge label
-        if (originalCFGEdge != null) {
-            Object lbl = originalCFGEdge.getLabel();
-            if (lbl instanceof String) {
-                String s = ((String) lbl).trim();
-                if (isTrueString(s)) return "TRUE";
-                if (isFalseString(s)) return "FALSE";
-                return s;
-            }
-            // fallback to originalCFGEdge.toString()
-            String s = originalCFGEdge.toString();
-            if (isTrueString(s)) return "TRUE";
-            if (isFalseString(s)) return "FALSE";
-            if (!s.isEmpty()) return s;
-        }
-        return "FLOW";
+        return branchLabel != null ? branchLabel.toString() : "FLOW";
     }
 
     private static boolean isTrueString(String s) {
@@ -69,14 +46,7 @@ public class ControlDependenceEdge {
         if (branchLabel instanceof String) {
             return isTrueString((String) branchLabel);
         }
-        if (originalCFGEdge != null) {
-            Object lbl = originalCFGEdge.getLabel();
-            if (lbl instanceof String) {
-                return isTrueString((String) lbl);
-            }
-            String s = originalCFGEdge.toString();
-            return isTrueString(s);
-        }
+     
         return false;
     }
 }
