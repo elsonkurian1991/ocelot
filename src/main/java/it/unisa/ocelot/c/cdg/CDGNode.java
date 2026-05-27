@@ -29,7 +29,7 @@ public class CDGNode implements Serializable {
     public final List<Integer> predecessors;
 
     /** Human-readable label (e.g. the statement text). */
-    public final String label;
+    public String label;
     /** Unique identifier for this node. */
     public final int id;
     private static int idCounter = 0;

@@ -221,4 +221,29 @@ public class CFGNode implements Comparable<CFGNode> {
 	public int compareTo(CFGNode o) {
 		return new Integer(this.id).compareTo(o.id);
 	}
+
+	public String getConditionText() {
+		if (this.nodes.size() > 0) {
+			IASTNode node = this.nodes.get(0);
+			String raw = node.getRawSignature();
+			if (raw.length() > 30)
+				return raw.substring(0, 30) + "...";
+			else
+				return raw;
+		} else {
+			return this.name;
+		}
+	}
+
+	public String getText() {
+		if (this.nodes.size() > 0) {
+			StringBuilder sb = new StringBuilder();
+			for (IASTNode node : this.nodes)
+				if (node != null)
+					sb.append(node.getRawSignature()).append("\n");
+			return sb.toString();
+		} else {
+			return this.name;
+		}
+	}
 }
