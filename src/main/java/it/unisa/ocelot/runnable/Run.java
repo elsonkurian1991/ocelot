@@ -56,6 +56,7 @@ public class Run {
 	 * config_toysix_cdg
 	 * config_toyeight_cdg
 	 * config_toynine_cdg
+	 * config_toyten_cdg
 	 */
 	private static final String CONFIG_FILENAME = "config_toynine_cdg.properties";
 
@@ -204,7 +205,7 @@ public class Run {
 	private static void welcome() throws InterruptedException {
 		System.out.println("WELCOME to EvInT");
 		System.out.println("Did you update the localOcelotDir, function name, includes and parameter list correctly?");
-		System.out.println("Please update the UnitLevelComponemts.txt. thanks");
+		System.out.println("Please update the Config file correctly??? Thanks");
 		System.out.println("Yes/No");
 		TimeUnit.SECONDS.sleep(1);
 		System.out.println("Hope you updated the information... else...please update the files...");

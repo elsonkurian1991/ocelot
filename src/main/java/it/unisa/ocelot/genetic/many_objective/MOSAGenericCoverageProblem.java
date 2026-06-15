@@ -97,6 +97,7 @@ public class MOSAGenericCoverageProblem extends StandardProblem {
 			//solution.setObjective(objective.getObjectiveID(), fitness);
 			//System.err.println("NOT COVERED OBJ:"+objective.getObjectiveID()+": "+fitness);
 			solution.setObjective(objective.getObjectiveID(), fitness);
+			
 		}
 		
 		//Not important, MOSA uses his own algorithm
