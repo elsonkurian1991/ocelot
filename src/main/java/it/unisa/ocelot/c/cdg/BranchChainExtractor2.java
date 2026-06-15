@@ -39,7 +39,7 @@ public class BranchChainExtractor2 {
 	private int idCounter = 0;
 
 	private final Map<CDGNode, Integer> branchIndexMap = new LinkedHashMap<>();
-
+	private final Map<String, Integer> switchBranchIdMap = new HashMap<>();
 	public BranchChainExtractor2(CDG cdg, String unitComponentName,
 			Map<IASTExpression, Integer> branchChainsMap) {
 		this.cdg = cdg;
@@ -91,7 +91,9 @@ public class BranchChainExtractor2 {
 		filter_BC_With_End_And_EndConditions();
 		//branchChains =  branchChains.stream().filter(BranchChainExtractor2::hasBranchChainWithCondition).collect(Collectors.toList());
 		//branchChains =  branchChains.stream().filter(BranchChainExtractor2::hasBranchChainWithEnd).collect(Collectors.toList());
-		filterBranchChains();
+		//filterBranchChains();
+		//filterBranchChains2();
+		//filterBranchChains3();
 
 		for (int i = 0; i < branchChains.size(); i++) {
 			branchChains.get(i).setLabel(unitComponentName, i + 1);
@@ -99,6 +101,101 @@ public class BranchChainExtractor2 {
 
 		return branchChains;
 	}
+	private void filterBranchChains3() {
+	    if (branchChains.isEmpty()) return;
+
+	    // Map to keep track of the absolute shortest path for any unique logical decision sequence
+	    Map<String, BranchChain> shortestLogicPaths = new HashMap<>();
+
+	    for (BranchChain chain : branchChains) {
+	        // Generate a sequential signature of actual branch decisions only
+	        String logicSig = chain.getPath().stream()
+	                .filter(PathStep::hasBranchCondition)
+	                .map(PathStep::getBranchLabel)
+	                .collect(Collectors.joining("->"));
+
+	        // If this exact decision sequence hasn't been seen yet, OR if this new path 
+	        // is shorter than the one we recorded, keep this one.
+	        if (!shortestLogicPaths.containsKey(logicSig) || 
+	            chain.getPath().size() < shortestLogicPaths.get(logicSig).getPath().size()) {
+	            shortestLogicPaths.put(logicSig, chain);
+	        }
+	    }
+
+	    // Convert our optimized, unique logical paths back to a List
+	    List<BranchChain> finalChains = new ArrayList<>(shortestLogicPaths.values());
+
+	    // Sort them cleanly by path size just for readability in the final output
+	    finalChains.sort((a, b) -> Integer.compare(a.getPath().size(), b.getPath().size()));
+
+	    this.branchChains = finalChains;
+	}
+	private void filterBranchChains2() {
+	    if (branchChains.isEmpty()) return;
+
+	    // 1. Group chains by a normalized logic string to strip structural traversal variance
+	    Map<String, BranchChain> uniquePaths = new HashMap<>();
+	    for (BranchChain chain : branchChains) {
+	        // Force an ordered, direction-agnostic signature representation
+	        List<String> conditions = chain.getPath().stream()
+	                .filter(PathStep::hasBranchCondition)
+	                .map(PathStep::getBranchLabel)
+	                .sorted() // Alphabetical sort guarantees matching sequences line up identically
+	                .collect(Collectors.toList());
+	        
+	        String logicSig = String.join("->", conditions);
+	        
+	        // Differentiate uniquely by target leaf behavior while allowing prefixes to match
+	        String fullSig = logicSig + "|Target:" + chain.getLeafNode().getId();
+
+	        if (!uniquePaths.containsKey(fullSig) || 
+	                chain.getPath().size() > uniquePaths.get(fullSig).getPath().size()) {
+	            uniquePaths.put(fullSig, chain);
+	        }
+	    }
+
+	    // 2. Sort from longest path to shortest path to ensure proper prefix matching
+	    List<BranchChain> filtered = new ArrayList<>(uniquePaths.values());
+	    filtered.sort((a, b) -> Integer.compare(b.getPath().size(), a.getPath().size()));
+
+	    // 3. Perform prefix pruning
+	    List<BranchChain> finalChains = new ArrayList<>();
+	    for (BranchChain candidate : filtered) {
+	        boolean redundant = false;
+	        for (BranchChain existing : finalChains) {
+	            if (isLogicalPrefix2(candidate, existing)) {
+	                redundant = true;
+	                break;
+	            }
+	        }
+	        if (!redundant) {
+	            finalChains.add(candidate);
+	        }
+	    }
+	    
+	    this.branchChains = finalChains;
+	}
+
+	private boolean isLogicalPrefix2(BranchChain small, BranchChain large) {
+	    // Extract normalized list from both items
+	    List<String> s = small.getPath().stream()
+	            .filter(PathStep::hasBranchCondition)
+	            .map(PathStep::getBranchLabel)
+	            .collect(Collectors.toList());
+	    List<String> l = large.getPath().stream()
+	            .filter(PathStep::hasBranchCondition)
+	            .map(PathStep::getBranchLabel)
+	            .collect(Collectors.toList());
+	            
+	    if (s.size() >= l.size()) return false;
+	    
+	    // Check if the small sequence is fully contained at the start of the large sequence
+	    for (int i = 0; i < s.size(); i++) {
+	        if (!s.get(i).equals(l.get(i))) return false;
+	    }
+	    return true;
+	}
+
 	private static boolean hasBranchChainWithEnd(BranchChain branchChain) {
 
 		if(branchChain.getPath().size()==1) {
@@ -180,7 +277,51 @@ public class BranchChainExtractor2 {
 	 * Returns a stable index for {@code conditionNode}.
 	 * Always pass the condition node (CFG branch point), not the dependent.
 	 */
-	private int resolveBranchId(CDGNode conditionNode) {
+	private int resolveBranchId(CDGNode conditionNode, CDGNode successorNode) {
+	    if (isSwitchNode(conditionNode)) {
+	        String key = conditionNode.getId() + "->" + successorNode.getId();
+	        if (!switchBranchIdMap.containsKey(key)) {
+	            switchBranchIdMap.put(key, idCounter++);
+	        }
+	        return switchBranchIdMap.get(key);
+	    }
+
+	    if (localNodeIdMap.containsKey(conditionNode)) {
+	        return localNodeIdMap.get(conditionNode);
+	    }
+
+	    int assignedId = -1;
+	    if (branchIndexMap.containsKey(conditionNode)) {
+	        assignedId = branchIndexMap.get(conditionNode);
+	    }
+
+	    if (assignedId == -1) {
+	        IASTExpression expr = extractExpression(conditionNode);
+	        if (expr != null && branchChainsMap != null) {
+	            String rawSig = expr.getRawSignature();
+	            for (Map.Entry<IASTExpression, Integer> entry : branchChainsMap.entrySet()) {
+	                if (entry.getKey().getRawSignature().equals(rawSig)) {
+	                    assignedId = entry.getValue();
+	                    break;
+	                }
+	            }
+	        }
+	    }
+
+	    if (assignedId == -1) assignedId = idCounter++;
+
+	    localNodeIdMap.put(conditionNode, assignedId);
+	    return assignedId;
+	}
+
+	private boolean isSwitchNode(CDGNode node) {
+	    List<IASTNode> asts = node.getASTNodes();
+	    if (asts == null || asts.isEmpty()) return false;
+	    IASTNode n = asts.get(0);
+	    return (n.getParent() instanceof IASTSwitchStatement || n instanceof IASTSwitchStatement);
+	}
+	
+	/*private int resolveBranchId(CDGNode conditionNode) { //old code, not correct for switch cases
 		if (localNodeIdMap.containsKey(conditionNode))
 			return localNodeIdMap.get(conditionNode);
 
@@ -207,7 +348,7 @@ public class BranchChainExtractor2 {
 
 		localNodeIdMap.put(conditionNode, assignedId);
 		return assignedId;
-	}
+	}*/
 
 	// -------------------------------------------------------------------------
 	// isLoopHeader
@@ -281,9 +422,10 @@ public class BranchChainExtractor2 {
 
 			PathStep step = new PathStep(current, successor, edge);
 
-			if (step.hasBranchCondition()) {
+			/*if (step.hasBranchCondition()) {
 				// current is the condition node (the CFG branch point)
-				int    branchId = resolveBranchId(current);
+				int    branchId = resolveBranchId(current, successor);
+				// Sanitize the case labels (e.g., '0' becomes 0, '1' becomes 1, 'DEFAULT' becomes default)
 				String outcome  = edge.toString()
 						.replace("'",  "")
 						.replace(':',  '_')
@@ -292,8 +434,36 @@ public class BranchChainExtractor2 {
 						.toLowerCase();
 				step.setBranchConditionLabel(
 						unitComponentName + ":branch" + branchId + "-" + outcome);
-			}
+			}*/ //old code, not correct for switch cases
+			if (step.hasBranchCondition()) {
+			    // Both variables 'current' and 'successor' are perfectly valid here
+			    int branchId = resolveBranchId(current, successor);
+			    
+			    String outcome = "false";
+			    if (isSwitchNode(current)) {
+			        String structuralLabel = cdg.getSwitchCaseLabel(current.getId(), successor.getId());
+			        if (structuralLabel != null) {
+			            outcome = structuralLabel;
+			        } else {
+			            String edgeStr = edge.toString().toUpperCase();
+			            if (!edgeStr.contains("TRUE") && !edgeStr.contains("FALSE") && !edgeStr.contains("FLOW")) {
+			                outcome = edgeStr;
+			            } else {
+			                outcome = "default";
+			            }
+			        }
+			    } else {
+			        outcome = edge.toString();
+			    }
 
+			    outcome = outcome.replace("'", "")
+			                     .replace(':', '_')
+			                     .replace('-', '_')
+			                     .trim()
+			                     .toLowerCase();
+			                     
+			    step.setBranchConditionLabel(unitComponentName + ":branch" + branchId + "-" + outcome);
+			}
 			currentPath.add(step);
 			findPathsFromSrcToTarget(successor, target, currentPath, pathVisited);
 			currentPath.remove(currentPath.size() - 1);
@@ -393,7 +563,7 @@ public class BranchChainExtractor2 {
 
 			PathStep step = new PathStep(current, conditionNode, edge);
 
-			if (step.hasBranchCondition()) {
+			/*if (step.hasBranchCondition()) { //old code, not correct for switch cases
 				int    branchId = resolveBranchId(conditionNode);
 				String outcome  = edge.toString()
 						.replace("'",  "")
@@ -403,8 +573,38 @@ public class BranchChainExtractor2 {
 						.toLowerCase();
 				step.setBranchConditionLabel(
 						unitComponentName + ":branch" + branchId + "-" + outcome);
-			}
+			}*/
+			if (step.hasBranchCondition()) {
+			    // In this method, 'current' is the dependent and 'conditionNode' is the target successor!
+			    int branchId = resolveBranchId(conditionNode, current); 
+			    
+			    String outcome = "false";
+			    if (isSwitchNode(conditionNode)) {
+			        String structuralLabel = cdg.getSwitchCaseLabel(conditionNode.getId(), current.getId());
+			        if (structuralLabel != null) {
+			            outcome = structuralLabel;
+			        } else {
+			            String edgeStr = edge.toString().toUpperCase();
+			            if (!edgeStr.contains("TRUE") && !edgeStr.contains("FALSE") && !edgeStr.contains("FLOW")) {
+			                outcome = edgeStr;
+			            } else {
+			                outcome = "default";
+			            }
+			        }
+			    } else {
+			        outcome = edge.toString();
+			    }
 
+			    outcome = outcome.replace("'", "")
+			                     .replace(':', '_')
+			                     .replace('-', '_')
+			                     .trim()
+			                     .toLowerCase();
+			                     
+			    step.setBranchConditionLabel(unitComponentName + ":branch" + branchId + "-" + outcome);
+			}
+			
+			
 			currentPath.add(step);
 			findPathsToTarget(conditionNode, target, currentPath, pathVisited);
 			currentPath.remove(currentPath.size() - 1);
