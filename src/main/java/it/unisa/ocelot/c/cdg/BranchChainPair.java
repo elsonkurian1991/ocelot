@@ -104,17 +104,22 @@ public class BranchChainPair {
 	        StringBuilder sb = new StringBuilder();
 	        List<PathStep> path1 = chain1.getPath();
 	        List<PathStep> path2 = chain2.getPath();
-	        sb.append("\n  Conditions (Chain 1):");
+	        sb.append("\n");
 	        for (int i = 0; i < path1.size(); i++) {
 	            PathStep step = path1.get(i);
 	            String branchConditionsNew= step.getBranchConditionLabel();
-		        sb.append(" "+branchConditionsNew+" -> ");
+	            if (branchConditionsNew != null && !branchConditionsNew.isEmpty()) {
+	            	sb.append(" "+branchConditionsNew+" -> ");
+	            }
+		        
 	        }  
-	        sb.append("==>  Conditions (Chain 2):");
+	        sb.append("=====>");
 	        for (int i = 0; i < path2.size(); i++) {
 	            PathStep step = path2.get(i);
 	            String branchConditionsNew= step.getBranchConditionLabel();
-		        sb.append(" "+branchConditionsNew+"-> ");
+	            if (branchConditionsNew != null && !branchConditionsNew.isEmpty()) {
+	            	sb.append(" "+branchConditionsNew+" -> ");
+	            }
 	        } 
 	      //  sb.append("\n  Component Pair: ").append(getComponentPairKey()).append("\n");
 	       // sb.append("  Pair Label: ").append(pairLabel).append("\n");

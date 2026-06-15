@@ -488,7 +488,7 @@ public class StandardBuilder_new extends Builder {
 		}
 		// Martino
 		// This code generates the pairs
-		generatePairs();
+		//generatePairs();
 		bcm.generatePairsForBranchChains();
 		// This code generates BranchObjectives used to compare
 		// DynaMOSA with branches optimization with DynaMOSA with pairs obtimization

@@ -125,7 +125,7 @@ public class CFGNode implements Comparable<CFGNode> {
 	 * @return
 	 */
 	public IASTNode getLeadingNode() {
-		return this.nodes.get(0);
+		return this.nodes.isEmpty() ? null : this.nodes.get(0);
 	}
 
 	/**

@@ -14,8 +14,8 @@ public class ControlDependenceEdge {
 
 	// ControlDependenceEdge.java
 	public ControlDependenceEdge(CDGNode from, CDGNode to, Object branchLabel) {
-	    this.from = from;       // condition node (source)
-	    this.to   = to;         // dependent node (target)
+	    this.from = from;       // dependent node (target)
+	    this.to   = to;         // condition node (source)
 	    this.branchLabel = branchLabel;
 	}
 

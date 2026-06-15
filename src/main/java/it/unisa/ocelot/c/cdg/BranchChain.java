@@ -209,6 +209,11 @@ public class BranchChain {
 	    public String toString() {
 	        return "BranchChain[leaf=" + leafNode.getId() + ", length=" + path.size() + "]";
 	    }
+		public void setLabel(String newLabel) {
+			this.label = newLabel;
+			// Optionally, you could also parse the newLabel to update unitComponentName and chainNumber if needed
+			
+		}
 		
 
 }
