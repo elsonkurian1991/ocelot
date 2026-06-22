@@ -12,6 +12,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.util.Map;
 import java.util.HashMap;
+import java.util.HashSet;
 
 import org.apache.commons.io.output.TeeOutputStream;
 
@@ -31,6 +32,7 @@ import it.unisa.ocelot.genetic.objectives.PC_PairsManager;
 import it.unisa.ocelot.simulator.CBridge;
 import it.unisa.ocelot.simulator.CoverageCalculator;
 import it.unisa.ocelot.simulator.GenericCoverageCalculator;
+import it.unisa.ocelot.suites.CoverageVerifier;
 import it.unisa.ocelot.suites.generators.TestSuiteGenerator;
 import it.unisa.ocelot.suites.generators.TestSuiteGeneratorHandler;
 import it.unisa.ocelot.suites.minimization.TestSuiteMinimizer;
@@ -40,6 +42,9 @@ import it.unisa.ocelot.writer.TestFramework;
 import it.unisa.ocelot.writer.check.CheckFactory;
 
 public class GenAndWrite {
+    // Budget: maximum number of generation iterations across all loops.
+    // Adjust this constant (or load it from ConfigManager) as needed.
+    private static final int MAX_ITERATIONS = 10;
 	public void run() {
 		try {
 			ConfigManager config = ConfigManager.getInstance();
@@ -57,7 +62,6 @@ public class GenAndWrite {
 	
 			// Builds the CFG and sets the target
 			CFG cfg = CFGBuilder.build(config.getTestFilename(), config.getTestFunction());
-			CFG cfgExtend = CFGBuilder.build(config.getTestFilename(), config.getTestFunction());
 	
 			
 			CTypeHandler typeHandler = new CTypeHandler(cfg.getParameterTypes());
@@ -70,66 +74,133 @@ public class GenAndWrite {
 			int mcCabePaths = cfg.edgeSet().size() - cfg.vertexSet().size() + 1;
 			System.out.println("Cyclomatic complexity: " + mcCabePaths);
 	
-			//LUCA: load list of objectives
-			// Martino: decide if you want to pass pair objectives or branch objectives
-			List<GenericObjective> objectives;
-			
-			if (config.getOptimizeFor().equals("Pairs")) {
-				objectives = PC_PairsManager.loadObjectives();
-				//objectives.addAll(BranchManager.loadObjectivesSynthetics(objectives.size()));
-				}
-			else if (config.getOptimizeFor().equals("Branches"))
-				objectives = BranchManager.loadObjectives(0);
-			else
-				throw new Exception("Don't know what you are optimizing for");
-			List<GenericObjective> objectivesToEvaluate = null;
-			/*if (config.getEvaluateOn().equals("Pairs"))
-				objectivesToEvaluate = PC_PairsManager.loadObjectives();	
-			else if (config.getEvaluateOn().equals("Branches"))
-				objectivesToEvaluate = BranchManager.loadObjectives(0);
-			else
-				throw new Exception("Don't know what you are Evaluate for");
-			*/
-			//here wwe are generating the new branch Chain Objectives
-			List<GenericObjective> branchChainObjectives;
-			branchChainObjectives= BranchChainManager.loadObjectives();
-			
-			TestSuiteGenerator generator = TestSuiteGeneratorHandler.getInstance(config, cfg, branchChainObjectives);
-			//TestSuiteGenerator generator = TestSuiteGeneratorHandler.getInstance(config, cfg, objectives);
-			//TestSuiteMinimizer minimizer = TestSuiteMinimizerHandler.getInstance(config);
-			
-			System.out.println("Generator: " + generator.getClass().getSimpleName());
-			//System.out.println("Minimizer: " + minimizer.getClass().getSimpleName());
-			Set<TestCase> suite = generator.generateTestSuite();
-	
+			  // Load the full objective list once
+			 List<GenericObjective> allObjectives = BranchChainManager.loadObjectives();
+	            // currentObjectives shrinks each iteration as objectives get covered
+	            List<GenericObjective> currentObjectives = allObjectives;
+	            
+	            // Accumulator: test cases produced across ALL iterations
+	            Set<TestCase> suite = new HashSet<>();
+	 
+	            // Helper that checks coverage and ranks remaining objectives
+	            CoverageVerifier verifier = new CoverageVerifier();
+	 
+	            System.out.println("Starting iterative generation. "
+	                    + "Total objectives: " + allObjectives.size()
+	                    + ", max iterations: " + MAX_ITERATIONS);
+	            
+	            int iteration = 0;
+	            
+	            while (iteration < MAX_ITERATIONS) {
+	                iteration++;
+	                System.out.println("\n=== Iteration " + iteration
+	                        + "/" + MAX_ITERATIONS + " ===");
+	                System.out.println("Objectives in this round: "
+	                        + currentObjectives.size());
+	                
+	                /*for (GenericObjective obj : currentObjectives) {
+	                	obj.setActive(true);
+	                    obj.bestFitness = Double.MAX_VALUE;
+	                    obj.counter = 0;
+	                    if (obj.TriggeredPair != null && !obj.TriggeredPair.isCovered()) {
+	                        obj.TriggeredPair.setActive(true);
+	                    }
+	                }*/
+	                Map<GenericObjective, Integer> savedIds =
+	                        remapObjectiveIds(currentObjectives);
+	            
+	                // Clear stale fitness cache from previous iteration so C instrumentation
+	             // writes fresh values — prevents false non-zero fitness scores blocking coverage
+	               // BranchChainManager.newFitnessHashMap.clear();
+	                
+	                // 3b. Build a fresh generator for this iteration's objectives.
+	                TestSuiteGenerator generator =
+	                        TestSuiteGeneratorHandler.getInstance(
+	                                config, cfg, currentObjectives);
+	 
+	                if (generator == null) {
+	                    restoreObjectiveIds(savedIds);          // clean up before exit
+	                    System.err.println("No generator found for config: "
+	                            + config.getTestSuiteGenerator());
+	                    break;
+	                }
+	 
+	                System.out.println("Generator: "
+	                        + generator.getClass().getSimpleName());
+	 
+	                // 3c. Run generation — MOSA runs here, completely unmodified.
+	                //     Wrapped in try/finally so original IDs are ALWAYS restored
+	                //     even if the generator throws mid-run.
+	                Set<TestCase> iterationSuite;
+	                try {
+	                    iterationSuite = generator.generateTestSuite();
+	                } finally {
+	                    // 3d. Restore original IDs before ANY further use of
+	                    //     allObjectives (coverage reporting, verifier, logging).
+	                    restoreObjectiveIds(savedIds);
+	                }
+	 
+	                // 3e. Merge new test cases into the global accumulator
+	                suite.addAll(iterationSuite);
+	 
+	                System.out.println(verifier.summarise(allObjectives));
+	 
+	                // 3f. Early exit: all objectives covered
+	                if (verifier.isFullyCovered(allObjectives)) {
+	                    System.out.println("All objectives covered — stopping early "
+	                            + "after " + iteration + " iteration(s).");
+	                    break;
+	                }
+	 
+	                // 3g. Identify uncovered objectives, sorted easy → hard.
+	                //     bestFitness was set by MOSA using the remapped IDs but the
+	                //     values themselves are fitness distances, not IDs, so they
+	                //     are unaffected by the remap/restore.
+	                List<GenericObjective> uncovered =
+	                        verifier.getUncoveredObjectivesSorted(allObjectives, suite);
+	 
+	                if (uncovered.isEmpty()) {
+	                    System.out.println("No uncovered objectives remain.");
+	                    break;
+	                }
+	 
+	                System.out.println("Uncovered objectives after iteration "
+	                        + iteration + ": " + uncovered.size()
+	                        + " (sorted easy → hard by bestFitness)");
+	 
+	               /* for (int i = 0; i < uncovered.size(); i++) {
+	                    GenericObjective obj = uncovered.get(i);
+	                    System.out.printf("  [%2d] ObjectiveID=%-4d  bestFitness=%.4f%n",
+	                            i + 1,
+	                            obj.getObjectiveID(),
+	                            obj.getBestFitness());
+	                }*/
+	 
+	                // Next iteration works on the uncovered subset only
+	                currentObjectives = uncovered;
+	            }
+	 
+	            if (iteration == MAX_ITERATIONS
+	                    && !verifier.isFullyCovered(allObjectives)) {
+	                System.out.println("\nBudget exhausted after "
+	                        + MAX_ITERATIONS + " iteration(s). "
+	                        + verifier.summarise(allObjectives));
+	            }
+	            
+	            
+	            //  Final coverage report (unchanged from original)
 			//Set<TestCase> minimizedSuite = minimizer.minimize(suite);
 			Set<TestCase> minimizedSuite = suite;
-			List<GenericObjective> objectivesToRemove = new ArrayList<>();
+
 			
-			/*for (GenericObjective obj : objectivesToEvaluate) {
-				if (obj instanceof PC_PairObjective && ((PC_PairObjective) obj).isSynthetic)
-					objectivesToRemove.add(obj);
-				else if (obj instanceof BranchObjective && ((BranchObjective) obj).isSynthetic)
-					objectivesToRemove.add(obj);
-			}
-			objectivesToEvaluate.removeAll(objectivesToRemove);*/
-			
-			for (GenericObjective obj : branchChainObjectives) {
-				if (obj instanceof PC_PairObjective && ((PC_PairObjective) obj).isSynthetic)
-					objectivesToRemove.add(obj);
-				else if (obj instanceof BranchObjective && ((BranchObjective) obj).isSynthetic)
-					objectivesToRemove.add(obj);
-			}
-			branchChainObjectives.removeAll(objectivesToRemove);
-			
-			GenericCoverageCalculator calculator = new GenericCoverageCalculator(cfg, branchChainObjectives);
+			GenericCoverageCalculator calculator = new GenericCoverageCalculator(cfg, allObjectives);
 			
 			calculator.calculateCoverage(minimizedSuite);
 			
 			// Print and write uncovered branch-chain objectives to file (include coverage counts)
-			printUncoveredBCobjectives(calculator, branchChainObjectives, minimizedSuite);
+			printUncoveredBCobjectives(calculator, allObjectives, minimizedSuite);
 			
-			System.out.println("Size of objectivesToEvaluate: "+branchChainObjectives.size());
+			System.out.println("Size of objectivesToEvaluate: "+allObjectives.size());
 			System.out.println("-------------------------------------------------------");
 			System.out.println("Minimized test cases: " + minimizedSuite.size());
 			System.out.println("Objective coverage achieved: " + calculator.getObjectiveCoverage());
@@ -137,7 +208,7 @@ public class GenAndWrite {
 			//System.out.println("Statement coverage achieved: " + calculator.getBlockCoverage());
 			System.out.println("-------------------------------------------------------");
 			
-			
+			//TODO last enable the following to print the test cases.
 			/*String formattedFilename = config.getTestFilename();
 			formattedFilename = formattedFilename.replaceAll("[^A-Za-z0-9]", "_");
 			String filename = "_Test_" + config.getTestFunction() + "_" + formattedFilename + ".c";
@@ -154,7 +225,36 @@ public class GenAndWrite {
 			throw new RuntimeException(e);
 		}
 	}
-
+	// ------------------------------------------------------------------
+    // Helper: re-index a list of objectives to contiguous IDs 0 … N-1.
+    //
+    // Returns a map of  objective → originalId  so the caller can restore
+    // them after the generator finishes.  The objectives themselves are
+    // mutated in-place (no copies), so MOSA sees the updated IDs when it
+    // calls  solution.setObjective(objective.getObjectiveID(), fitness).
+    // ------------------------------------------------------------------
+    private Map<GenericObjective, Integer> remapObjectiveIds(
+            List<GenericObjective> objectives) {
+ 
+        Map<GenericObjective, Integer> saved = new HashMap<>(objectives.size());
+        for (int i = 0; i < objectives.size(); i++) {
+            GenericObjective obj = objectives.get(i);
+            saved.put(obj, obj.getObjectiveID());   // save original
+            obj.setObjectiveID(i);                  // assign 0-based index
+        }
+        return saved;
+    }
+ 
+    // ------------------------------------------------------------------
+    // Helper: restore original IDs after the generator has finished.
+    // Must be called even when the generator throws, to keep the
+    // allObjectives list consistent for coverage reporting.
+    // ------------------------------------------------------------------
+    private void restoreObjectiveIds(Map<GenericObjective, Integer> saved) {
+        for (Map.Entry<GenericObjective, Integer> entry : saved.entrySet()) {
+            entry.getKey().setObjectiveID(entry.getValue());
+        }
+    }
 	// Helper: prints uncovered branch-chain objectives (human readable) and writes them to uncoveredBCobjectives.txt
 	// Also computes how many times each branch chain is covered across the provided test suite
 	private void printUncoveredBCobjectives(GenericCoverageCalculator calculator, List<GenericObjective> branchChainObjectives, Set<TestCase> suite) {

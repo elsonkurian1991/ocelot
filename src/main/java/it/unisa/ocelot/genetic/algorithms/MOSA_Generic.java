@@ -8,6 +8,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
+import it.unisa.ocelot.c.cdg.BranchChainManager;
 import it.unisa.ocelot.c.cfg.CFG;
 import it.unisa.ocelot.c.types.CType;
 import it.unisa.ocelot.conf.ConfigManager;
@@ -82,12 +83,7 @@ public class MOSA_Generic extends OcelotAlgorithm {
 	public MOSA_Generic(MOSAGenericCoverageProblem problem, List<GenericObjective> targets, CFG cfg, CType[] parameters, ConfigManager config) {
 		super(problem);
 		allTargets = new ArrayList<>(targets);
-		try {
-			archiveTargets = PC_PairsManager.loadObjectives();
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
+		archiveTargets=BranchChainManager.loadObjectives();
 		evaluations = new ArrayList<>();
 		this.coveredObjectives = new HashSet<>();
 		
@@ -216,7 +212,7 @@ public class MOSA_Generic extends OcelotAlgorithm {
 				}
 				globalFitness += objFitness;
 			}
-			System.out.println(globalFitness);
+			//System.out.println("current global fitness: "+globalFitness);
 			
 			
 			this.updateArchive(union, evaluations);
@@ -422,7 +418,7 @@ public class MOSA_Generic extends OcelotAlgorithm {
 					
 					archive.add(currentCandidate);
 					evaluations.add(evaluation);
-					System.out.println("One covered " + archive.size());
+					//System.out.println("One more covered, Total covered until now: " + archive.size()+" out of "+allTargets.size());
 					break;
 				}
 			} // while candidates
@@ -434,7 +430,7 @@ public class MOSA_Generic extends OcelotAlgorithm {
 				acc++;
 			}
 		}
-		System.out.println("Active not covered " + acc);
+		//System.out.println("Active not covered " + acc);
 	}
 
 	private Front preferenceSorting(SolutionSet candidates) {

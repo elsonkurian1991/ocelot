@@ -73,5 +73,9 @@ public abstract class GenericObjective {
 	}
 	
 	public abstract double getFitness(Object[][][] arguments);
-
+	
+	public double getBestFitness() {
+	    return bestFitness;
+	}
+	 
 }
