@@ -8,11 +8,7 @@ import it.unisa.ocelot.genetic.edges.FunBranchNameAndFitness;
 import it.unisa.ocelot.genetic.objectives.BranchDistanceCache;
 import it.unisa.ocelot.genetic.objectives.GenericObjective;
 
-enum State{
-	zeroCover,
-	oneCover,
-	twoCover
-}
+
 public class BranchChainPairStateMachine extends GenericObjective implements Serializable {
 	private static final long serialVersionUID = 1L;
 	int objectiveID;
@@ -27,7 +23,11 @@ public class BranchChainPairStateMachine extends GenericObjective implements Ser
 	static boolean isGenerated;
 	String argumentList;
 	static int counter=0;
-	
+	public enum State{
+		zeroCover,
+		oneCover,
+		twoCover
+	}
 	public BranchChainPairStateMachine(BranchChain branchChainOne, String testObjBCOne, double fitValBCOne,
 			BranchChain branchChainTwo, String testObjBCTwo, double fitValBCTwo, State currState, boolean isGenerated,
 			String argumentList) {
