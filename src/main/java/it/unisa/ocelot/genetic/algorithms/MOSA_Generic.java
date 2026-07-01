@@ -67,7 +67,24 @@ public class MOSA_Generic extends OcelotAlgorithm {
 	//private Dominators<EdgeWrapper<LabeledEdge>, DefaultEdge> dominators;
 
 	private List<Integer> evaluations;
-
+	  /**
+     * Optional seed population provided by PopulationStore from the previous
+     * iteration. If non-null, the first seedPopulation.size() solutions of the
+     * initial population are taken from here instead of being generated randomly.
+     * This preserves search progress across iterations.
+     */
+    private SolutionSet seedPopulation;
+    /**
+     * Current working population. Declared as a field (not local variable in
+     * execute()) so getFinalPopulation() can return it after execute() finishes.
+     */
+    private SolutionSet population;
+    /**
+     * Interval (in evaluations) at which MOSA records a fitness snapshot for
+     * each objective. Used by MABController to compute velocity.
+     * Snapshot every 100 evaluations by default — tune here if needed.
+     */
+    private static final int SNAPSHOT_INTERVAL = 100;
 	/**
 	 * 
 	 */
@@ -100,7 +117,27 @@ public class MOSA_Generic extends OcelotAlgorithm {
 		itCounter = 0;
 		
 	}
-
+	/**
+     * Sets the seed population to use when initialising the next MOSA run.
+     * Called by GenAndWrite before generateTestSuite() is invoked.
+     * If not called (or called with null), MOSA initialises fully randomly
+     * as before — existing behaviour is preserved.
+     *
+     * @param seedPopulation solutions from the previous iteration's final
+     *                       population, provided by PopulationStore
+     */
+    public void setSeedPopulation(SolutionSet seedPopulation) {
+        this.seedPopulation = seedPopulation;
+    }
+    /**
+     * Returns the final population after execute() completes.
+     * Called by GenAndWrite to pass to PopulationStore for the next iteration.
+     *
+     * @return the population SolutionSet at the end of the MOSA run
+     */
+    public SolutionSet getFinalPopulation() {
+        return population;
+    }
 	/**
 	 * Returns the overall test suite
 	 * 
@@ -132,7 +169,7 @@ public class MOSA_Generic extends OcelotAlgorithm {
 			maxCoverage = 1.0;
 		populationSize = ((Integer) getInputParameter("populationSize")).intValue();
 
-		SolutionSet population;
+		//SolutionSet population;
 		SolutionSet offspringPopulation;
 		SolutionSet union;
 		this.archive = new SolutionSet(this.allTargets.size());
@@ -150,16 +187,40 @@ public class MOSA_Generic extends OcelotAlgorithm {
 		crossoverOperator = operators_.get("crossover");
 		selectionOperator = operators_.get("selection");
 
-		// Create the initial solutionSet
-		Solution newSolution;
+		// Create the initial solutionSet THIS IS OLD VERSION
+		/*Solution newSolution;
 		for (int i = 0; i < populationSize; i++) {
 			//System.err.println("Population count: " + i);
 			newSolution = new Solution(problem_);
 			problem_.evaluate(newSolution);
 			evaluations++;
 			population.add(newSolution);
-		}
-
+		}*/
+		   Solution newSolution;
+		   
+	        // Determine how many solutions to seed from the previous iteration.
+	        // Seeds fill the first half of the population; the rest are random.
+	        // If no seed is available (first iteration), all solutions are random.
+	        int seedCount = (seedPopulation != null) ? seedPopulation.size() : 0;
+	 
+	        // Add seed solutions from the previous iteration's population.
+	        // These carry over the search progress already made, avoiding
+	        // re-discovery of the same easy regions from scratch.
+	        for (int i = 0; i < seedCount && i < populationSize; i++) {
+	            newSolution = new Solution(seedPopulation.get(i));
+	            problem_.evaluate(newSolution);
+	            evaluations++;
+	            population.add(newSolution);
+	        }
+	 
+	        // Fill the remainder of the population with fresh random solutions.
+	        // This maintains diversity so MOSA does not get stuck in local optima.
+	        for (int i = seedCount; i < populationSize; i++) {
+	            newSolution = new Solution(problem_);
+	            problem_.evaluate(newSolution);
+	            evaluations++;
+	            population.add(newSolution);
+	        }
 		// store every T.C. that covers previously uncovered branches in the archive
 		this.updateArchive(population, evaluations);
 
@@ -216,7 +277,17 @@ public class MOSA_Generic extends OcelotAlgorithm {
 			
 			
 			this.updateArchive(union, evaluations);
-			
+			// Record a fitness snapshot every SNAPSHOT_INTERVAL evaluations.
+	        // MABController reads these after the run to compute per-objective
+	        // velocity (rate of fitness improvement).
+	        if (evaluations % SNAPSHOT_INTERVAL == 0) {
+	            for (GenericObjective target : allTargets) {
+	                if (!target.isCovered()) {
+	                    // bestFitness is updated by preferenceSorting — record it now
+	                    target.recordSnapshot(evaluations, target.bestFitness);
+	                }
+	            }
+	        }
 			if(!config.isRandomRun()) {
 
 			//modify the objectives before here
@@ -397,13 +468,13 @@ public class MOSA_Generic extends OcelotAlgorithm {
 
 			if (objective.isCovered())
 				continue;
-
+			//System.out.println("Checking objective " + objective.getObjectiveID() + " isActive=" + objective.isActive());
 			Iterator<Solution> iteratorCandidates = candidates.iterator();
 			while (iteratorCandidates.hasNext()) {
 
 				Solution currentCandidate = iteratorCandidates.next();
 				double objectiveScore = currentCandidate.getObjective(objective.getObjectiveID());
-
+				//System.out.println("  -> score=" + objectiveScore);
 				if (objectiveScore == 0.0) {
 					objective.setCovered(true);
 					GenericObjective triggeredPair = objective.TriggeredPair;

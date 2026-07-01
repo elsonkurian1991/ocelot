@@ -33,6 +33,8 @@ public class MOSAGenericCoverageExperiment extends OcelotExperiment {
 	private CFG cfg;
 	private ConfigManager config;
 	private List<GenericObjective> objectives;
+	private SolutionSet seedPopulation;
+	private SolutionSet finalPopulation;
 
 	public MOSAGenericCoverageExperiment(CFG cfg, List<GenericObjective> objectives, ConfigManager configManager, CType[] types) {
 		super(configManager.getResultsFolder(), configManager.getExperimentRuns());
@@ -78,6 +80,7 @@ public class MOSAGenericCoverageExperiment extends OcelotExperiment {
 		this.algorithmSettings(this.problemList_[0], 0, new Algorithm[1]);
 
 		SolutionSet solutionSet = this.algorithm.execute();
+		this.finalPopulation = solutionSet;
 		
 		this.budgetManager.reportConsumedBudget(this, this.algorithm.getStats().getEvaluations());
 		return solutionSet;
@@ -85,5 +88,30 @@ public class MOSAGenericCoverageExperiment extends OcelotExperiment {
 
 	public List<Integer> getNumberOfEvaluations() {
 		return ((MOSA_Generic) this.algorithm).getEvaluations();
+	}
+
+	/**
+	 * Sets the seed population to use when MOSA initialises its population.
+	 * Must be called BEFORE multiObjectiveRun() for seeding to take effect.
+	 *
+	 * @param seedPopulation solutions from the previous iteration's final
+	 *                       population, limited to populationSize / 2
+	 */
+	public void setSeedPopulation(SolutionSet seedPopulation) {
+		this.seedPopulation = seedPopulation;
+		if (this.algorithm instanceof MOSA_Generic) {
+			((MOSA_Generic) this.algorithm).setSeedPopulation(seedPopulation);
+		}
+	}
+
+	/**
+	 * Returns the final population from the last completed MOSA run.
+	 * Called after multiObjectiveRun() returns, to store the population
+	 * for the next iteration's seeding.
+	 *
+	 * @return final SolutionSet from MOSA_Generic, or null if not yet run
+	 */
+	public SolutionSet getFinalPopulation() {
+		return this.finalPopulation;
 	}
 }
