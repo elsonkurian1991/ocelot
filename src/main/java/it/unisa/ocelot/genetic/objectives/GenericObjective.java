@@ -90,15 +90,16 @@ public abstract class GenericObjective {
     }
 
     /**
-     * Records a fitness snapshot at the given evaluation count.
-     * Called by MOSA_Generic at fixed intervals so MABController can compute
-     * velocity after the run.
+     * Records a fitness snapshot at the given generation and evaluation count.
+     * Called by MOSA_Generic once per generation for every objective.
      *
-     * @param evaluationCount current evaluation number inside MOSA
+     * @param generation      MOSA generation number (x-axis for convergence plot)
+     * @param evaluationCount cumulative evaluations at this generation
      * @param fitness         best fitness seen for this objective so far
      */
-    public void recordSnapshot(int evaluationCount, double fitness) {
-        fitnessSnapshots.add(new double[]{evaluationCount, fitness});
+    public void recordSnapshot(int generation, int evaluationCount, double fitness) {
+        // Stores [generation, evaluationCount, fitness]
+        fitnessSnapshots.add(new double[]{generation, evaluationCount, fitness});
     }
 
     /**

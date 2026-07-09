@@ -80,11 +80,12 @@ public class MOSA_Generic extends OcelotAlgorithm {
      */
     private SolutionSet population;
     /**
-     * Interval (in evaluations) at which MOSA records a fitness snapshot for
-     * each objective. Used by MABController to compute velocity.
-     * Snapshot every 100 evaluations by default — tune here if needed.
+     * Counts the number of completed generations inside the MOSA while loop.
+     * Incremented once per generation (after each offspring creation + archive
+     * update cycle). Used as the x-axis unit in fitness snapshots so the plot
+     * shows convergence per generation rather than per evaluation.
      */
-    private static final int SNAPSHOT_INTERVAL = 100;
+    private int generationCounter;
 	/**
 	 * 
 	 */
@@ -181,7 +182,7 @@ public class MOSA_Generic extends OcelotAlgorithm {
 		// Initialize the variables
 		population = new SolutionSet(populationSize);
 		evaluations = 0;
-
+		 generationCounter = 0; // reset at the start of each MOSA run
 		// Read the operators
 		mutationOperator = operators_.get("mutation");
 		crossoverOperator = operators_.get("crossover");
@@ -277,16 +278,19 @@ public class MOSA_Generic extends OcelotAlgorithm {
 			
 			
 			this.updateArchive(union, evaluations);
-			// Record a fitness snapshot every SNAPSHOT_INTERVAL evaluations.
-	        // MABController reads these after the run to compute per-objective
-	        // velocity (rate of fitness improvement).
-	        if (evaluations % SNAPSHOT_INTERVAL == 0) {
-	            for (GenericObjective target : allTargets) {
-	                if (!target.isCovered()) {
-	                    // bestFitness is updated by preferenceSorting — record it now
-	                    target.recordSnapshot(evaluations, target.bestFitness);
-	                }
-	            }
+			  // Record a fitness snapshot for every objective at the end of each
+	        // generation so FitnessTracker can plot convergence curves.
+	        // Recording ALL objectives (not just allTargets subset) lets us see
+	        // whether non-subset objectives are coincidentally improving too.
+	        // Snapshot format: [generationCounter, evaluations, bestFitness]
+	        generationCounter++;
+	        for (GenericObjective target : allTargets) {
+	            // For covered objectives record 0.0 — they are done
+	            double snapshotFitness = target.isCovered() ? 0.0 : target.bestFitness;
+	            // Clamp MAX_VALUE to 1.0 for clean CSV output
+	            if (snapshotFitness == Double.MAX_VALUE) snapshotFitness = 1.0;
+	            // recordSnapshot stores [generation, evaluations, fitness]
+	            target.recordSnapshot(generationCounter, evaluations, snapshotFitness);
 	        }
 			if(!config.isRandomRun()) {
 

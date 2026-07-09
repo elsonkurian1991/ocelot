@@ -17,7 +17,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 
 import org.apache.commons.io.output.TeeOutputStream;
-
+import it.unisa.ocelot.suites.FitnessTracker;
 import it.unisa.ocelot.TestCase;
 import it.unisa.ocelot.c.cdg.BranchChainManager;
 import it.unisa.ocelot.c.cdg.BranchChainPairStateMachine;
@@ -48,7 +48,7 @@ import it.unisa.ocelot.util.Utils;
 import it.unisa.ocelot.writer.TestFramework;
 import it.unisa.ocelot.writer.check.CheckFactory;
 import jmetal.core.SolutionSet;
-
+import it.unisa.ocelot.suites.SerendipitousCoverageChecker;
 /**
  * GenAndWrite orchestrates iterative test suite generation using a Multi-Armed
  * Bandit (MAB) strategy for objective subset selection.
@@ -78,8 +78,10 @@ import jmetal.core.SolutionSet;
 public class GenAndWrite {
 	// Budget: maximum number of generation iterations across all loops.
 	// Adjust this constant (or load it from ConfigManager) as needed.
-	private static final int MAX_ITERATIONS = 10;
+	private static final int MAX_ITERATIONS = 5;
 
+	// One-time-per-JVM guard: delete old fitness mapping output file on first call to getOutputFile()
+	private static volatile boolean OUTPUT_FITNESS_FILE_CLEANED = false;
 	public void run() {
 		try {
 			ConfigManager config = ConfigManager.getInstance();
@@ -117,20 +119,57 @@ public class GenAndWrite {
 			ObjSubsetLoader subsetLoader = new ObjSubsetLoader(config.getPopulationSize(), mab);
 
 			// Holds the final MOSA population for seeding the next iteration
-			PopulationStore populationStore = new PopulationStore();
+			// Pool capacity = populationSize / 2, set once and fixed for all iterations
+			PopulationStore populationStore = new PopulationStore(config.getPopulationSize());
 
 			// Checks which objectives are covered after each iteration
 			CoverageVerifier verifier = new CoverageVerifier();
 
 			// Accumulates test cases produced across ALL iterations
 			Set<TestCase> suite = new HashSet<>();
-
+			// Checks whether TCs from each iteration incidentally cover
+			// objectives outside the current subset — free coverage gain
+			SerendipitousCoverageChecker serendipityChecker = new SerendipitousCoverageChecker(cfg);
 			// Start with all objectives uncovered
 			List<GenericObjective> uncoveredObjectives = new ArrayList<>(allObjectives);
 
 			System.out.println("Starting MAB-guided iterative generation. " + "Max iterations: " + MAX_ITERATIONS
 					+ ", subset size: " + subsetLoader.getSubsetSize());
 			StringBuilder objCovEachIter = new StringBuilder();
+			// Tracks and persists fitness snapshots to CSV for post-run analysis.
+			// "." writes fitness_progress.csv to the current working directory —
+			// change to config.getOutputDir() or similar if you have an output path.
+			FitnessTracker fitnessTracker;
+			try {
+				String outputDir = config.getTestBasedir();
+				// Ensure we delete any old fitness mapping output file only once per JVM run.
+				if (!OUTPUT_FITNESS_FILE_CLEANED) {
+					File candidate = new File(outputDir + "fitness_progress.csv");
+					try {
+						// Ensure parent directory exists
+						File parent = candidate.getParentFile();
+						if (parent != null && !parent.exists()) {
+							parent.mkdirs();
+						}
+
+						if (candidate.exists()) {
+							boolean deleted = candidate.delete();
+							if (!deleted) {
+								System.err.println("Warning: unable to delete existing fitness_progress.csv file: " + candidate.getAbsolutePath());
+							}
+						}
+					} catch (SecurityException se) {
+						System.err.println("Warning deleting fitness_progress.csv file: " + se.getMessage());
+					} finally {
+						OUTPUT_FITNESS_FILE_CLEANED = true;
+						System.err.println("deleted previous fitness_progress.csv file: ");
+					}
+				}
+
+				fitnessTracker = new FitnessTracker(outputDir);
+			} catch (IOException e) {
+				throw new RuntimeException("Could not create FitnessTracker CSV", e);
+			}
 			// Main iterative generation loop
 			for (int iteration = 1; iteration <= MAX_ITERATIONS; iteration++) {
 				System.out.println("\n=== Iteration " + iteration + "/" + MAX_ITERATIONS + " ===");
@@ -186,7 +225,8 @@ public class GenAndWrite {
 				if (generator instanceof GenericMOSATestSuiteGenerator && populationStore.hasSeedPopulation()) {
 					int seedSize = config.getPopulationSize() / 2;
 					SolutionSet seeds = populationStore.getSeedPopulation(seedSize);
-					((GenericMOSATestSuiteGenerator) generator).setSeedPopulation(seeds);
+					//here we need to set the new seed pop according to the new objective list.
+					// seeds and subsetobjectives are, if this are not same size, we need to reduce size of seed.obj = subsetobj					((GenericMOSATestSuiteGenerator) generator).setSeedPopulation(seeds);
 					System.out.println("Seeded MOSA with " + seeds.size() + " solutions from previous iteration.");
 				}
 				// Run MOSA — the core generation step.
@@ -213,9 +253,30 @@ public class GenAndWrite {
 						System.out.println("Stored final population of size: " + finalPop.size());
 					}
 				}
+				// ------------------------------------------------------------------
+				// Serendipitous coverage check — re-execute each TC from this
+				// iteration against ALL uncovered non-subset objectives.
+				// Any objective whose fitness == 0.0 is marked covered for free,
+				// without spending an additional MOSA iteration on it.
+				// ------------------------------------------------------------------
+				int serendipitouslyCovered = serendipityChecker.check(
+						iterationSuite,     // TCs produced this iteration
+						allObjectives,      // full objective list to scan
+						subsetObjectives);  // exclude — MOSA already handled these
+				if (serendipitouslyCovered > 0) {
+					System.out.println("Serendipitous coverage: "
+							+ serendipitouslyCovered
+							+ " additional objective(s) covered at no extra cost.");
+				}
+
 				// MAB step 2 — compute velocity for each objective in subset.
 				// Uses fitnessSnapshots recorded by MOSA_Generic during the run.
 				mab.computeVelocities(subsetObjectives);
+
+				// Flush per-generation snapshots for ALL objectives — subset ones have
+			    // real snapshots, non-subset ones get last-known fitness as placeholder
+			    fitnessTracker.flush(iteration, allObjectives, subsetObjectives);
+
 				// Coverage verification — identify newly covered objectives
 				System.out.println(verifier.summarise(allObjectives));
 
@@ -236,9 +297,12 @@ public class GenAndWrite {
 					break;
 				}
 				String line = "\n" + iteration + "/" + MAX_ITERATIONS + " -> " + iterationSuite.size()
-						+ " Objectives covered";
+				+ " Objectives covered";
 				objCovEachIter.append(line);
 			} // For loop end
+
+			// Close the CSV file writer cleanly after all iterations complete
+			fitnessTracker.close();
 
 			// Final coverage report
 			if (!verifier.isFullyCovered(allObjectives)) {
@@ -273,7 +337,8 @@ public class GenAndWrite {
 
 			for (GenericObjective objective : uncoveredObjectives) {
 				if (!objective.isCovered()) {
-					 System.out.println(objective.toString());
+					System.out.println(objective.toString());
+					printUncoveredBCobjectives(calculator, allObjectives, minimizedSuite);
 				}
 			}
 			// System.out.println("Branch coverage achieved: " +
@@ -282,19 +347,19 @@ public class GenAndWrite {
 			// calculator.getBlockCoverage());
 
 			// TODO last enable the following to print the test cases.
-			
-			  String formattedFilename = config.getTestFilename(); formattedFilename =
-			  formattedFilename.replaceAll("[^A-Za-z0-9]", "_"); String filename = "_Test_"
-			  + config.getTestFunction() + "_" + formattedFilename + ".c";
-			  System.out.println("Writing test suite on " + filename + "...");
-			  
-			  TestFramework framework = new TestFramework(new CheckFactory());
-			  
-			  String content = framework.writeTestSuite(minimizedSuite, cfg, config);
-			  Utils.writeFile(filename, content);
-			 
 
-			System.out.println("Operation completed!");
+			String formattedFilename = config.getTestFilename(); formattedFilename =
+					formattedFilename.replaceAll("[^A-Za-z0-9]", "_"); String filename = "_Test_"
+							+ config.getTestFunction() + "_" + formattedFilename + ".c";
+					System.out.println("Writing test suite on " + filename + "...");
+
+					TestFramework framework = new TestFramework(new CheckFactory());
+
+					String content = framework.writeTestSuite(minimizedSuite, cfg, config);
+					Utils.writeFile(filename, content);
+
+
+					System.out.println("Operation completed!");
 		} catch (Exception e) {
 			e.printStackTrace();
 			throw new RuntimeException(e);
