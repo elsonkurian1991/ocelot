@@ -78,6 +78,9 @@ public class MOSAGenericCoverageExperiment extends OcelotExperiment {
 
 	public SolutionSet multiObjectiveRun() throws ClassNotFoundException, jmetal.util.JMException {
 		this.algorithmSettings(this.problemList_[0], 0, new Algorithm[1]);
+		if (this.algorithm instanceof MOSA_Generic) {
+			((MOSA_Generic) this.algorithm).setSeedPopulation(seedPopulation);
+		}
 
 		SolutionSet solutionSet = this.algorithm.execute();
 		this.finalPopulation = solutionSet;
@@ -99,9 +102,6 @@ public class MOSAGenericCoverageExperiment extends OcelotExperiment {
 	 */
 	public void setSeedPopulation(SolutionSet seedPopulation) {
 		this.seedPopulation = seedPopulation;
-		if (this.algorithm instanceof MOSA_Generic) {
-			((MOSA_Generic) this.algorithm).setSeedPopulation(seedPopulation);
-		}
 	}
 
 	/**
