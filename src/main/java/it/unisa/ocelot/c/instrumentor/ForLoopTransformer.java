@@ -39,7 +39,7 @@ public class ForLoopTransformer extends ASTVisitor {
 			ASTWriter writer = new ASTWriter();
 			// 1. Create declaration: int forLoopCount_N = 0;
 			IASTDeclarationStatement declStmt = createDeclarationStatement(counterName);
-			System.out.println("Inserted declaration:\n" + writer.write(declStmt));
+			//System.out.println("Inserted declaration:\n" + writer.write(declStmt));
 
 			// 2. Create increment: forLoopCount_N += 1;
 			IASTExpressionStatement incrementStmt = createIncrement(counterName);
@@ -93,7 +93,7 @@ public class ForLoopTransformer extends ASTVisitor {
 			IASTNode grandParent = compoundParent.getParent();
 			if (grandParent instanceof IASTStatement) {
 				if (grandParent instanceof IASTCompoundStatement) {
-					System.out.println("IASTCompoundStatement");
+					//System.out.println("IASTCompoundStatement");
 					IASTCompoundStatement gpCompound = (IASTCompoundStatement) grandParent;
 					IASTStatement[] norstmts = gpCompound.getStatements();
 					for (int i = 0; i < norstmts.length; i++) {
@@ -103,7 +103,7 @@ public class ForLoopTransformer extends ASTVisitor {
 						}
 					}
 				} else if (grandParent instanceof IASTIfStatement) {
-					System.out.println("IASTIfStatement");
+					//System.out.println("IASTIfStatement");
 					IASTIfStatement ifStmt = (IASTIfStatement) grandParent;
 					if (ifStmt.getThenClause() == compoundParent) {
 						ifStmt.setThenClause(newCompound);
@@ -111,19 +111,19 @@ public class ForLoopTransformer extends ASTVisitor {
 						ifStmt.setElseClause(newCompound);
 					}
 				} else if (grandParent instanceof IASTWhileStatement) {
-					System.out.println("IASTWhileStatement");
+					//System.out.println("IASTWhileStatement");
 					IASTWhileStatement whileStmt = (IASTWhileStatement) grandParent;
 					if (whileStmt.getBody() == compoundParent) {
 						whileStmt.setBody(newCompound);
 					}
 				} else if (grandParent instanceof IASTForStatement) {
-					System.out.println("IASTForStatement");
+					//System.out.println("IASTForStatement");
 					IASTForStatement loop = (IASTForStatement) grandParent;
 					if (loop.getBody() == compoundParent) {
 						loop.setBody(newCompound);
 					}
 				} else if (grandParent instanceof IASTDoStatement) {
-					System.out.println("IASTDoStatement");
+					//System.out.println("IASTDoStatement");
 					IASTDoStatement doStmt = (IASTDoStatement) grandParent;
 					if (doStmt.getBody() == compoundParent) {
 						doStmt.setBody(newCompound);
@@ -132,7 +132,7 @@ public class ForLoopTransformer extends ASTVisitor {
 					System.err.println("Unsupported parent statement: " + grandParent.getClass().getSimpleName());
 				}
 			} else if (grandParent instanceof IASTFunctionDefinition) {
-				System.out.println("IASTFunctionDefinition");
+				//System.out.println("IASTFunctionDefinition");
 				IASTFunctionDefinition funcDef = (IASTFunctionDefinition) grandParent;
 				funcDef.setBody(newCompound);
 			} else {

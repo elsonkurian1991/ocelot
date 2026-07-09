@@ -464,15 +464,15 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 				List<String> branchesTaken = new ArrayList<String>();
 				// Traverse the AST from bottom to top and collect the branches take to reach
 				// the function call
-				System.out.println(functionName);
+				//System.out.println(functionName);
 				while (ParentExpression != null) {
 					//System.out.println(ParentExpression.getRawSignature());
 					List<String> present = nodeBranchMap.get(ParentExpression);
 					
 					if (present != null) {
 						branchesTaken.addAll(present);
-						System.out.println(present);
-						System.out.println(present.size());
+						//System.out.println(present);
+						//System.out.println(present.size());
 					}
 					ParentExpression = ParentExpression.getParent();
 				}

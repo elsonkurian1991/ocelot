@@ -62,10 +62,10 @@ public class StatementTreePrinter extends ASTVisitor {
             
         } else if (stmt instanceof CASTDeclarationStatement) {
             for (IASTNode child : (stmt.getChildren())) {
-            	System.out.println(((CASTSimpleDeclaration) child).getRawSignature() + "DeclarationsStatementChildren");
+            	//System.out.println(((CASTSimpleDeclaration) child).getRawSignature() + "DeclarationsStatementChildren");
             	if (((CASTSimpleDeclaration) child).getRawSignature().contains("IfBlock1_clock"))
-            		System.out.println(";");
-            	System.out.println(((CASTSimpleDeclaration) child).getDeclSpecifier().getRawSignature());
+            		//System.out.println(";");
+            		//System.out.println(((CASTSimpleDeclaration) child).getDeclSpecifier().getRawSignature());
                 indent += 2;
                 printIndented("Code: " + stmt.getRawSignature().replaceAll("\\s+", " "));
                 indent -= 2;

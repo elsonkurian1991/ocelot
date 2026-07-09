@@ -200,10 +200,8 @@ public class CDG {
 			for (LabeledEdge edge : cfg.outgoingEdgesOf(cfgNode)) {
 				CFGNode cfgTarget = cfg.getEdgeTarget(edge);
 				CDGNode tgtCdg = cfgToCdgMap.get(cfgTarget);
-				System.out.println("Processing CFG edge: " + cfgNode.getId() + " --[" + edge.toString() + "]--> "
-						+ cfgTarget.getId());
-				System.out.println("Mapped to CDG edge: " + srcCdg.id + " --[" + edge.toString() + "]--> "
-						+ (tgtCdg != null ? tgtCdg.id : "null"));
+				//System.out.println("Processing CFG edge: " + cfgNode.getId() + " --[" + edge.toString() + "]--> " + cfgTarget.getId());
+				//System.out.println("Mapped to CDG edge: " + srcCdg.id + " --[" + edge.toString() + "]--> " 	+ (tgtCdg != null ? tgtCdg.id : "null"));
 				if (tgtCdg == null)
 					continue;
 
@@ -570,7 +568,7 @@ public class CDG {
 
 		if (extracted != null && !extracted.isBlank()) {
 			cdgNode.label = cfgNode.getId() + ": " + extracted.trim();
-			System.out.println("Label fixed to: '" + cdgNode.label + "'");
+			//System.out.println("Label fixed to: '" + cdgNode.label + "'");
 		}
 	}
 
