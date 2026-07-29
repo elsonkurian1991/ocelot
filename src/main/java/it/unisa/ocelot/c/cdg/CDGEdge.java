@@ -1,7 +1,10 @@
 package it.unisa.ocelot.c.cdg;
 
 import java.util.Objects;
-
+/**
+ * EVINT_TOOL_MARKER
+ * This class is used by the EvInT (Evolutionary Integration Testing) tool.
+ */
 /**
  * A labeled control-dependency edge: the dependent node is control-dependent
  * on a condition node with a specific branch label ("T", "F", or a case label).

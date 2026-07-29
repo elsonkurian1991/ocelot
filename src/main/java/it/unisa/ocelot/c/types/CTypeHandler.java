@@ -2,7 +2,10 @@ package it.unisa.ocelot.c.types;
 
 import java.util.ArrayList;
 import java.util.List;
-
+/**
+ * EVINT_TOOL_MARKER
+ * This class is used by the EvInT (Evolutionary Integration Testing) tool.
+ */
 public class CTypeHandler {
 	private CType[] types;
 	

@@ -10,7 +10,6 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 
 import org.eclipse.cdt.core.dom.ast.IASTBinaryExpression;
@@ -21,9 +20,6 @@ import org.eclipse.cdt.core.dom.ast.IASTIfStatement;
 import org.eclipse.cdt.core.dom.ast.IASTNode;
 import org.eclipse.cdt.core.dom.ast.IASTSwitchStatement;
 import org.eclipse.cdt.core.dom.ast.IASTWhileStatement;
-import org.eclipse.cdt.internal.core.dom.parser.c.CASTFunctionCallExpression;
-
-import com.jgraph.algebra.JGraphFibonacciHeap.Node;
 
 import it.unisa.ocelot.c.cfg.CFG;
 import it.unisa.ocelot.c.cfg.edges.CaseEdge;
@@ -32,7 +28,10 @@ import it.unisa.ocelot.c.cfg.edges.FlowEdge;
 import it.unisa.ocelot.c.cfg.edges.LabeledEdge;
 import it.unisa.ocelot.c.cfg.edges.TrueEdge;
 import it.unisa.ocelot.c.cfg.nodes.CFGNode;
-
+/**
+ * EVINT_TOOL_MARKER
+ * This class is used by the EvInT (Evolutionary Integration Testing) tool.
+ */
 /**
  * Control Dependence Graph (CDG) implementation.
  *
@@ -59,24 +58,13 @@ import it.unisa.ocelot.c.cfg.nodes.CFGNode;
  * {@link CDGNode#isBranchNode}, and {@link BranchChainExtractor}.
  */
 public class CDG {
-
-	// -----------------------------------------------------------------------
-	// CFG-derived node map and structural ids
-	// -----------------------------------------------------------------------
-
 	/** CDGNodes keyed by their auto-assigned CDGNode id. */
 	private final Map<Integer, CDGNode> nodes;
-
 	/** Entry node id (maps to cfg.getStart()). */
 	private final int entryId;
-
 	/** Exit node id (maps to cfg.getEnd()). */
 	private final int exitId;
-
-	// -----------------------------------------------------------------------
-	// CDG edge structures (built during buildCDG)
-	// -----------------------------------------------------------------------
-
+	
 	/**
 	 * Adjacency list for the CDG, keyed by <em>source</em> (condition) CDGNode id.
 	 * Each value is the list of outgoing {@link ControlDependenceEdge} objects,
@@ -97,13 +85,6 @@ public class CDG {
 	private final Map<CFGNode, CDGNode> cfgToCdgMap;
 	/** Case-edge labels: (conditionId, succId) → label string. */
 	private final Map<Long, String> caseEdgeLabels;
-
-	/** Nodes that may receive ENTRY→FLOW (computed for CFG-based CDG). */
-	private Set<Integer> entryFlowNodeIds;
-
-	// -----------------------------------------------------------------------
-	// Intermediate analysis results (package-private for testing if needed)
-	// -----------------------------------------------------------------------
 
 	/** PED[n] – pre-dominators */
 	private Map<Integer, Set<Integer>> ped;
@@ -132,11 +113,6 @@ public class CDG {
 	 * internally; the public surface uses {@link ControlDependenceEdge}.
 	 */
 	private Map<Integer, Set<CDGEdge>> cd;
-
-	// -----------------------------------------------------------------------
-	// Constructor: Map-based (original, kept for the Builder / tests)
-	// -----------------------------------------------------------------------
-
 	/**
 	 * Constructs a CDG from an already-built node map (used by the inner
 	 * {@link Builder} and unit tests).
@@ -157,11 +133,7 @@ public class CDG {
 		this.edgeSource = new LinkedHashMap<>();
 		this.edgeTarget = new LinkedHashMap<>();
 	}
-
-	// -----------------------------------------------------------------------
-	// Constructor: CFG-based (main production entry point)
-	// -----------------------------------------------------------------------
-
+	
 	/**
 	 * Converts a {@link CFG} into a CDG.
 	 *
@@ -200,8 +172,6 @@ public class CDG {
 			for (LabeledEdge edge : cfg.outgoingEdgesOf(cfgNode)) {
 				CFGNode cfgTarget = cfg.getEdgeTarget(edge);
 				CDGNode tgtCdg = cfgToCdgMap.get(cfgTarget);
-				//System.out.println("Processing CFG edge: " + cfgNode.getId() + " --[" + edge.toString() + "]--> " + cfgTarget.getId());
-				//System.out.println("Mapped to CDG edge: " + srcCdg.id + " --[" + edge.toString() + "]--> " 	+ (tgtCdg != null ? tgtCdg.id : "null"));
 				if (tgtCdg == null)
 					continue;
 
@@ -215,14 +185,11 @@ public class CDG {
 				if (edge instanceof TrueEdge) {
 					srcCdg.isCondition = true;
 					srcCdg.trueSuccessor = tgtCdg.id;
-					// Fix: enrich label from CFG node if currently blank
-
 					enrichConditionLabel(srcCdg, cfgNode);
-
+					
 				} else if (edge instanceof FalseEdge) {
 					srcCdg.isCondition = true;
 					srcCdg.falseSuccessor = tgtCdg.id;
-					// Fix: enrich label from CFG node if currently blank
 					enrichConditionLabel(srcCdg, cfgNode);
 
 				} else if (edge instanceof CaseEdge) {
@@ -231,10 +198,8 @@ public class CDG {
 					if (lbl != null) {
 						caseEdgeLabels.put(packPair(srcCdg.id, tgtCdg.id), lbl.toString());
 					}
-					// Fix: enrich label from CFG node if currently blank
 					enrichConditionLabel(srcCdg, cfgNode);
 				}
-
 			}
 		}
 
@@ -259,11 +224,7 @@ public class CDG {
 		CDGNode.resetIdCounter();
 	}
 
-	// -----------------------------------------------------------------------
-	// Core analysis pipeline
-	// -----------------------------------------------------------------------
-
-	void buildCDG() {
+	public void buildCDG() {
 		// PED to PEF are not important
 		ped = computePreDominators();
 		iped = computeImmediatePreDominators(ped);
@@ -280,131 +241,7 @@ public class CDG {
 		cd = computeControlDependencies(pod, pof);
 
 		materialiseEdges();
-		// attachEntryFlowEdges();
-		/*
-		 * if (originalCFG != null) { computeEntryFlowNodeIds(); attachEntryFlowEdges();
-		 * } else { attachFlowToNodesWithoutIncoming(); }
-		 */
 	}
-
-	private void attachEntryFlowEdges() {
-		// Mark entry node as a condition node so CDGBranchPathCollector
-		// dispatches it through handleBranchNode
-		nodes.get(entryId).isCondition = true; // Mark entry as condition to prevent it being treated as leaf
-		for (int id : nodes.keySet()) {
-			if (id == entryId)
-				continue;
-			List<ControlDependenceEdge> incoming = incomingEdges.getOrDefault(id, Collections.emptyList());
-
-			// Exclude self-loops: a node whose only incoming edges are from itself
-			// is effectively disconnected (e.g. for-loop condition self-back-edge)
-			boolean hasExternalIncoming = incoming.stream().anyMatch(e -> !Objects.equals(edgeSource.get(e), id));
-
-			if (!hasExternalIncoming) {
-				addFlowEdge(entryId, id);
-			}
-		}
-
-	}
-
-	private void attachEntryFlowEdges_notworking() {
-		// First compute reachability from entry via existing edges
-		Set<Integer> reachable = new HashSet<>();
-		Deque<Integer> queue = new ArrayDeque<>();
-		queue.add(entryId);
-		reachable.add(entryId);
-		while (!queue.isEmpty()) {
-			int current = queue.poll();
-			for (ControlDependenceEdge e : outgoingEdges.getOrDefault(current, Collections.emptyList())) {
-				Integer target = edgeTarget.get(e);
-				if (target != null && reachable.add(target)) {
-					queue.add(target);
-				}
-			}
-		}
-
-		// Only add FLOW from entry to nodes that:
-		// 1. Are not reachable from entry
-		// 2. Have NO incoming TRUE/FALSE/case edges from any condition node
-		for (int id : nodes.keySet()) {
-			if (id == entryId)
-				continue;
-			if (reachable.contains(id))
-				continue;
-
-			// Skip if this node already has a real incoming branch edge
-			boolean hasRealBranchIncoming = incomingEdges.getOrDefault(id, Collections.emptyList()).stream()
-					.anyMatch(e -> {
-						String lbl = e.toString();
-						return "TRUE".equals(lbl) || "FALSE".equals(lbl) || (!lbl.equals("FLOW") && !lbl.isBlank());
-					});
-
-			if (!hasRealBranchIncoming) {
-				addFlowEdge(entryId, id);
-			}
-		}
-	}
-
-	private void attachEntryFlowEdges_old() {
-		// Find all nodes reachable from entry via existing edges
-		Set<Integer> reachable = new HashSet<>();
-		Deque<Integer> queue = new ArrayDeque<>();
-		queue.add(entryId);
-		reachable.add(entryId);
-		while (!queue.isEmpty()) {
-			int current = queue.poll();
-			for (ControlDependenceEdge e : outgoingEdges.getOrDefault(current, Collections.emptyList())) {
-				Integer target = edgeTarget.get(e);
-				if (target != null && reachable.add(target)) {
-					queue.add(target);
-				}
-			}
-		}
-
-		// Any node not reachable from entry gets a FLOW edge from entry
-		for (int id : nodes.keySet()) {
-			if (id == entryId)
-				continue;
-			if (!reachable.contains(id)) {
-				addFlowEdge(entryId, id);
-			}
-		}
-		/*
-		 * V2 for (int id : nodes.keySet()) { if (id == entryId) continue;
-		 * List<ControlDependenceEdge> incoming = incomingEdges.getOrDefault(id,
-		 * Collections.emptyList());
-		 * 
-		 * // * treat self-loop-only nodes as having no real incoming edge *** boolean
-		 * hasRealIncoming = incoming.stream() .anyMatch(e ->
-		 * !Objects.equals(edgeSource.get(e), id));
-		 * 
-		 * if (!hasRealIncoming) { addFlowEdge(entryId, id); } }
-		 */
-		/*
-		 * V1 for (int id : nodes.keySet()) { if (id == entryId) continue; // Any node
-		 * with no incoming CDG edges gets a FLOW edge from entry if
-		 * (incomingEdges.getOrDefault(id, Collections.emptyList()).isEmpty()) {
-		 * addFlowEdge(entryId, id); } }
-		 */
-	}
-
-	private void addFlowEdge(int sourceId, int targetId) {
-		if (hasEdge(sourceId, targetId))
-			return;
-		ControlDependenceEdge cde = new ControlDependenceEdge(nodes.get(targetId), nodes.get(sourceId), "FLOW");
-		registerEdge(sourceId, targetId, cde);
-	}
-
-	private boolean hasEdge(int sourceId, int targetId) {
-		for (ControlDependenceEdge e : outgoingEdges.getOrDefault(sourceId, Collections.emptyList())) {
-			if (Objects.equals(edgeTarget.get(e), targetId))
-				return true;
-		}
-		return false;
-	}
-	// -----------------------------------------------------------------------
-	// Materialise ControlDependenceEdge objects from raw CD map
-	// -----------------------------------------------------------------------
 
 	/**
 	 * Converts the raw {@code cd} map (conditionId, label pairs) into
@@ -415,8 +252,8 @@ public class CDG {
 	 * Direction of a CDG edge: condition node → dependent node. "Node X is
 	 * control-dependent on condition Y with label L" becomes an edge Y --L--> X.
 	 */
-	private void materialiseEdges() {// all node must have atleast one edge associated to it, otherwise it will be
-										// treated as a leaf node and not traversed by the BranchChainExtractor
+	private void materialiseEdges() {
+		
 		for (int id : nodes.keySet()) {
 			outgoingEdges.put(id, new ArrayList<>());
 			incomingEdges.put(id, new ArrayList<>());
@@ -429,101 +266,10 @@ public class CDG {
 				int conditionId = raw.conditionNodeId; // Y is the CONDITION node
 				String rawLabel = raw.label;
 
-				ControlDependenceEdge cde = new ControlDependenceEdge(nodes.get(dependentId), nodes.get(conditionId),
-						rawLabel);
-				// FIX: condition is the SOURCE, dependent is the TARGET
-				registerEdge(conditionId, dependentId, cde);
-
-				// LabeledEdge originalCfgEdge = resolveCfgEdge(conditionId, dependentId,
-				// rawLabel);
-				// String normLabel = normaliseBranchLabel(rawLabel, originalCfgEdge);
-				// ControlDependenceEdge cde = new ControlDependenceEdge(normLabel,
-				// originalCfgEdge);
-
-			}
-		}
-		// add this extra:Mark entry as condition since it now has outgoing TRUE/FLOW
-		// edges
-		//nodes.get(entryId).isCondition = true;
-	}
-
-	private void materialiseEdges_notfullyworking() {
-		for (int id : nodes.keySet()) {
-			outgoingEdges.put(id, new ArrayList<>());
-			incomingEdges.put(id, new ArrayList<>());
-		}
-
-		// First pass: add all TRUE/FALSE/case edges from real condition nodes
-		// Priority: loop conditions take precedence over inner if-conditions
-		Map<Integer, CDGEdge> bestDep = new HashMap<>(); // targetId -> best CDGEdge
-
-		for (Map.Entry<Integer, Set<CDGEdge>> entry : cd.entrySet()) {
-			int dependentId = entry.getKey();
-			for (CDGEdge raw : entry.getValue()) {
-				int conditionId = raw.conditionNodeId;
-				String label = raw.label;
-
-				// Skip FLOW/entry edges for now
-				if ("TRUE".equals(label) && conditionId == entryId)
-					continue;
-
-				CDGEdge existing = bestDep.get(dependentId);
-				if (existing == null) {
-					bestDep.put(dependentId, raw);
-				} else {
-					// Prefer the condition that is a loop node (has self-loop)
-					// over inner if-conditions (break scenario)
-					boolean newIsLoop = hasOutgoingSelfLoop(conditionId);
-					boolean existingIsLoop = hasOutgoingSelfLoop(existing.conditionNodeId);
-					if (newIsLoop && !existingIsLoop) {
-						bestDep.put(dependentId, raw);
-					}
-					// If both or neither are loops, keep both (legitimate multi-deps)
-					else if (!newIsLoop && !existingIsLoop) {
-						// register both — handled below
-						bestDep.put(dependentId, null); // sentinel: keep all
-					}
-				}
-			}
-		}
-
-		for (Map.Entry<Integer, Set<CDGEdge>> entry : cd.entrySet()) {
-			int dependentId = entry.getKey();
-			for (CDGEdge raw : entry.getValue()) {
-				int conditionId = raw.conditionNodeId;
-				String rawLabel = raw.label;
-
-				CDGEdge best = bestDep.get(dependentId);
-				// Skip if a better (loop) condition was found for this dependent
-				if (best != null && best.conditionNodeId != conditionId && hasOutgoingSelfLoop(best.conditionNodeId)) {
-					continue; // suppress spurious break dependency
-				}
-
-				ControlDependenceEdge cde = new ControlDependenceEdge(nodes.get(dependentId), nodes.get(conditionId),
-						rawLabel);
+				ControlDependenceEdge cde = new ControlDependenceEdge(rawLabel);
 				registerEdge(conditionId, dependentId, cde);
 			}
 		}
-
-		// Second pass: add entry TRUE edges for nodes with no incoming
-		for (int id : nodes.keySet()) {
-			if (id == entryId)
-				continue;
-			boolean hasExternalIncoming = incomingEdges.getOrDefault(id, Collections.emptyList()).stream()
-					.anyMatch(e -> !Objects.equals(edgeSource.get(e), id));
-			if (!hasExternalIncoming) {
-				ControlDependenceEdge cde = new ControlDependenceEdge(nodes.get(id), nodes.get(entryId), "TRUE");
-				registerEdge(entryId, id, cde);
-				nodes.get(entryId).isCondition = true;
-			}
-		}
-	}
-
-	private boolean hasOutgoingSelfLoop(int nodeId) {
-		CDGNode node = nodes.get(nodeId);
-		if (node == null)
-			return false;
-		return node.successors.contains(nodeId);
 	}
 
 	private void registerEdge(int sourceId, int targetId, ControlDependenceEdge cde) {
@@ -531,7 +277,6 @@ public class CDG {
 		incomingEdges.get(targetId).add(cde);
 		edgeSource.put(cde, sourceId);
 		edgeTarget.put(cde, targetId);
-
 	}
 
 	private void enrichConditionLabel(CDGNode cdgNode, CFGNode cfgNode) {
@@ -568,7 +313,6 @@ public class CDG {
 
 		if (extracted != null && !extracted.isBlank()) {
 			cdgNode.label = cfgNode.getId() + ": " + extracted.trim();
-			//System.out.println("Label fixed to: '" + cdgNode.label + "'");
 		}
 	}
 
@@ -590,73 +334,11 @@ public class CDG {
 		return null;
 	}
 
-	/*
-	 * private void addFlowEdge(int sourceId, int targetId) { if (hasEdge(sourceId,
-	 * targetId, "FLOW")) return; registerEdge(sourceId, targetId, new
-	 * ControlDependenceEdge("FLOW", null)); }
-	 */
-
-	/*
-	 * private boolean hasEdge(int sourceId, int targetId, String label) { for
-	 * (ControlDependenceEdge e : outgoingEdges.getOrDefault(sourceId,
-	 * Collections.emptyList())) { if (edgeTarget.get(e) == targetId &&
-	 * label.equals(e.toString())) { return true; } } return false; }
-	 */
-	/**
-	 * Tries to locate the original {@link LabeledEdge} in the CFG that corresponds
-	 * to the transition from the condition node to the branch that leads
-	 * (eventually) to {@code dependentId}.
-	 *
-	 * <p>
-	 * We look at the immediate successors of the condition node and pick the one
-	 * whose label matches {@code rawLabel}. If the original CFG is not available
-	 * (Map-based constructor) this returns {@code null}.
-	 */
-	/*
-	 * private LabeledEdge resolveCfgEdge(int conditionId, int dependentId, String
-	 * rawLabel) { if (originalCFG == null) return null; CDGNode condNode =
-	 * nodes.get(conditionId); if (condNode == null) return null; CFGNode cfgCond =
-	 * condNode.getOriginalCFGNode(); if (cfgCond == null) return null;
-	 * 
-	 * if ("T".equals(rawLabel) && condNode.trueSuccessor >= 0) { CFGNode t =
-	 * nodes.get(condNode.trueSuccessor).getOriginalCFGNode(); return
-	 * findCfgEdge(cfgCond, t); } if ("F".equals(rawLabel) &&
-	 * condNode.falseSuccessor >= 0) { CFGNode f =
-	 * nodes.get(condNode.falseSuccessor).getOriginalCFGNode(); return
-	 * findCfgEdge(cfgCond, f); } for (LabeledEdge e :
-	 * originalCFG.outgoingEdgesOf(cfgCond)) { if (e instanceof CaseEdge) { CFGNode
-	 * tgt = originalCFG.getEdgeTarget(e); CDGNode cdgTgt = cfgToCdgMap.get(tgt); if
-	 * (cdgTgt != null && cdgTgt.id == dependentId) { return e; } } } return null; }
-	 */
-	/*
-	 * private LabeledEdge findCfgEdge(CFGNode src, CFGNode tgt) { if (src == null
-	 * || tgt == null) return null; return originalCFG.getEdge(src, tgt); }
-	 */
+	
 	private static long packPair(int a, int b) {
 		return (((long) a) << 32) | (b & 0xffffffffL);
 	}
 
-	/**
-	 * Public helper to let external classes query case labels for a specific step.
-	 */
-	public String getSwitchCaseLabel(int conditionId, int successorId) {
-		long key = (((long) conditionId) << 32) | (successorId & 0xffffffffL); // packPair
-		return this.caseEdgeLabels.get(key);
-	}
-	/**
-	 * Converts an internal "T"/"F"/case label to a {@link ControlDependenceEdge}
-	 * display label ("TRUE", "FALSE", or the case string).
-	 */
-	/*
-	 * private static String normaliseBranchLabel(String rawLabel, LabeledEdge
-	 * cfgEdge) { if ("T".equals(rawLabel)) return "TRUE"; if ("F".equals(rawLabel))
-	 * return "FALSE"; // For case edges the raw label is the case value string
-	 * already return rawLabel != null ? rawLabel : "FLOW"; }
-	 */
-
-	// -----------------------------------------------------------------------
-	// Pre-Dominators (PED)
-	// -----------------------------------------------------------------------
 
 	/**
 	 * PED[n] = {n} ∪ (∩ PED[p] for all p ∈ prec(n)) Entry is initialised to
@@ -700,10 +382,6 @@ public class CDG {
 		return result;
 	}
 
-	// -----------------------------------------------------------------------
-	// Immediate Pre-Dominators (IPED)
-	// -----------------------------------------------------------------------
-
 	/**
 	 * IPED[n] = closest pre-dominator of n. Computed as: (PED[n] \ {n}) minus any d
 	 * that is dominated by another dominator in PED[n].
@@ -730,10 +408,6 @@ public class CDG {
 		return result;
 	}
 
-	// -----------------------------------------------------------------------
-	// Reverse Pre-Domination (rPED)
-	// -----------------------------------------------------------------------
-
 	/** rPED[n] = { d | n ∈ PED[d] } */
 	private Map<Integer, Set<Integer>> computeReversePreDomination(Map<Integer, Set<Integer>> ped) {
 
@@ -747,10 +421,6 @@ public class CDG {
 		return result;
 	}
 
-	// -----------------------------------------------------------------------
-	// Reverse Immediate Pre-Domination (rIPED)
-	// -----------------------------------------------------------------------
-
 	/** rIPED[n] = { d | n ∈ IPED[d] } */
 	private Map<Integer, Set<Integer>> computeReverseImmediatePreDomination(Map<Integer, Set<Integer>> iped) {
 
@@ -763,10 +433,6 @@ public class CDG {
 		}
 		return result;
 	}
-
-	// -----------------------------------------------------------------------
-	// Pre-Dominance Frontier (PEF)
-	// -----------------------------------------------------------------------
 
 	/**
 	 * PEF[X] = { Y | Y ∈ succ(X) ∧ X ∉ IPED[Y] } ∪ { Y | Z ∈ rIPED[X], Y ∈ PEF[Z],
@@ -805,10 +471,6 @@ public class CDG {
 		}
 		return result;
 	}
-
-	// -----------------------------------------------------------------------
-	// Post-Dominators (POD)
-	// -----------------------------------------------------------------------
 
 	/**
 	 * POD[n] = {n} ∪ (∩ POD[s] for all s ∈ succ(n)) Exit is initialised to {exit};
@@ -852,10 +514,6 @@ public class CDG {
 		return result;
 	}
 
-	// -----------------------------------------------------------------------
-	// Immediate Post-Dominators (IPOD)
-	// -----------------------------------------------------------------------
-
 	/**
 	 * IPOD[n] = closest post-dominator of n.
 	 */
@@ -881,10 +539,6 @@ public class CDG {
 		return result;
 	}
 
-	// -----------------------------------------------------------------------
-	// Reverse Post-Domination (rPOD)
-	// -----------------------------------------------------------------------
-
 	/** rPOD[n] = { d | n ∈ POD[d] } */
 	private Map<Integer, Set<Integer>> computeReversePostDomination(Map<Integer, Set<Integer>> pod) {
 
@@ -898,10 +552,6 @@ public class CDG {
 		return result;
 	}
 
-	// -----------------------------------------------------------------------
-	// Reverse Immediate Post-Domination (rIPOD)
-	// -----------------------------------------------------------------------
-
 	/** rIPOD[n] = { d | n ∈ IPOD[d] } */
 	private Map<Integer, Set<Integer>> computeReverseImmediatePostDomination(Map<Integer, Set<Integer>> ipod) {
 
@@ -914,10 +564,6 @@ public class CDG {
 		}
 		return result;
 	}
-
-	// -----------------------------------------------------------------------
-	// Post-Dominance Frontier (POF)
-	// -----------------------------------------------------------------------
 
 	/**
 	 * POF[X] = { Y | Y ∈ prec(X) ∧ X ∉ IPOD[Y] } ∪ { Y | Z ∈ rIPOD[X], Y ∈ POF[Z],
@@ -957,10 +603,6 @@ public class CDG {
 		return result;
 	}
 
-	// -----------------------------------------------------------------------
-	// Control Dependencies (CD)
-	// -----------------------------------------------------------------------
-
 	/**
 	 * CD[X] = { (Y, label(Y,S)) | Y ∈ POF[X], S ∈ succ(Y), X ∈ POD[S] }
 	 *
@@ -983,49 +625,16 @@ public class CDG {
 				for (int sId : Y.successors) {
 					Set<Integer> podS = pod.get(sId);
 					if (podS != null && podS.contains(xId)) {
-						// deps.add(new CDGEdge(yId, getBranchLabel(Y, sId)));
-						// Check this: suppress spurious break-induced dependencies ***
-						//if (isBreakInducedDependency(Y, sId, xId, pod, pof))
-							//continue;
 						deps.add(new CDGEdge(yId, getBranchLabel(Y, sId)));
 					}
 				}
 			}
 		}
-		// Augment: connect entry to all nodes not reachable
-	    // via any condition in the standard CDG.
-	    // This handles: top-level statements, loop conditions
-	    // with only self-loop incoming, and any node made
-	    // unreachable due to break/continue/return paths.
 	    augmentWithEntryEdges(result);
-		// Only add entry dependency for nodes with truly empty deps
-		// (not reachable via any condition in POF computation)
-		// AND that are not loop-body nodes (which have self-loop conditions)
-	    //STILL THIS PART IS NOT WORKING FOR BREAK
-		/*for (int xId : nodes.keySet()) {
-			if (xId == entryId || xId == exitId)
-				continue;
-			Set<CDGEdge> deps = result.get(xId);
-			CDGNode X = nodes.get(xId);
-			if (deps.isEmpty()) {
-				System.err.println("[First] Adding synthetic FLOW edge: " + entryId + " -> " + xId);
-				deps.add(new CDGEdge(entryId, "FLOW"));
-			}
-			else if(X.isCondition && !X.successors.contains(xId)) {
-				// loop condition node (has self-loop) — 
-	            // always needs FLOW from entry so traversal can reach it ***
-				 System.err.println("LOOP NODE " + xId + " deps: " + deps);
-	            boolean hasExternalIncoming = deps.stream()
-	                .anyMatch(e -> e.conditionNodeId != xId);
-	            System.err.println("hasExternalIncoming=" + hasExternalIncoming);
-	            if (!hasExternalIncoming) {
-	            	System.err.println("[Next] Adding synthetic FLOW edge: " + entryId + " -> " + xId);
-	                deps.add(new CDGEdge(entryId, "FLOW"));
-	            }
-			}
-		}*/
+		
 		return result;
 	}
+	
 	/**
 	 * Universal entry augmentation.
 	 *
@@ -1097,78 +706,6 @@ public class CDG {
 	}
 
 	/**
-	 * Returns true if the dependency (Y controls xId via successor sId) is spurious
-	 * because it was induced by a break statement.
-	 *
-	 * A dependency is break-induced when ALL of these hold: 1. Y is a condition
-	 * node (if-inside-loop) 2. sId is Y's TRUE successor 3. sId is NOT
-	 * post-dominated by xId (TRUE exits past xId — break path) 4. xId IS
-	 * post-dominated by Y's FALSE successor (FALSE stays in scope of xId) 5. There
-	 * exists a loop condition L such that: - L has a self-loop (L is a loop head) -
-	 * xId is in POD of L's TRUE successor (xId is inside the loop body) - Y is also
-	 * inside that loop (Y is in POD of L's TRUE successor)
-	 */
-	private boolean isBreakInducedDependency(CDGNode Y, int sId, int xId, Map<Integer, Set<Integer>> pod,
-			Map<Integer, Set<Integer>> pof) {
-
-		if (!Y.isCondition)
-			return false;
-		// sId must be TRUE successor of Y
-		if (Y.trueSuccessor != sId)
-			return false;
-		// FALSE successor must exist
-		if (Y.falseSuccessor < 0)
-			return false;
-
-		Set<Integer> podTrueSucc = pod.get(sId);
-		Set<Integer> podFalseSucc = pod.get(Y.falseSuccessor);
-		if (podTrueSucc == null || podFalseSucc == null)
-			return false;
-
-		// TRUE path must NOT post-dominate xId (exits past it)
-		if (podTrueSucc.contains(xId))
-			return false;
-		// FALSE path must post-dominate xId (stays in scope)
-		if (!podFalseSucc.contains(xId))
-			return false;
-
-		// Now verify xId and Y are both inside a common loop
-		for (int loopId : nodes.keySet()) {
-			CDGNode loop = nodes.get(loopId);
-			// Loop condition has a self-loop successor
-			if (!loop.successors.contains(loopId))
-				continue;
-			if (loop.trueSuccessor < 0)
-				continue;
-
-			Set<Integer> podLoopTrue = pod.get(loop.trueSuccessor);
-			if (podLoopTrue == null)
-				continue;
-
-			// Both xId and Y must be inside the loop body
-			if (podLoopTrue.contains(xId) && podLoopTrue.contains(Y.id)) {
-				return true; // confirmed break-induced dependency
-			}
-		}
-
-		return false;
-	}
-
-	private boolean isBreakEdge(CDGNode condNode, int succId) {
-		if (condNode.trueSuccessor != succId)
-			return false;
-		int falseSucc = condNode.falseSuccessor;
-		if (falseSucc < 0)
-			return false;
-		Set<Integer> podTrue = pod.get(succId);
-		Set<Integer> podFalse = pod.get(falseSucc);
-		if (podTrue == null || podFalse == null)
-			return false;
-		// true-path post-dominates everything false-path does → true is the exit
-		return podTrue.containsAll(podFalse);
-	}
-
-	/**
 	 * Returns "T" if {@code succId} is the true-branch successor of {@code cond},
 	 * "F" for the false-branch, or the case-label string for switch edges. Falls
 	 * back to "F" for any unrecognised edge (e.g. loop exits, flow edges from a
@@ -1189,10 +726,6 @@ public class CDG {
 		}
 		return "FALSE"; // consistent fallback — was "F"
 	}
-
-	// -----------------------------------------------------------------------
-	// Graph-API methods used by CDGNode, BranchChainExtractor, etc.
-	// -----------------------------------------------------------------------
 
 	/**
 	 * Returns the list of {@link ControlDependenceEdge}s that originate at
@@ -1281,10 +814,6 @@ public class CDG {
 		return Collections.unmodifiableSet(new LinkedHashSet<>(nodes.values()));
 	}
 
-	// -----------------------------------------------------------------------
-	// Additional public accessors
-	// -----------------------------------------------------------------------
-
 	public int getEntryId() {
 		return entryId;
 	}
@@ -1367,10 +896,6 @@ public class CDG {
 		return conds;
 	}
 
-	// -----------------------------------------------------------------------
-	// Utility helpers
-	// -----------------------------------------------------------------------
-
 	/**
 	 * In-place intersection returning the modified set (avoids extra allocation).
 	 */
@@ -1383,9 +908,6 @@ public class CDG {
 		return Collections.unmodifiableSet(map.getOrDefault(id, Collections.emptySet()));
 	}
 
-	// -----------------------------------------------------------------------
-	// Debug / summary
-	// -----------------------------------------------------------------------
 
 	public StringBuilder printSummary() {
 	    StringBuilder sb = new StringBuilder();
@@ -1437,10 +959,6 @@ public class CDG {
 		return sb.toString();
 	}
 
-	// -----------------------------------------------------------------------
-	// Post-dominator successors & ENTRY FLOW
-	// -----------------------------------------------------------------------
-
 	/** CFG successors; leaf nodes (except exit) virtually reach exit. */
 	private List<Integer> getPostDomSuccessors(CDGNode n) {
 		if (!n.successors.isEmpty()) {
@@ -1450,180 +968,5 @@ public class CDG {
 			return Collections.singletonList(exitId);
 		}
 		return Collections.emptyList();
-	}
-
-	/**
-	 * Nodes eligible for ENTRY→FLOW: forward-reachable, outside loop bodies and
-	 * if-branch interiors (if-no-else chains excluded from branch scope).
-	 */
-	private void computeEntryFlowNodeIds() {
-		Set<CFGNode> loopBody = new HashSet<>();
-		Set<CFGNode> loopInits = new HashSet<>();
-		Set<CFGNode> branchScoped = new HashSet<>();
-
-		for (CFGNode a : originalCFG.vertexSet()) {
-			CFGNode ts = getCfgTrueSucc(a);
-			CFGNode fs = getCfgFalseSucc(a);
-			if (ts == null || fs == null)
-				continue;
-
-			if (isLoopHead(a, ts, fs)) {
-				loopBody.addAll(collectCfgRegion(a, fs, ts));
-				loopInits.addAll(collectLoopInits(a));
-			} else if (!isIfNoElse(a)) {
-				branchScoped.addAll(collectCfgRegion(a, fs, ts));
-				branchScoped.addAll(collectCfgRegion(a, ts, fs));
-			}
-		}
-
-		Set<CFGNode> reachable = forwardReachableFrom(originalCFG.getStart());
-		entryFlowNodeIds = new HashSet<>();
-		CFGNode end = originalCFG.getEnd();
-
-		for (CFGNode n : reachable) {
-			if (loopBody.contains(n) || loopInits.contains(n) || branchScoped.contains(n))
-				continue;
-			CDGNode cdg = cfgToCdgMap.get(n);
-			if (cdg != null)
-				entryFlowNodeIds.add(cdg.id);
-		}
-		if (end != null) {
-			CDGNode cdgEnd = cfgToCdgMap.get(end);
-			if (cdgEnd != null)
-				entryFlowNodeIds.add(cdgEnd.id);
-		}
-		CDGNode cdgEntry = cfgToCdgMap.get(originalCFG.getStart());
-		if (cdgEntry != null)
-			entryFlowNodeIds.add(cdgEntry.id);
-	}
-
-	/*
-	 * private void attachEntryFlowEdges() { if (entryFlowNodeIds == null) return;
-	 * for (int targetId : entryFlowNodeIds) { if (targetId == entryId) continue;
-	 * boolean suppress = false; for (ControlDependenceEdge inE :
-	 * incomingEdges.getOrDefault(targetId, Collections.emptyList())) { int srcId =
-	 * edgeSource.get(inE); if (srcId == entryId) continue; String lbl =
-	 * inE.toString(); if ("FLOW".equals(lbl)) continue; if ("TRUE".equals(lbl) ||
-	 * "FALSE".equals(lbl)) continue; suppress = true; break; } if (!suppress) {
-	 * addFlowEdge(entryId, targetId); } } }
-	 */
-
-	/*
-	 * private void attachFlowToNodesWithoutIncoming() { for (int id :
-	 * nodes.keySet()) { if (id == entryId) continue; if
-	 * (incomingEdges.getOrDefault(id, Collections.emptyList()).isEmpty()) {
-	 * addFlowEdge(entryId, id); } } }
-	 */
-
-	private Set<CFGNode> forwardReachableFrom(CFGNode start) {
-		Set<CFGNode> visited = new HashSet<>();
-		Deque<CFGNode> q = new ArrayDeque<>();
-		if (start != null) {
-			q.add(start);
-			visited.add(start);
-		}
-		while (!q.isEmpty()) {
-			CFGNode cur = q.poll();
-			for (LabeledEdge e : originalCFG.outgoingEdgesOf(cur)) {
-				CFGNode s = originalCFG.getEdgeTarget(e);
-				if (s != null && visited.add(s))
-					q.add(s);
-			}
-		}
-		return visited;
-	}
-
-	private Set<CFGNode> collectCfgRegion(CFGNode head, CFGNode stop, CFGNode from) {
-		Set<CFGNode> visited = new HashSet<>();
-		Deque<CFGNode> stack = new ArrayDeque<>();
-		stack.push(from);
-		while (!stack.isEmpty()) {
-			CFGNode cur = stack.pop();
-			if (cur.equals(head) || cur.equals(stop))
-				continue;
-			if (!visited.add(cur))
-				continue;
-			for (LabeledEdge e : originalCFG.outgoingEdgesOf(cur)) {
-				CFGNode t = originalCFG.getEdgeTarget(e);
-				if (t != null)
-					stack.push(t);
-			}
-		}
-		return visited;
-	}
-
-	private boolean isLoopHead(CFGNode head, CFGNode trueSucc, CFGNode falseSucc) {
-		Set<CFGNode> body = collectCfgRegion(head, falseSucc, trueSucc);
-		for (CFGNode n : body) {
-			for (LabeledEdge e : originalCFG.outgoingEdgesOf(n)) {
-				if (originalCFG.getEdgeTarget(e).equals(head))
-					return true;
-			}
-		}
-		return false;
-	}
-
-	private Set<CFGNode> collectLoopInits(CFGNode loopHead) {
-		Set<CFGNode> inits = new HashSet<>();
-		for (LabeledEdge e : originalCFG.incomingEdgesOf(loopHead)) {
-			if (!(e instanceof FlowEdge))
-				continue;
-			CFGNode pred = originalCFG.getEdgeSource(e);
-			if (pred != null && !pred.equals(originalCFG.getStart())) {
-				inits.add(pred);
-			}
-		}
-		return inits;
-	}
-
-	private boolean isIfNoElse(CFGNode a) {
-		CFGNode merge = getCfgFalseSucc(a);
-		CFGNode trueEntry = getCfgTrueSucc(a);
-		if (merge == null || trueEntry == null)
-			return false;
-		for (LabeledEdge e : originalCFG.incomingEdgesOf(merge)) {
-			CFGNode pred = originalCFG.getEdgeSource(e);
-			if (pred.equals(a))
-				continue;
-			if (reachableInArm(a, trueEntry, pred, merge))
-				return true;
-		}
-		return false;
-	}
-
-	private boolean reachableInArm(CFGNode head, CFGNode from, CFGNode target, CFGNode merge) {
-		Set<CFGNode> vis = new HashSet<>();
-		Deque<CFGNode> q = new ArrayDeque<>();
-		q.add(from);
-		vis.add(from);
-		while (!q.isEmpty()) {
-			CFGNode cur = q.poll();
-			if (cur.equals(target))
-				return true;
-			for (LabeledEdge e : originalCFG.outgoingEdgesOf(cur)) {
-				CFGNode t = originalCFG.getEdgeTarget(e);
-				if (t == null || t.equals(head) || t.equals(merge))
-					continue;
-				if (vis.add(t))
-					q.add(t);
-			}
-		}
-		return false;
-	}
-
-	private CFGNode getCfgTrueSucc(CFGNode n) {
-		for (LabeledEdge e : originalCFG.outgoingEdgesOf(n)) {
-			if (e instanceof TrueEdge)
-				return originalCFG.getEdgeTarget(e);
-		}
-		return null;
-	}
-
-	private CFGNode getCfgFalseSucc(CFGNode n) {
-		for (LabeledEdge e : originalCFG.outgoingEdgesOf(n)) {
-			if (e instanceof FalseEdge)
-				return originalCFG.getEdgeTarget(e);
-		}
-		return null;
 	}
 }

@@ -4,7 +4,10 @@ import it.unisa.ocelot.c.types.CType;
 import jmetal.core.Solution;
 import jmetal.core.Variable;
 import jmetal.encodings.variable.ArrayParameters;
-
+/**
+ * EVINT_TOOL_MARKER
+ * This class is used by the EvInT (Evolutionary Integration Testing) tool.
+ */
 public class VariableTranslator {
 	@Override
 	public String toString() {

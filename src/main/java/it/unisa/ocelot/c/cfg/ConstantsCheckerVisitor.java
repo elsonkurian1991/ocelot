@@ -9,7 +9,10 @@ import org.eclipse.cdt.core.dom.ast.IASTExpression;
 import org.eclipse.cdt.core.dom.ast.IASTFunctionDefinition;
 import org.eclipse.cdt.core.dom.ast.IASTLiteralExpression;
 import org.eclipse.cdt.internal.core.dom.parser.c.CASTFunctionDefinition;
-
+/**
+ * EVINT_TOOL_MARKER
+ * This class is used by the EvInT (Evolutionary Integration Testing) tool.
+ */
 /**
  * This visitor saves all the literals in two arrays: numbers and strings. Besides, it updates the
  * graph with these constants arrays.

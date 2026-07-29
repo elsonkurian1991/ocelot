@@ -9,7 +9,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.jgrapht.graph.ListenableDirectedGraph;
-
+/**
+ * EVINT_TOOL_MARKER
+ * This class is used by the EvInT (Evolutionary Integration Testing) tool.
+ */
 /**
  * Control Flow Graph, a graph which nodes are CFGNode and which edges are LabeledEdge, so edges
  * that has an object as a label to identify the condition in which the the control flows from a

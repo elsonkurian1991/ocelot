@@ -3,7 +3,10 @@ package it.unisa.ocelot.simulator;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
-
+/**
+ * EVINT_TOOL_MARKER
+ * This class is used by the EvInT (Evolutionary Integration Testing) tool.
+ */
 public class CBridge {
 	private int coreId;
 	private static int n;
@@ -54,12 +57,11 @@ public class CBridge {
 	 * @param pValues Parameters of the function
 	 */
 	public void getEvents(EventsHandler pHandler, Object[] pValues, Object[][] pArrays, Object[] pPointers) {
-		File file = new File("fitnessValues.txt");
+		File file = new File("trace.txt");
 		try {
 			Files.deleteIfExists(file.toPath());
-			//System.out.println("fitnessValues-----deleted");	
 		} catch (IOException e) {
-			System.err.println("Error deleting file fitnessValues.txt: from::>evaluateSolution () " + e.getMessage());
+			System.err.println("[Error] While deleting the trace.txt file" + e.getMessage());
 		}
 		
 		if (!initialized)
@@ -80,15 +82,8 @@ public class CBridge {
 			pointers[i] = ((Number)pPointers[i]).doubleValue();
 		
 		n++;
-//		if (n % 100 == 0)
-//			System.out.println(n);
-		
-//		Date start = new Date();
+
 		this.getEvents(pHandler, values, arrays, pointers);
-//		Date end = new Date();
-		
-//		long difference = end.getTime() - start.getTime();
-//		System.out.println("Execution took " + difference + " milliseconds");
 	}
 	
 	public native void memoryDump();

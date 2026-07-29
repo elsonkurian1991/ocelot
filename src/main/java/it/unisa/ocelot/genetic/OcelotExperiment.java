@@ -12,7 +12,10 @@ import jmetal.core.SolutionSet;
 import jmetal.core.Variable;
 import jmetal.experiments.Experiment;
 import jmetal.experiments.Settings;
-
+/**
+ * EVINT_TOOL_MARKER
+ * This class is used by the EvInT (Evolutionary Integration Testing) tool.
+ */
 /**
  * Experiment with a single run, which allows to handle directly the solution
  * 

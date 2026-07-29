@@ -3,7 +3,10 @@ package it.unisa.ocelot.genetic.algorithms;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
-
+/**
+ * EVINT_TOOL_MARKER
+ * This class is used by the EvInT (Evolutionary Integration Testing) tool.
+ */
 public class AlgorithmStats {
 	private Map<String, Object> stats;
 	private String log;

@@ -1,5 +1,8 @@
 package it.unisa.ocelot.simulator;
-
+/**
+ * EVINT_TOOL_MARKER
+ * This class is used by the EvInT (Evolutionary Integration Testing) tool.
+ */
 import java.util.ArrayList;
 import java.util.List;
 

@@ -1,38 +1,55 @@
 package it.unisa.ocelot.genetic.settings;
 
-import java.util.List;
-
 import jmetal.core.Algorithm;
 import jmetal.core.Problem;
 import jmetal.util.JMException;
-import it.unisa.ocelot.c.cfg.CFG;
-import it.unisa.ocelot.c.cfg.edges.LabeledEdge;
-import it.unisa.ocelot.c.types.CType;
 import it.unisa.ocelot.conf.ConfigManager;
-import it.unisa.ocelot.genetic.algorithms.MOSA;
 import it.unisa.ocelot.genetic.algorithms.MOSA_Generic;
 import it.unisa.ocelot.genetic.many_objective.MOSAGenericCoverageProblem;
-import it.unisa.ocelot.genetic.objectives.GenericObjective;
-
-public class MOSASettingsGeneric extends GASettings {
-	private List<GenericObjective> objectives;
-	private ConfigManager config;
+/**
+ * EVINT_TOOL_MARKER
+ * This class is used by the EvInT (Evolutionary Integration Testing) tool.
+ */
+public class MOSASettingsGeneric extends GenericGASettings {
+	//MOSA parameters
+	private double maxCoverage = 1.0d;
+	// EvInT additional MOSA parameters
+	private boolean isRandomRun = false;
+	private int experimentTime = 0;
 	
 	public MOSASettingsGeneric(Problem pProblem) {
 		super(pProblem);
 	}
 	
-	public MOSASettingsGeneric(Problem pProblem, ConfigManager pConfig, List<GenericObjective> objectives) {
+	public MOSASettingsGeneric(Problem pProblem, ConfigManager pConfig) {
 		super(pProblem, pConfig);
 		
-		this.config = pConfig;
+		//gets the settings
+		try {
+			this.maxCoverage = pConfig.getRequiredCoverage();
+		} catch (NumberFormatException e) {}
 		
-		this.objectives = objectives;
+		try {
+			this.isRandomRun = pConfig.isRandomRun();
+		} catch (NumberFormatException e) {}
+		
+		try {
+			this.experimentTime = pConfig.getExperimentTime();
+		} catch (NumberFormatException e) {}
 	}
 	
-	public Algorithm configure(CFG cfg, CType[] parametersTypes) throws JMException {
-		Algorithm algorithm = new MOSA_Generic((MOSAGenericCoverageProblem)problem_, objectives, cfg, parametersTypes, config);
-		algorithm.setInputParameter("maxCoverage", this.config.getRequiredCoverage());
-		return super.configure(algorithm);
+	@Override
+	public Algorithm configure(Algorithm algorithm) throws JMException {
+		super.configure(algorithm);
+		algorithm.setInputParameter("maxCoverage", this.maxCoverage);
+		algorithm.setInputParameter("isRandomRun", this.isRandomRun);
+		algorithm.setInputParameter("experimentTime", this.experimentTime);
+		return algorithm;
+	}
+	
+	@Override
+	public Algorithm configure() throws JMException {
+		Algorithm algorithm = new MOSA_Generic((MOSAGenericCoverageProblem) problem_);
+		return configure(algorithm);
     }
 }

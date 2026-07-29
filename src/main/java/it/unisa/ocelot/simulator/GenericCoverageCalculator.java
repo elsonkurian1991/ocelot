@@ -1,23 +1,24 @@
 package it.unisa.ocelot.simulator;
 
-import java.io.FileWriter;
-import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
 import it.unisa.ocelot.TestCase;
-import it.unisa.ocelot.c.cdg.BranchChainManager;
 import it.unisa.ocelot.c.cfg.CFG;
-import it.unisa.ocelot.genetic.objectives.BranchDistanceCache;
 import it.unisa.ocelot.genetic.objectives.GenericObjective;
-import it.unisa.ocelot.genetic.objectives.PC_PairObjective;
+import it.unisa.ocelot.genetic.solutions.GenericSolution;
+import it.unisa.ocelot.simulator.listeners.CoverageCalculatorListener;
 import it.unisa.ocelot.util.Utils;
-
+import jmetal.core.Solution;
+/**
+ * EVINT_TOOL_MARKER
+ * This class is used by the EvInT (Evolutionary Integration Testing) tool.
+ */
 public class GenericCoverageCalculator {
 	private CFG cfg;
+	private CoverageCalculatorListener coverageListener;
 	private List<GenericObjective> objectives;
 	private Set<GenericObjective> coveredObjectives = new HashSet<GenericObjective>();
 	private double objectiveCoverage = 0;
@@ -28,6 +29,8 @@ public class GenericCoverageCalculator {
 	}
 
 	public void calculateCoverage(List<Object[][][]> pParametersList) {
+		this.coverageListener = new CoverageCalculatorListener(cfg);
+		
 		for (Object[][][] params : pParametersList) {
 			CBridge bridge = new CBridge();
 			EventsHandler h = new EventsHandler();
@@ -35,19 +38,8 @@ public class GenericCoverageCalculator {
 
 			Simulator simulator = new Simulator(cfg, h.getEvents());
 
+			simulator.addListener(this.coverageListener);
 			simulator.simulate();
-
-			// LUCA: read fitnessValues.txt (branch fitnesses) file and store it. More
-			// efficient than reading it for every objective.
-			BranchDistanceCache.cacheFitnessValues();
-			BranchChainManager.cacheFitnessValues();
-			for (GenericObjective objective : objectives) {
-				double fitness = objective.getFitness(params);
-				if (fitness == 0.0) {
-					coveredObjectives.add(objective);
-					//System.out.println("Test case covers: " + objective.toString());
-				}
-			}
 
 			if (!simulator.isSimulationCorrect())
 				throw new RuntimeException("Simulation error for parameters " + Utils.printParameters(params));
@@ -63,51 +55,15 @@ public class GenericCoverageCalculator {
 	public void calculateCoverage(Set<TestCase> pTestCases) {
 		int i = 0;
 		for (TestCase tc : pTestCases) {
-			
-			calculateCoverage(tc.getParameters());
+			GenericSolution solution = (GenericSolution)tc.getSolution();
+			if (solution == null) {
+				throw new RuntimeException("Sorry, old Ocelot algorithms are not supported - yet");
+			}
+			this.coveredObjectives.addAll(((GenericSolution) solution).getCoveredObjectives(this.objectives));
 			i = i + 1;
 		}
 		System.out.println("Computed coverage for " + (i + 1) + " test cases");
 		this.objectiveCoverage = ((double) this.coveredObjectives.size()) / this.objectives.size();
-		try {
-			FileWriter uncoveredWriter = new FileWriter("uncoveredPairs.txt");
-			FileWriter coveredWriter = new FileWriter("coveredPairs.txt");
-			//Set<String> maybeUncoveredBranches = new HashSet<String>();
-			for (GenericObjective objective : this.getUncoveredObjectives()) {
-				if(objective instanceof PC_PairObjective) {
-					PC_PairObjective pairObj= ((PC_PairObjective)objective);
-
-					uncoveredWriter.append(pairObj.sm.getTestObjOne());
-					uncoveredWriter.append(",");
-					uncoveredWriter.append(pairObj.sm.getTestObjTwo());
-					uncoveredWriter.append("\n");
-				}
-			}
-			
-			for (GenericObjective objective : this.coveredObjectives) {
-				if(objective instanceof PC_PairObjective) {
-					PC_PairObjective pairObj= ((PC_PairObjective)objective);
-					
-					coveredWriter.append(pairObj.sm.getTestObjOne());
-					coveredWriter.append(",");
-					coveredWriter.append(pairObj.sm.getTestObjTwo());
-					coveredWriter.append("\n");
-				}
-			}
-			
-
-
-			uncoveredWriter.close();
-			coveredWriter.close();
-
-		} catch (IOException e) {
-			System.out.println("Unable to generate file uncoveredBranches.txt");
-			e.printStackTrace();
-		}
-
-
-
-
 	}
 
 	public double getObjectiveCoverage() {
@@ -123,5 +79,4 @@ public class GenericCoverageCalculator {
 		uncovered.removeAll(this.coveredObjectives);
 		return uncovered;
 	}
-
 }

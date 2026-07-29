@@ -31,8 +31,6 @@ import it.unisa.ocelot.c.cfg.edges.LabeledEdge;
 import it.unisa.ocelot.genetic.OcelotAlgorithm;
 import it.unisa.ocelot.genetic.SerendipitousAlgorithm;
 import it.unisa.ocelot.genetic.SerendipitousProblem;
-import it.unisa.ocelot.genetic.edges.CalculateFitnessFromEvalPC;
-import it.unisa.ocelot.genetic.edges.FType;
 import jmetal.core.Operator;
 import jmetal.core.Problem;
 import jmetal.core.Solution;
@@ -44,8 +42,7 @@ import jmetal.util.comparators.ObjectiveComparator;
  * A multithreaded generational genetic algorithm
  */
 
-public class GeneticAlgorithm extends OcelotAlgorithm
-		implements SerendipitousAlgorithm<LabeledEdge>, SeedableAlgorithm {
+public class GeneticAlgorithm extends OcelotAlgorithm implements SerendipitousAlgorithm<LabeledEdge>, SeedableAlgorithm {
 	private static final long serialVersionUID = -2679014653669190929L;
 
 	private int no_evaluation;
@@ -59,8 +56,10 @@ public class GeneticAlgorithm extends OcelotAlgorithm
 	/**
 	 * Constructor
 	 * 
-	 * @param problem   Problem to solve
-	 * @param evaluator Parallel evaluator
+	 * @param problem
+	 *            Problem to solve
+	 * @param evaluator
+	 *            Parallel evaluator
 	 */
 	public GeneticAlgorithm(Problem problem) {
 		super(problem);
@@ -86,8 +85,8 @@ public class GeneticAlgorithm extends OcelotAlgorithm
 	/**
 	 * Runs the pgGA algorithm.
 	 * 
-	 * @return a <code>SolutionSet</code> that is a set of non dominated solutions
-	 *         as a result of the algorithm execution
+	 * @return a <code>SolutionSet</code> that is a set of non dominated
+	 *         solutions as a result of the algorithm execution
 	 * @throws jmetal.util.JMException
 	 */
 	@SuppressWarnings("rawtypes")
@@ -127,7 +126,6 @@ public class GeneticAlgorithm extends OcelotAlgorithm
 
 		// Create the initial solutionSet
 		// Initialize the variables. If this is an extra execution, it keeps using the
-		// last population
 		if (lastPopulation == null) {
 			if (startingPopulation == null) {
 				population = new SolutionSet(populationSize);

@@ -2,9 +2,13 @@ package it.unisa.ocelot.suites;
 
 import java.util.LinkedList;
 
+import it.unisa.ocelot.genetic.solutions.GenericSolution;
 import jmetal.core.Solution;
 import jmetal.core.SolutionSet;
-
+/**
+ * EVINT_TOOL_MARKER
+ * This class is used by the EvInT (Evolutionary Integration Testing) tool.
+ */
 /**
  * Stores the final population produced by a MOSA run so that the next
  * iteration can be seeded with it instead of starting from random.
@@ -20,7 +24,7 @@ public class PopulationStore {
  
     // Ordered buffer: front = newest, back = oldest.
     // LinkedList used for efficient add-front and remove-back operations.
-    private final LinkedList<Solution> pool;
+    private final LinkedList<GenericSolution> pool;
  
     /**
      * @param populationSize the MOSA population size read from config.
@@ -50,7 +54,7 @@ public class PopulationStore {
  
         int added = 0;
         for (int i = 0; i < population.size(); i++) {
-            Solution solution = new Solution(population.get(i)); // deep copy
+            GenericSolution solution = new GenericSolution((GenericSolution) population.get(i)); // deep copy
  
             // Make room if pool is at capacity
             if (pool.size() >= capacity) {
@@ -91,9 +95,9 @@ public class PopulationStore {
         SolutionSet seeds = new SolutionSet(count);
  
         int i = 0;
-        for (Solution solution : pool) {
+        for (GenericSolution solution : pool) {
             if (i >= count) break;
-            seeds.add(new Solution(solution)); // deep copy — do not mutate stored pool
+            seeds.add(new GenericSolution(solution)); // deep copy — do not mutate stored pool
             i++;
         }
  
@@ -123,10 +127,6 @@ public class PopulationStore {
         pool.clear();
     }
  
-    // -------------------------------------------------------------------------
-    // Private helpers
-    // -------------------------------------------------------------------------
- 
     /**
      * Evicts the oldest non-covering solution from the back of the pool.
      * Traverses from back (oldest) to front (newest), skipping any solution
@@ -138,7 +138,7 @@ public class PopulationStore {
     private boolean evictOldestNonCovering() {
         // Traverse from back (oldest) to find first non-covering solution
         for (int i = pool.size() - 1; i >= 0; i--) {
-            Solution candidate = pool.get(i);
+        	GenericSolution candidate = pool.get(i);
  
             // fitness == 0.0 means this solution covered an objective — keep it
             if (candidate.getFitness() == 0.0) {

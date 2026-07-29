@@ -2,7 +2,10 @@ package it.unisa.ocelot.suites.budget;
 
 import it.unisa.ocelot.genetic.OcelotExperiment;
 import jmetal.core.Solution;
-
+/**
+ * EVINT_TOOL_MARKER
+ * This class is used by the EvInT (Evolutionary Integration Testing) tool.
+ */
 public abstract class BudgetManager {
 	protected int budget;
 	private int totalBudget;

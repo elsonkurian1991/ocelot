@@ -2,7 +2,10 @@ package it.unisa.ocelot.c.cfg.edges;
 
 import it.unisa.ocelot.simulator.ExecutionEvent;
 
-
+/**
+ * EVINT_TOOL_MARKER
+ * This class is used by the EvInT (Evolutionary Integration Testing) tool.
+ */
 /**
  * This class represents an edge with a label. The label could an object of any kind.
  * @author simone

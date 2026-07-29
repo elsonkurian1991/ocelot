@@ -20,7 +20,10 @@ import org.eclipse.cdt.core.parser.IncludeFileContentProvider;
 import org.eclipse.cdt.core.parser.ScannerInfo;
 import org.eclipse.cdt.core.parser.tests.scanner.FileCodeReaderFactory;
 import org.eclipse.core.runtime.CoreException;
-
+/**
+ * EVINT_TOOL_MARKER
+ * This class is used by the EvInT (Evolutionary Integration Testing) tool.
+ */
 public class GCC implements Compiler {
 
 	@Override
@@ -30,11 +33,6 @@ public class GCC implements Compiler {
 	
 	public String preprocess(File pInput, File pOutput) {
 		return commandLine(new String[] {"gcc",  "-E", pInput.getPath()});
-	}
-
-	@Override
-	public void compile(File pInput, File pOutput) {
-		// TODO Auto-generated method stub
 	}
 
 	private String commandLine(String[] pCommand) {
@@ -64,10 +62,14 @@ public class GCC implements Compiler {
 		return GCCLanguage.getDefault().getASTTranslationUnit(
 				fileContent, scannerInfo, includeContentProvider, index, options, log);
 	}
-
 	
 	public static IASTTranslationUnit getTranslationUnit(String pSourceFilename)
 			throws IOException, CoreException {		
 		return getTranslationUnit(pSourceFilename, new String[0]);
+	}
+
+	@Override
+	public void compile(File pInput, File pOutput) {
+		// TODO Auto-generated method stub
 	}
 }

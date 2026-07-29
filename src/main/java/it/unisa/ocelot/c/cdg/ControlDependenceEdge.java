@@ -1,7 +1,8 @@
 package it.unisa.ocelot.c.cdg;
-
-import it.unisa.ocelot.c.cfg.edges.LabeledEdge;
-
+/**
+ * EVINT_TOOL_MARKER
+ * This class is used by the EvInT (Evolutionary Integration Testing) tool.
+ */
 /**
  * Represents a control dependence edge in the CDG.
  * Carries the branch condition label from the original CFG edge.
@@ -9,13 +10,9 @@ import it.unisa.ocelot.c.cfg.edges.LabeledEdge;
 public class ControlDependenceEdge {
 
     private Object branchLabel;  // "TRUE", "FALSE", "case 1", etc.
-	private CDGNode from;
-	private CDGNode to;
 
 	// ControlDependenceEdge.java
-	public ControlDependenceEdge(CDGNode from, CDGNode to, Object branchLabel) {
-	    this.from = from;       // dependent node (target)
-	    this.to   = to;         // condition node (source)
+	public ControlDependenceEdge(Object branchLabel) {
 	    this.branchLabel = branchLabel;
 	}
 
@@ -32,12 +29,6 @@ public class ControlDependenceEdge {
         if (s == null) return false;
         s = s.trim().toLowerCase();
         return s.equals("true") || s.equals("t") || s.equals("1") || s.equals("yes") || s.equals("y") || s.equals("ture");
-    }
-
-    private static boolean isFalseString(String s) {
-        if (s == null) return false;
-        s = s.trim().toLowerCase();
-        return s.equals("false") || s.equals("f") || s.equals("0") || s.equals("no") || s.equals("n");
     }
 
     public boolean branchCondition() {

@@ -7,7 +7,10 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
-
+/**
+ * EVINT_TOOL_MARKER
+ * This class is used by the EvInT (Evolutionary Integration Testing) tool.
+ */
 /**
  * CoverageVerifier inspects a generated test suite and identifies which
  * GenericObjectives remain uncovered.

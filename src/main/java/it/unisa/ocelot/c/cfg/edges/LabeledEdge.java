@@ -3,7 +3,10 @@ import it.unisa.ocelot.simulator.ExecutionEvent;
 
 import org.jgrapht.graph.DefaultWeightedEdge;
 
-
+/**
+ * EVINT_TOOL_MARKER
+ * This class is used by the EvInT (Evolutionary Integration Testing) tool.
+ */
 /**
  * This class represents an edge with a label. The label could an object of any kind.
  * @author simone
@@ -78,22 +81,6 @@ public abstract class LabeledEdge extends DefaultWeightedEdge implements Compara
 	 * @return
 	 */
 	public abstract boolean needsEvent();
-	
-	/**@Override
-	public boolean equals(Object obj) {
-		if (!(obj instanceof LabeledEdge))
-			return false;
-		
-		LabeledEdge edge = (LabeledEdge)obj;
-		if (edge.label == this.label) {
-				return true;
-		} else {
-			if (edge.label == null || this.label == null)
-				return false;
-			return edge.label.equals(this.label);
-		}
-	}
-	**/
 	
 	@Override
 	public int compareTo(LabeledEdge o) {

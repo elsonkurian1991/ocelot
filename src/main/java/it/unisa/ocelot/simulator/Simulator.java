@@ -9,7 +9,10 @@ import it.unisa.ocelot.c.cfg.CFG;
 import it.unisa.ocelot.c.cfg.edges.LabeledEdge;
 import it.unisa.ocelot.c.cfg.nodes.CFGNode;
 import it.unisa.ocelot.util.Utils;
-
+/**
+ * EVINT_TOOL_MARKER
+ * This class is used by the EvInT (Evolutionary Integration Testing) tool.
+ */
 /**
  * Simulates the execution of the program on the CFG in order to calculate the
  * distance metrics and, so, the fitness function.
@@ -52,7 +55,7 @@ public class Simulator {
 	/**
 	 * Perform the simulation
 	 */
-	public void simulate() {	
+	public void simulate() {
 		this.reset();
 		//Consumes the first event
 		ExecutionEvent currentEvent = this.getNextEvent();

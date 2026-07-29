@@ -12,7 +12,10 @@ import it.unisa.ocelot.util.Utils;
 import it.unisa.ocelot.writer.TestCaseWriter;
 import it.unisa.ocelot.writer.TestSuiteWriter;
 import it.unisa.ocelot.writer.TestWritingException;
-
+/**
+ * EVINT_TOOL_MARKER
+ * This class is used by the EvInT (Evolutionary Integration Testing) tool.
+ */
 public class CheckTestSuiteWriter extends TestSuiteWriter<CheckTestCaseWriter> {
 	private String suiteName;
 	private ConfigManager config;

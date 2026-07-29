@@ -4,7 +4,10 @@ import it.unisa.ocelot.c.cfg.CFG;
 import it.unisa.ocelot.conf.ConfigManager;
 
 import java.util.Set;
-
+/**
+ * EVINT_TOOL_MARKER
+ * This class is used by the EvInT (Evolutionary Integration Testing) tool.
+ */
 public abstract class TestSuiteWriter<T extends TestCaseWriter> {
 	protected Set<T> testSuite;
 	protected CFG cfg;

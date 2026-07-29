@@ -3,22 +3,24 @@ package it.unisa.ocelot.genetic.many_objective;
 import java.util.List;
 import org.apache.commons.lang3.Range;
 
-import it.unisa.ocelot.c.cdg.BranchChain;
-import it.unisa.ocelot.c.cdg.BranchChainManager;
 import it.unisa.ocelot.c.cfg.CFG;
 import it.unisa.ocelot.c.types.CType;
 import it.unisa.ocelot.genetic.StandardProblem;
 import it.unisa.ocelot.genetic.VariableTranslator;
-import it.unisa.ocelot.genetic.objectives.BranchDistanceCache;
 import it.unisa.ocelot.genetic.objectives.GenericObjective;
+import it.unisa.ocelot.genetic.objectives.chains.BranchChainManager;
+import it.unisa.ocelot.genetic.solutions.CacheAccessor;
+import it.unisa.ocelot.genetic.solutions.GenericSolution;
 import it.unisa.ocelot.simulator.CBridge;
 import it.unisa.ocelot.simulator.EventsHandler;
 import it.unisa.ocelot.simulator.SimulationException;
 import it.unisa.ocelot.simulator.Simulator;
-import it.unisa.ocelot.util.Utils;
 import jmetal.core.Solution;
 import jmetal.util.JMException;
-
+/**
+ * EVINT_TOOL_MARKER
+ * This class is used by the EvInT (Evolutionary Integration Testing) tool.
+ */
 /**
  * Class representing a many-objective optimization branch coverage problem
  * 
@@ -27,15 +29,10 @@ import jmetal.util.JMException;
  */
 public class MOSAGenericCoverageProblem extends StandardProblem {
 
-	private CFG cfg;
+	private final CFG cfg;
 	
-	private List<GenericObjective> objectives;
+	private final List<GenericObjective> objectives;
 
-	private boolean debug;
-
-	/**
-	 * 
-	 */
 	private static final long serialVersionUID = 1L;
 
 	public MOSAGenericCoverageProblem(CFG cfg, CType[] parameters, int pArraySize,
@@ -57,9 +54,6 @@ public class MOSAGenericCoverageProblem extends StandardProblem {
 		VariableTranslator translator = new VariableTranslator(solution);
 		Object[][][] arguments = translator.translateArray(this.parameters);
 		
-		
-		//System.out.println(Utils.printParameters(arguments));
-
 		CBridge bridge = getCurrentBridge();
 		EventsHandler handler = new EventsHandler();
 		try {
@@ -73,34 +67,11 @@ public class MOSAGenericCoverageProblem extends StandardProblem {
 		
 		simulator.simulate();
 		
-		//LUCA: read fitnessValues.txt (branch fitnesses) file and store it. More efficient than reading it for every objective.
-		//BranchDistanceCache.cacheFitnessValues();// old version 
-		BranchChainManager.cacheFitnessValues();
-		/*StringBuilder args= new StringBuilder();
-		args.append("arguments:                                                       ");
-		for (Object[][] layer : arguments) {
-		    for (Object[] row : layer) {
-		        for (Object element : row) {
-		            args.append(" "+element.toString());
-		        }
-		    }
-		}
-		System.err.println(args.toString());*/
-		for (GenericObjective objective : objectives) {
-			//if (objective.isCovered() || !objective.isActive() )
-			
-			double fitness = objective.getFitness(arguments);
-			//System.out.println(fitness);
-			if (objective.isCovered()) {
-				continue;
-			}
-			//solution.setObjective(objective.getObjectiveID(), fitness);
-			//System.err.println("NOT COVERED OBJ:"+objective.getObjectiveID()+": "+fitness);
-			solution.setObjective(objective.getObjectiveID(), fitness);
-			
+		if (solution instanceof GenericSolution) {
+			BranchChainManager.cacheFitnessValues((GenericSolution) solution);
 		}
 		
-		//Not important, MOSA uses his own algorithm
+		//Not important, MOSA uses his own algorithm for given objectives
 		return 0;
 	}
 

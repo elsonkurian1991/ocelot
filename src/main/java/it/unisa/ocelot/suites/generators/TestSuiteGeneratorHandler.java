@@ -17,7 +17,10 @@ import it.unisa.ocelot.suites.generators.mccabe.ReducedMcCabePartialsTestSuiteGe
 import it.unisa.ocelot.suites.generators.mccabe.ReducedMcCabeTestSuiteGenerator;
 import it.unisa.ocelot.suites.generators.random.RandomTestSuiteGenerator;
 import it.unisa.ocelot.suites.minimization.TestSuiteMinimizerHandler;
-
+/**
+ * EVINT_TOOL_MARKER
+ * This class is used by the EvInT (Evolutionary Integration Testing) tool.
+ */
 public class TestSuiteGeneratorHandler {
 	public static final String RANDOM_SUITE_GENERATOR = "Random";
 	

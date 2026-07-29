@@ -4,7 +4,10 @@ import it.unisa.ocelot.c.cfg.nodes.CFGNode;
 
 import java.util.ArrayList;
 import java.util.List;
-
+/**
+ * EVINT_TOOL_MARKER
+ * This class is used by the EvInT (Evolutionary Integration Testing) tool.
+ */
 /**
  * This class provides information about a sub-graph. More precisely, it indicates which are the input nodes, the
  * output nodes, the nodes representing case statements, the "break"s and the "continue"s of a sub-graph.

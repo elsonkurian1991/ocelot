@@ -1,8 +1,5 @@
 package it.unisa.ocelot.genetic.many_objective;
 
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.ObjectOutputStream;
 import java.util.List;
 
 import org.apache.commons.lang3.Range;
@@ -11,14 +8,18 @@ import it.unisa.ocelot.c.cfg.CFG;
 import it.unisa.ocelot.c.types.CType;
 import it.unisa.ocelot.conf.ConfigManager;
 import it.unisa.ocelot.genetic.OcelotExperiment;
-import it.unisa.ocelot.genetic.StandardSettings;
 import it.unisa.ocelot.genetic.algorithms.MOSA_Generic;
 import it.unisa.ocelot.genetic.objectives.GenericObjective;
 import it.unisa.ocelot.genetic.settings.MOSASettingsGeneric;
 import it.unisa.ocelot.genetic.settings.SettingsFactory;
+import it.unisa.ocelot.genetic.solutions.GenericSolution;
 import jmetal.core.Algorithm;
+import jmetal.core.Solution;
 import jmetal.core.SolutionSet;
-
+/**
+ * EVINT_TOOL_MARKER
+ * This class is used by the EvInT (Evolutionary Integration Testing) tool.
+ */
 /**
  * A Branch Coverage experiment performed with MOSA algorithm proposed by
  * Panichella et al. in
@@ -35,6 +36,7 @@ public class MOSAGenericCoverageExperiment extends OcelotExperiment {
 	private List<GenericObjective> objectives;
 	private SolutionSet seedPopulation;
 	private SolutionSet finalPopulation;
+	private MOSAGenericCoverageProblem problem;
 
 	public MOSAGenericCoverageExperiment(CFG cfg, List<GenericObjective> objectives, ConfigManager configManager, CType[] types) {
 		super(configManager.getResultsFolder(), configManager.getExperimentRuns());
@@ -52,24 +54,25 @@ public class MOSAGenericCoverageExperiment extends OcelotExperiment {
 		try {
 			Range<Double>[] ranges = config.getTestRanges();
 
-			MOSAGenericCoverageProblem problem = null;
 			if (ranges != null) {
 				problem = new MOSAGenericCoverageProblem(this.cfg, this.parametersTypes, config.getTestArraysSize(), 
 						ranges, objectives);
+				if (seedPopulation != null) {
+					mangleSeedPopulation();
 				}
-			else
+			} else
 				throw new RuntimeException("Error: please, set the ranges for the parameters for MOSA algorithm");
 			
 			if (config.getAlgorithm().equals(SettingsFactory.AVM)) {
 				System.err.println("Warning: MOSA will run with its own algorithm (AVM ignored)!");
 			}
 
-			MOSASettingsGeneric settings = new MOSASettingsGeneric(problem, config, objectives);
+			MOSASettingsGeneric settings = new MOSASettingsGeneric(problem, config);
 			if (config.isMetaMutatorEnabled())
 				settings.useMetaMutator();
 			settings.setNumericConstants(this.cfg.getConstantNumbers());
 			problem.setDebug(config.getDebug());
-			algorithm[0] = settings.configure(cfg, parametersTypes);
+			algorithm[0] = settings.configure();
 		} catch (Exception e) {
 			System.err.println("An error occurred while instantiating problem: " + e.getMessage());
 			return;
@@ -102,6 +105,9 @@ public class MOSAGenericCoverageExperiment extends OcelotExperiment {
 	 */
 	public void setSeedPopulation(SolutionSet seedPopulation) {
 		this.seedPopulation = seedPopulation;
+		if (problem != null) {
+			mangleSeedPopulation();
+		}
 	}
 
 	/**
@@ -113,5 +119,18 @@ public class MOSAGenericCoverageExperiment extends OcelotExperiment {
 	 */
 	public SolutionSet getFinalPopulation() {
 		return this.finalPopulation;
+	}
+	
+	/**
+	 * Mangles the seed population to ensure that it is compatible with the current problem instance.
+	 */
+	private void mangleSeedPopulation() {
+		SolutionSet mangledPopulation = new SolutionSet(seedPopulation.size());
+		for (int i = 0; i < seedPopulation.size(); i++) {
+			GenericSolution seedOld = (GenericSolution) seedPopulation.get(i);
+			GenericSolution seedNew = new GenericSolution(problem, seedOld.getDecisionVariables());
+			mangledPopulation.add(seedNew);
+		}
+		this.seedPopulation = mangledPopulation;
 	}
 }

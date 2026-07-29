@@ -1,19 +1,20 @@
 package it.unisa.ocelot.suites;
 
 import it.unisa.ocelot.TestCase;
-import it.unisa.ocelot.c.cdg.BranchChainManager;
 import it.unisa.ocelot.c.cfg.CFG;
 import it.unisa.ocelot.genetic.objectives.GenericObjective;
+import it.unisa.ocelot.genetic.solutions.GenericSolution;
 import it.unisa.ocelot.simulator.CBridge;
-import it.unisa.ocelot.simulator.EventsHandler;
-import it.unisa.ocelot.simulator.Simulator;
-import it.unisa.ocelot.simulator.SimulationException;
+import jmetal.core.Solution;
 
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-
+/**
+ * EVINT_TOOL_MARKER
+ * This class is used by the EvInT (Evolutionary Integration Testing) tool.
+ */
 /**
  * Checks whether test cases generated in one iteration incidentally cover
  * objectives that were not explicitly targeted by MOSA in that iteration.
@@ -37,19 +38,7 @@ import java.util.Set;
  * before this class is used.
  */
 public class SerendipitousCoverageChecker {
-
-    private final CFG cfg;
-
-    // Dedicated CBridge instance for re-executing test cases.
-    // Index 0 matches the single-bridge setup done in GenAndWrite.initialize().
-    private final CBridge bridge;
-
-    public SerendipitousCoverageChecker(CFG cfg) {
-        this.cfg    = cfg;
-        // Instantiate directly — same pattern StandardProblem uses when no
-        // bridge exists yet for the current thread
-        this.bridge = new CBridge(0);
-    }
+    public SerendipitousCoverageChecker() { }
 
     /**
      * Re-executes each TC in {@code iterationSuite} and checks whether it
@@ -88,22 +77,23 @@ public class SerendipitousCoverageChecker {
         // One C bridge call per TC — then check all candidates against the
         // fresh fitness map produced by that single simulation
         for (TestCase tc : iterationSuite) {
-            Object[][][] arguments = tc.getParameters();
-            if (arguments == null) continue;
-
-            // Re-execute TC to populate newFitnessHashMap with fresh values
-            boolean simulated = simulateTestCase(arguments);
-            if (!simulated) continue; // C bridge error — skip this TC
-
+			GenericSolution solution = (GenericSolution)tc.getSolution();
+			if (solution == null) {
+				throw new RuntimeException("Sorry, old Ocelot algorithms are not supported - yet");
+			}
+        	
             // Check each candidate objective against the fresh fitness values
             for (GenericObjective objective : candidates) {
                 if (objective.isCovered()) continue; // already marked by a prior TC
-
-                double fitness = objective.getFitness(arguments);
+                double fitness = Double.MAX_VALUE;
+                if(objective.getObjectiveID()>= solution.getNumberOfObjectives()) {
+                	continue;
+                }
+                 fitness = solution.getObjective(objective.getObjectiveID());
 
                 if (fitness == 0.0) {
                     // TC covers this objective incidentally — mark it for free
-                    objective.setCovered(true);
+                    objective.updateBestFitness(fitness);
                     newlyCovered++;
                     System.out.println("Objective "
                             + objective.getObjectiveID()
@@ -120,9 +110,6 @@ public class SerendipitousCoverageChecker {
         return newlyCovered;
     }
 
-    // -------------------------------------------------------------------------
-    // Private helpers
-    // -------------------------------------------------------------------------
 
     /**
      * Builds the list of objectives eligible for serendipity checking.
@@ -140,52 +127,20 @@ public class SerendipitousCoverageChecker {
         }
 
         List<GenericObjective> candidates = new ArrayList<>();
+        int i = 0,j=0, z=0;
         for (GenericObjective obj : allObjectives) {
-            if (obj.isCovered())                          continue; // already done
-            if (subsetIds.contains(obj.getObjectiveID())) continue; // MOSA handled it
+            if (obj.isCovered()) {
+            	++i;
+            	continue; // already done
+            }
+            if (subsetIds.contains(obj.getObjectiveID())) {
+            	++j;
+            	continue; // MOSA handled it
+            }
+            ++z;
             candidates.add(obj);
         }
+        System.out.println("i (already done) ="+i+" j (MOSA handled it) ="+j+" z (candidates) ="+z);
         return candidates;
-    }
-
-    /**
-     * Re-executes a TC through the C bridge and simulator, then caches fresh
-     * branch distances into {@code BranchChainManager.newFitnessHashMap}.
-     *
-     * <p>Mirrors the execution sequence in
-     * {@code MOSAGenericCoverageProblem.evaluateSolution()}:
-     * <pre>
-     *   bridge.getEvents(handler, arguments[0][0], arguments[1], arguments[2][0])
-     *   → new Simulator(cfg, events).simulate()
-     *   → BranchChainManager.cacheFitnessValues()
-     * </pre>
-     *
-     * @param arguments TC parameters from {@code TestCase.getParameters()}
-     * @return true if simulation succeeded, false on C bridge or simulation error
-     */
-    private boolean simulateTestCase(Object[][][] arguments) throws SimulationException {
-        try {
-            EventsHandler handler = new EventsHandler();
-
-            // Execute through C bridge — same argument layout as evaluateSolution()
-            bridge.getEvents(handler,
-                    arguments[0][0],  // value parameters
-                    arguments[1],     // pointer parameters
-                    arguments[2][0]); // pointer-to-pointer parameters
-
-            // Build coverage path from the events produced by the C execution
-            Simulator simulator = new Simulator(cfg, handler.getEvents());
-            simulator.simulate();
-
-            // Populate newFitnessHashMap with fresh branch distances so
-            // objective.getFitness(arguments) reads accurate values
-            BranchChainManager.cacheFitnessValues();
-
-            return true;
-
-        } catch (RuntimeException e) {
-            System.err.println("[Serendipity] Simulation error: " + e.getMessage());
-            return false;
-        }
     }
 }

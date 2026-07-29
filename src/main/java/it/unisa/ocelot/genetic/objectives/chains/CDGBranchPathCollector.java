@@ -1,4 +1,4 @@
-package it.unisa.ocelot.c.cdg;
+package it.unisa.ocelot.genetic.objectives.chains;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -6,16 +6,21 @@ import java.util.Deque;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 
-import org.eclipse.cdt.core.dom.ast.IASTDoStatement;
 import org.eclipse.cdt.core.dom.ast.IASTForStatement;
 import org.eclipse.cdt.core.dom.ast.IASTIfStatement;
 import org.eclipse.cdt.core.dom.ast.IASTNode;
 import org.eclipse.cdt.core.dom.ast.IASTSwitchStatement;
 import org.eclipse.cdt.core.dom.ast.IASTWhileStatement;
 
+import it.unisa.ocelot.c.cdg.CDG;
+import it.unisa.ocelot.c.cdg.CDGNode;
+import it.unisa.ocelot.c.cdg.ControlDependenceEdge;
+/**
+ * EVINT_TOOL_MARKER
+ * This class is used by the EvInT (Evolutionary Integration Testing) tool.
+ */
 /**
  * Traverses a {@link CDG} depth-first and collects every root-to-leaf path as a
  * {@link BranchChain}. A {@link PathStep} is appended to the current path only
@@ -24,10 +29,6 @@ import org.eclipse.cdt.core.dom.ast.IASTWhileStatement;
  * not cause infinite recursion.
  */
 public class CDGBranchPathCollector {
-
-	// -----------------------------------------------------------------------
-	// Fields
-	// -----------------------------------------------------------------------
 
 	private final CDG cdg;
 	private final String unitComponentName;
@@ -43,10 +44,6 @@ public class CDGBranchPathCollector {
 	 */
 	private int conditionCounter = -1;
 
-	// -----------------------------------------------------------------------
-	// Constructor
-	// -----------------------------------------------------------------------
-
 	public CDGBranchPathCollector(CDG cdg, String unitComponentName, Map<String, List<BranchChain>> allBranchChains) {
 
 		this.cdg = cdg;
@@ -55,10 +52,6 @@ public class CDGBranchPathCollector {
 
 		this.allBranchChains.clear();
 	}
-
-	// -----------------------------------------------------------------------
-	// Public entry point
-	// -----------------------------------------------------------------------
 
 	/**
 	 * Starts the depth-first traversal from the CDG entry node and populates
@@ -80,10 +73,6 @@ public class CDGBranchPathCollector {
 			}
 		}
 	}
-
-	// -----------------------------------------------------------------------
-	// Core recursive visitor
-	// -----------------------------------------------------------------------
 
 	/**
 	 * Visits {@code node} depth-first.
@@ -109,27 +98,31 @@ public class CDGBranchPathCollector {
 	 */
 	private void visit(CDGNode node, ControlDependenceEdge incomingEdge, IASTNode astContext,
 			List<PathStep> currentPath, Deque<Integer> ancestorStack, Set<Integer> ancestorSet, BranchType branchType, int branchCounter) {
-		System.out.println("VISIT node=" + node.id + " incomingEdge=" + incomingEdge + " astContext="
-				+ (astContext == null ? "NULL" : astContext.getClass().getSimpleName()) + " ancestorStack="
-				+ ancestorStack);
-
+		
 		boolean addedStep = false;
-		// 3. If we arrived via a branch edge, append a PathStep
-		if (node!= cdg.getEntryNode()) { // if not a root there is always an incoming edge throw exp?
+		// If we arrived via a branch edge, append a PathStep
+		if (node!= cdg.getEntryNode()) { 
+			// if not a root there is always an incoming edge throw exp?
 			// throw new IllegalStateException("Unexpected non-root node with null incoming
 			// edge: " + node.id);
 			// TODO if not a root there is always an incoming edge throw exp?
 
 			CDGNode conditionNode = cdg.getEdgeSource(incomingEdge);
-			if(conditionNode == null) { // for flow-through edges or if the source node is null for some reason, we don't label the step since it doesn't represent a real branch (e.g. the root node has no incoming edge and we synthesise a FLOW step for it, but we don't want to label it as a branch)
-				conditionNode = cdg.getEntryNode(); // for the root node, which has no incoming edge, use itself as the condition source for labelling purposes (the step will be ignored anyway since it's the root)
+			if(conditionNode == null) { 
+				// for flow-through edges or if the source node is null for some reason, 
+				//we don't label the step since it doesn't represent a real branch 
+				//(e.g. the root node has no incoming edge and we synthesise a FLOW step for it,
+				//but we don't want to label it as a branch)
+				conditionNode = cdg.getEntryNode(); 
+				// for the root node, which has no incoming edge, use itself as the condition source for labelling purposes 
+				//(the step will be ignored anyway since it's the root)
 				PathStep step = new PathStep(conditionNode, node, incomingEdge);
-
-				//step.setBranchConditionLabel(buildCondit3ionLabel(conditionNode, incomingEdge, branchType));
 				currentPath.add(step);
 			}
-			else {	 // skip adding a step for the root since it doesn't represent a real branch
-				//conditionNode = cdg.getEntryNode(); // for the root node, which has no incoming edge, use itself as the condition source for labelling purposes (the step will be ignored anyway since it's the root)
+			else {	 
+				// skip adding a step for the root since it doesn't represent a real branch
+				//conditionNode = cdg.getEntryNode(); // for the root node, which has no incoming edge, 
+				//use itself as the condition source for labelling purposes (the step will be ignored anyway since it's the root)
 				PathStep step = new PathStep(conditionNode, node, incomingEdge);
 
 				step.setBranchConditionLabel(buildConditionLabel(conditionNode, incomingEdge, branchType, branchCounter));
@@ -137,21 +130,23 @@ public class CDGBranchPathCollector {
 			}
 			addedStep = true;
 		}
-		// 1. Cycle guard — stop on back-edges (loop bodies)
+		// Cycle guard — stop on back-edges (loop bodies)
 		if (ancestorSet.contains(node.id)) {
 			finaliseBranchChain(currentPath);
-			if(addedStep) currentPath.remove(currentPath.size() - 1); // remove the step we just added since we are not going to traverse this node again
-			return; // hash?
+			if(addedStep) currentPath.remove(currentPath.size() - 1); 
+			// remove the step we just added since we are not going to traverse this node again
+			return; 
 		}
-		// 2. Push onto ancestor stack for the duration of this branch
+		
+		// Push onto ancestor stack for the duration of this branch
 		ancestorStack.push(node.id);
 		ancestorSet.add(node.id);
-		// 4. Collect outgoing CDG edges
+		
+		// Collect outgoing CDG edges
 		List<ControlDependenceEdge> outgoingEdges = cdg.outgoingEdgesOf(node);
 
-		// 5. Dispatch on astContext
+		// Dispatch on astContext
 		if (outgoingEdges.isEmpty()) {
-			// ---- LEAF ----
 			finaliseBranchChain(currentPath);
 
 		} else if (node.isCondition) {
@@ -161,43 +156,16 @@ public class CDGBranchPathCollector {
 				handleBranchNode(node, null, outgoingEdges, currentPath, ancestorStack, ancestorSet);
 			}
 		} else {
-			// ---- FLOW-THROUGH ----
 			handleFlowNode(node, outgoingEdges, currentPath, ancestorStack, ancestorSet);
 		}
 
-		/*
-		 * else if (astContext instanceof IASTIfStatement || astContext instanceof
-		 * IASTForStatement) { // ---- IF | FOR LOOP ---- handleBranchNode(node,
-		 * astContext, outgoingEdges, currentPath, ancestorStack);
-		 * 
-		 * } else if (astContext instanceof IASTSwitchStatement) { // ---- SWITCH ----
-		 * handleSwitchNode(node, (IASTSwitchStatement) astContext, outgoingEdges,
-		 * currentPath, ancestorStack);
-		 * 
-		 * } else if (astContext instanceof IASTWhileStatement || astContext instanceof
-		 * IASTDoStatement) { throw new
-		 * IllegalStateException("Unexpected AST context type: " +
-		 * astContext.getClass().getSimpleName()); }
-		 * 
-		 * else {
-		 * 
-		 * // ---- FLOW-THROUGH ---- handleFlowNode(node, outgoingEdges, currentPath,
-		 * ancestorStack); }
-		 */
-		// 6. Backtrack: remove step added on entry
-		/*if (node!= cdg.getEntryNode() && !currentPath.isEmpty()) {
-			currentPath.remove(currentPath.size() - 1);
-		}*/
 		if(addedStep) currentPath.remove(currentPath.size() - 1); // remove the step we just added since we are done traversing this node
 
-		// 7. Pop ancestor stack
+		// Pop ancestor stack
 		ancestorStack.pop();
 		ancestorSet.remove(node.id);
 	}
 
-	// -----------------------------------------------------------------------
-	// Per-construct handlers
-	// -----------------------------------------------------------------------
 	/**
 	 * Handles if/for/while condition nodes. TRUE edge → then-branch / loop-body.
 	 * FALSE edge → else-branch / loop-exit. Missing TRUE or FALSE → synthesise it.
@@ -230,13 +198,6 @@ public class CDGBranchPathCollector {
 			}
 			if (child.id == node.id)
 				continue; // skip self-loop back-edges to avoid infinite recursion and redundant paths
-			// (e.g. from a loop body back to the condition) ***
-			// sibling branches get the same base number in their labels (e.g.
-			// condition3-TRUE and condition3-FALSE)
-			// : skip self-loops (loop back-edges) — they don't produce a new path step ***
-
-			// System.err.println("handleBranchNode: node=" + node.id + " edges=" +
-			// outgoingEdges.size() + " falseEdge=" + falseEdge);
 			IASTNode childAst = resolveASTParent(child);
 			visit(child, e, childAst, new ArrayList<>(currentPath), copyStack(ancestorStack),
 					new HashSet<>(ancestorSet), BranchType.IF_COND,myCounter);
@@ -283,19 +244,10 @@ public class CDGBranchPathCollector {
 			if (child == null) {
 				throw new IllegalStateException("Edge from node " + node.id + " has null target");
 			}
-			// IASTNode childAst = resolveASTParent(child);
-			// resolve astContext from the CHILD's own leading AST node directly ***
-			// IASTNode childAst = child.getLeadingASTNode();
-			// System.err.println("FLOW child=" + child.id + " childAst=" + (childAst ==
-			// null ? "NULL" : childAst.getClass().getSimpleName()));
 			visit(child, null, null, new ArrayList<>(currentPath), copyStack(ancestorStack), new HashSet<>(ancestorSet),
 					BranchType.FLOW,conditionCounter);
 		}
 	}
-	//visit(CDGNode node, ControlDependenceEdge incomingEdge, IASTNode astContext,	List<PathStep> currentPath, Deque<Integer> ancestorStack) {
-	// -----------------------------------------------------------------------
-	// Leaf finalisation
-	// -----------------------------------------------------------------------
 
 	/**
 	 * Snapshots the current path and stores it as a new {@link BranchChain}. Chain
@@ -305,8 +257,6 @@ public class CDGBranchPathCollector {
 	private void finaliseBranchChain(List<PathStep> currentPath) {
 		if (currentPath.isEmpty())
 			return;
-		// throw new IllegalStateException("Attempting to finalise branch chain with
-		// empty path");
 		List<PathStep> snapshot = new ArrayList<>(currentPath);
 		CDGNode leaf = snapshot.get(snapshot.size() - 1).getTo();
 		if (leaf == null) {
@@ -335,7 +285,7 @@ public class CDGBranchPathCollector {
 
 		// Build a synthetic FALSE edge (no real ControlDependenceEdge exists)
 		String conditionLabel = (condition ? "TRUE" : "FALSE");
-		CDGNode exitNode = cdg.getNode(cdg.getExitId());// jsut use the exit as a dummy target for the synthesised step
+		CDGNode exitNode = cdg.getNode(cdg.getExitId());// Just use the exit as a dummy target for the synthesised step
 
 		PathStep syntheticStep = new PathStep(node, exitNode, null);
 
@@ -348,10 +298,7 @@ public class CDGBranchPathCollector {
 		allBranchChains.putIfAbsent(unitComponentName, new ArrayList<>());
 		allBranchChains.get(unitComponentName).add(chain);
 	}
-	// -----------------------------------------------------------------------
-	// Switch detection
-	// -----------------------------------------------------------------------
-
+	
 	/**
 	 * Detects switch nodes reliably using the CDGNode.isCondition flag and checking
 	 * if all outgoing edges are non-TRUE/FALSE (i.e. case labels).
@@ -371,10 +318,6 @@ public class CDGBranchPathCollector {
 		return true;
 	}
 
-	// -----------------------------------------------------------------------
-	// AST parent resolution
-	// -----------------------------------------------------------------------
-
 	/**
 	 * Resolves the nearest enclosing control-flow AST construct for a CDG node by
 	 * walking up the AST parent chain from the node's leading {@link IASTNode}.
@@ -388,22 +331,12 @@ public class CDGBranchPathCollector {
 		IASTNode astNode = node.getLeadingASTNode();
 		if (astNode == null)
 			return null;
-		/*
-		 * while (astNode != null) { if (astNode instanceof IASTIfStatement || astNode
-		 * instanceof IASTForStatement || astNode instanceof IASTWhileStatement ||
-		 * astNode instanceof IASTSwitchStatement) { return astNode; } astNode =
-		 * astNode.getParent(); }
-		 */
 		if (astNode instanceof IASTIfStatement || astNode instanceof IASTForStatement
 				|| astNode instanceof IASTWhileStatement || astNode instanceof IASTSwitchStatement) {
 			return astNode;
 		}
 		return null;
 	}
-
-	// -----------------------------------------------------------------------
-	// Branch-condition label generation
-	// -----------------------------------------------------------------------
 
 	/**
 	 * Builds a unique human-readable label for the branch direction encoded in
@@ -423,10 +356,6 @@ public class CDGBranchPathCollector {
 		return unitComponentName + ":branch" + branchCounter + "-" + direction.toLowerCase();
 		//
 	}
-
-	// -----------------------------------------------------------------------
-	// Utility
-	// -----------------------------------------------------------------------
 
 	public CDGBranchPathCollector(CDG cdg, String unitComponentName, Map<String, List<BranchChain>> allBranchChains,
 			int conditionCounter) {
@@ -468,35 +397,5 @@ public class CDGBranchPathCollector {
 			System.err.println(sb.toString());
 		});
 		return sb;
-	}
-
-	StringBuilder printBranchChains_old(String textInfo, Map<String, List<BranchChain>> BCMap) {
-		// System.err.println(allBranchChains.keySet());
-		StringBuilder sb = new StringBuilder();
-		sb.append("=========================Control Dependence Graph: " + unitComponentName
-				+ "=========================\n");
-		sb.append("=========================" + textInfo + " ANALYSIS =========================\n");
-		BCMap.entrySet().forEach(entry -> {
-			String component = entry.getKey();
-			List<BranchChain> chainsToPrint = entry.getValue();
-			String header = String.format("Component: %s | Branch-Chains: %d%n", component, chainsToPrint.size());
-			sb.append(header);
-			chainsToPrint.forEach(chain -> {
-				// System.out.println(" - " + chain.getLabel() + " (to leaf node " +
-				// chain.getLeafNode().getId() + ")");
-				sb.append("\nLabel: ").append(chain.getLabel()).append("\n");
-				sb.append("  Path: ");
-				for (PathStep step : chain.getPath()) {
-					sb.append("Node[").append(step.getFrom().getId()).append("]");
-					sb.append(" --[").append(step.getBranchLabel()).append("]--> ");
-				}
-				sb.append("(LEAF)\n");
-				sb.append("  Leaf content: ").append(chain.getLeafNode().toString());
-
-			});
-			System.err.println(sb.toString());
-		});
-		return sb;
-
 	}
 }

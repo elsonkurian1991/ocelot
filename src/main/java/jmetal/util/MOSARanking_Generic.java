@@ -51,7 +51,7 @@ public class MOSARanking_Generic {
 	 * @param allTargets
 	 */
 	@SuppressWarnings("unchecked")
-	public MOSARanking_Generic(SolutionSet solutionSet, List<GenericObjective> allTargets, int solutionsNeeded) {
+	public MOSARanking_Generic(SolutionSet solutionSet, List<GenericObjective> allTargets) {
 		solutionSet_ = solutionSet;
 		this.uncoveredObjectives = new ArrayList<>(allTargets);
 		MOSARanking_Generic.dominance_ = new MOSADominanceComparator_Generic(this.uncoveredObjectives);
@@ -108,16 +108,7 @@ public class MOSARanking_Generic {
 				solutionSet.get(p).setRank(1); //rank 0 for best case
 			}
 		}
-		//System.out.println("front[0].size(): "+front[0].size()+";  solutionsNeeded: "+ solutionsNeeded);
-		/*if(front[0].size()>=solutionsNeeded) {
-			ranking_ = new SolutionSet[1];
-			ranking_[0] = new SolutionSet(front[0].size());
-			Iterator<Integer> it1 = front[0].iterator();
-			while (it1.hasNext()) {
-				ranking_[0].add(solutionSet.get(it1.next()));
-			}
-			return; 
-		}*/
+
 		// Obtain the rest of fronts
 		int i = 0;
 		Iterator<Integer> it1, it2; // Iterators
@@ -135,12 +126,6 @@ public class MOSARanking_Generic {
 					}
 				}
 			}
-			//int acc = 0;
-			/*for (int j = 0; j < i; j++)
-				acc += front[j].size();
-			//System.out.println("Size acc: " + acc);
-			/*if (acc >= solutionsNeeded)
-				break;*/
 		}
 		// <-
 

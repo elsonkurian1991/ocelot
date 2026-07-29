@@ -7,7 +7,6 @@ import it.unisa.ocelot.conf.ConfigManager;
 import it.unisa.ocelot.genetic.OcelotExperiment;
 import it.unisa.ocelot.genetic.VariableTranslator;
 import it.unisa.ocelot.genetic.objectives.GenericObjective;
-import it.unisa.ocelot.simulator.CoverageCalculator;
 import it.unisa.ocelot.simulator.GenericCoverageCalculator;
 import it.unisa.ocelot.suites.TestSuiteGenerationException;
 import it.unisa.ocelot.suites.benchmarks.BenchmarkCalculator;
@@ -21,7 +20,10 @@ import java.util.List;
 import java.util.Set;
 
 import jmetal.core.Solution;
-
+/**
+ * EVINT_TOOL_MARKER
+ * This class is used by the EvInT (Evolutionary Integration Testing) tool.
+ */
 public abstract class TestSuiteGenerator {
 	@SuppressWarnings("rawtypes")
 	protected List<BenchmarkCalculator> benchmarkCalculators;
@@ -103,13 +105,9 @@ public abstract class TestSuiteGenerator {
 	}
 
 	protected TestCase createTestCase(Object[][][] pParams, int id) {
-		//this.calculator.calculateCoverage(pParams);
-	
 		TestCase tc = new TestCase();
 		tc.setId(id);
-		//tc.setCoveredPath(calculator.getCoveredPath());
 		tc.setParameters(pParams);
-	
 		return tc;
 	}
 	

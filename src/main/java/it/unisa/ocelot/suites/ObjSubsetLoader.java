@@ -3,7 +3,10 @@ package it.unisa.ocelot.suites;
 import it.unisa.ocelot.genetic.objectives.GenericObjective;
 
 import java.util.List;
-
+/**
+ * EVINT_TOOL_MARKER
+ * This class is used by the EvInT (Evolutionary Integration Testing) tool.
+ */
 /**
  * Loads the next subset of objectives for a MOSA iteration.
  *

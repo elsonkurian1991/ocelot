@@ -1,8 +1,5 @@
 package it.unisa.ocelot.genetic.edges;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.util.List;
 import java.util.Set;
 
@@ -86,42 +83,10 @@ public class CDG_BasedProblem extends StandardProblem {
 //		double l_e = collateralCoverageEvaluator.calculateCollateralCoverage();
 //		System.out.println(l_e);
 //		solution.setFitness(1-l_e);
-		//Here we need to read the fitness values to detFitness from the files that we wrote before.
-		double fitnessEvalPC = 0.0;
-		System.out.println("if you see this msg: check and fix the::: CDG_BasedProblem.java  ");
-		System.out.println("if you see this msg: check and fix the::: CDG_BasedProblem.java  ");
-		System.out.println("if you see this msg: check and fix the::: CDG_BasedProblem.java  ");
-		System.out.println("if you see this msg: check and fix the::: CDG_BasedProblem.java  ");
-		System.out.println("if you see this msg: check and fix the::: CDG_BasedProblem.java  ");
-
-		
-		System.out.println("calling CalculateFitness in CDG_ before:"+fitnessEvalPC);
-		fitnessEvalPC = CalculateFitnessFromEvalPC3.CalculateFitness(arguments);
-		System.out.println("calling CalculateFitness in CDG_ after:"+fitnessEvalPC);
-		/*double fitnessPC1 = 0.0;
-		double fitnessPC2 = 0.0;
-		double fitnessPC3 = 0.0;
-		try {
-			String data = new String(Files.readAllBytes(Paths.get("evalPC1.txt")));
-			fitnessPC1 = Double.parseDouble(data);
-			data = new String(Files.readAllBytes(Paths.get("evalPC2.txt")));
-			fitnessPC2 = Double.parseDouble(data);
-			data = new String(Files.readAllBytes(Paths.get("evalPC3.txt")));
-			fitnessPC3 = Double.parseDouble(data);
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		*/
-		System.out.println("FinalEvalPC is :"+fitnessEvalPC);
-		solution.setFitness(1 - collateralCoverageEvaluator.calculateCollateralCoverage()
-				+ fitnessEvalPC);
+		solution.setFitness(1 - collateralCoverageEvaluator.calculateCollateralCoverage());
 		
 		return dominatorListener.getBranchDistance();
 	}
-
-	
-
 
 	public void setDebug(boolean debug) {
 		this.debug = debug;

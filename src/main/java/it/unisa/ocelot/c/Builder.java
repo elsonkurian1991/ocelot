@@ -4,7 +4,10 @@ import it.unisa.ocelot.c.makefile.JNIMakefileGenerator;
 
 import java.io.IOException;
 import java.io.PrintStream;
-
+/**
+ * EVINT_TOOL_MARKER
+ * This class is used by the EvInT (Evolutionary Integration Testing) tool.
+ */
 
 public abstract class Builder {
 	protected PrintStream stream;

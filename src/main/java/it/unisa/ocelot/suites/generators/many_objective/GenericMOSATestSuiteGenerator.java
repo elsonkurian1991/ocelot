@@ -6,6 +6,7 @@ import java.util.Set;
 
 import it.unisa.ocelot.TestCase;
 import it.unisa.ocelot.c.cfg.CFG;
+import it.unisa.ocelot.c.types.CType;
 import it.unisa.ocelot.conf.ConfigManager;
 import it.unisa.ocelot.genetic.VariableTranslator;
 import it.unisa.ocelot.genetic.many_objective.MOSAGenericCoverageExperiment;
@@ -17,17 +18,16 @@ import it.unisa.ocelot.suites.generators.TestSuiteGenerator;
 import jmetal.core.Solution;
 import jmetal.core.SolutionSet;
 import jmetal.util.JMException;
-
+/**
+ * EVINT_TOOL_MARKER
+ * This class is used by the EvInT (Evolutionary Integration Testing) tool.
+ */
 public class GenericMOSATestSuiteGenerator extends TestSuiteGenerator implements CascadeableGenerator {
 
 	private boolean satisfied;
 	private int evaluations;
 	private List<GenericObjective> objectives;
-
-	// -------------------------------------------------------------------------
-	// New fields — start here
-	// -------------------------------------------------------------------------
-
+	
 	/**
 	 * Seed population from the previous iteration, provided by PopulationStore.
 	 * If set before generateTestSuite() is called, it is passed into MOSA so
@@ -42,10 +42,6 @@ public class GenericMOSATestSuiteGenerator extends TestSuiteGenerator implements
 	 * to store the population for the next iteration's seeding.
 	 */
 	private SolutionSet lastFinalPopulation;
-
-	// -------------------------------------------------------------------------
-	// New fields — end here
-	// -------------------------------------------------------------------------
 
 	public GenericMOSATestSuiteGenerator(ConfigManager config, CFG cfg, List<GenericObjective> objectives) {
 		super(cfg, objectives);
@@ -96,9 +92,6 @@ public class GenericMOSATestSuiteGenerator extends TestSuiteGenerator implements
 			throw new TestSuiteGenerationException(e.getMessage());
 		}
 
-		// -------------------------------------------------------------------------
-		// Pass seed population into the experiment before initialising — start here
-		// -------------------------------------------------------------------------
 		// If a seed population is available from the previous iteration, pass it
 		// to the experiment so MOSA_Generic can start from known-good solutions
 		// instead of a fully random population. This preserves search progress
@@ -108,10 +101,7 @@ public class GenericMOSATestSuiteGenerator extends TestSuiteGenerator implements
 			System.out.println("[GenericMOSATestSuiteGenerator] Passing "
 					+ this.seedPopulation.size() + " seed solutions to MOSA.");
 		}
-		// -------------------------------------------------------------------------
-		// Pass seed population into the experiment before initialising — end here
-		// -------------------------------------------------------------------------
-
+		
 		mosaExperiment.initExperiment(this.budgetManager);
 
 		try {
@@ -123,39 +113,37 @@ public class GenericMOSATestSuiteGenerator extends TestSuiteGenerator implements
 			throw new TestSuiteGenerationException(e.getMessage());
 		}
 
-		// -------------------------------------------------------------------------
-		// Store final population after MOSA run completes — start here
-		// -------------------------------------------------------------------------
 		// Retrieve and store the final population from MOSA_Generic so GenAndWrite
 		// can pass it to PopulationStore for seeding the next iteration.
 		this.lastFinalPopulation = mosaExperiment.getFinalPopulation();
-		// -------------------------------------------------------------------------
-		// Store final population after MOSA run completes — end here
-		// -------------------------------------------------------------------------
-
+		
 		Solution currentSolution;
 		List<Integer> numberOfEvaluations = mosaExperiment.getNumberOfEvaluations();
 		for (int i = 0; i < archiveSolutions.size(); i++) {
 			currentSolution = archiveSolutions.get(i);
 			if (currentSolution.getFitness() == 0) {
-				VariableTranslator translator = new VariableTranslator(currentSolution);
-				Object[][][] numericParams = translator.translateArray(cfg.getParameterTypes());
-				TestCase testCase = this.createTestCase(numericParams, suite.size());
+				TestCase testCase = this.createTestCase(cfg.getParameterTypes(), currentSolution, suite.size());
 				suite.add(testCase);
 				this.measureBenchmarks("MOSA Target", suite, numberOfEvaluations.get(i));
 			}
 		}
-		System.out.println("Testsuite size: " + suite.size());
+		System.out.println("Test suite size: " + suite.size());
+	}
+	
+	private TestCase createTestCase(CType[] parameterTypes, Solution currentSolution, int id) {
+		VariableTranslator translator = new VariableTranslator(currentSolution);
+		Object[][][] numericParams = translator.translateArray(parameterTypes);
+		TestCase tc = new TestCase();
+		tc.setId(id);
+		tc.setParameters(numericParams);
+		tc.setSolution(currentSolution);
+		return tc;
 	}
 
 	@Override
 	public int getNumberOfEvaluations() {
 		return this.evaluations;
 	}
-
-	// -------------------------------------------------------------------------
-	// New methods — start here
-	// -------------------------------------------------------------------------
 
 	/**
 	 * Sets the seed population to use when MOSA initialises its population.
@@ -179,8 +167,4 @@ public class GenericMOSATestSuiteGenerator extends TestSuiteGenerator implements
 	public SolutionSet getFinalPopulation() {
 		return this.lastFinalPopulation;
 	}
-
-	// -------------------------------------------------------------------------
-	// New methods — end here
-	// -------------------------------------------------------------------------
 }

@@ -2,30 +2,22 @@ package it.unisa.ocelot.genetic.objectives;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 
+import it.unisa.ocelot.genetic.solutions.GenericSolution;
+/**
+ * EVINT_TOOL_MARKER
+ * This class is used by the EvInT (Evolutionary Integration Testing) tool.
+ */
 public abstract class GenericObjective {
-
-    private boolean isCovered;
     private int objectiveID;
-
-    // Used in DynaMOSA to know if we are currently optimizing for this objective
-    private boolean isActive;
-
-    public GenericObjective TriggeredPair;
-    public int counter;
-    public double bestFitness;
-
-    // -------------------------------------------------------------------------
-    // Velocity tracking fields — new code starts here
-    // -------------------------------------------------------------------------
+    private double bestFitness;
 
     /**
      * Snapshot history of bestFitness recorded at fixed evaluation intervals
      * during a MOSA run. Each entry is a (evaluationCount, bestFitness) pair.
      * Used by MABController to compute how fast this objective is improving.
      */
-    public List<double[]> fitnessSnapshots;
+    private List<double[]> fitnessSnapshots;
 
     /**
      * Velocity of fitness improvement for this objective, computed after each
@@ -34,40 +26,24 @@ public abstract class GenericObjective {
      * Higher value means the objective is improving faster (easier to cover).
      * Initialised to 0.0 — unknown velocity before first run.
      */
-    public double velocity;
+    private double velocity;
 
-    // -------------------------------------------------------------------------
-    // Velocity tracking fields — new code ends here
-    // -------------------------------------------------------------------------
-
-    public GenericObjective(boolean isCovered, int objectiveID) {
+    public GenericObjective(int objectiveID) {
         super();
-        this.isCovered    = isCovered;
-        this.isActive     = true;
         this.objectiveID  = objectiveID;
-        this.counter      = 0;
         this.bestFitness  = Double.MAX_VALUE;
 
-        // ---- new code starts here ----
         this.fitnessSnapshots = new ArrayList<>();
         this.velocity         = 0.0;
-        // ---- new code ends here ----
+    }
+    
+    public void reset() {
+    	bestFitness = Double.MAX_VALUE;
+    	clearSnapshots();
     }
 
     public boolean isCovered() {
-        return isCovered;
-    }
-
-    public void setCovered(boolean isCovered) {
-        this.isCovered = isCovered;
-    }
-
-    public boolean isActive() {
-        return isActive;
-    }
-
-    public void setActive(boolean isActive) {
-        this.isActive = isActive;
+        return this.bestFitness == 0.0;
     }
 
     public int getObjectiveID() {
@@ -78,17 +54,26 @@ public abstract class GenericObjective {
         this.objectiveID = objectiveID;
     }
 
-    // ---- new code starts here ----
     /** Returns the velocity of fitness improvement computed by MABController. */
     public double getVelocity() {
         return velocity;
+    }
+    
+    public void setVelocity(double velocity) {
+    	this.velocity = velocity;
     }
 
     /** Returns the best fitness value seen so far for this objective. */
     public double getBestFitness() {
         return bestFitness;
     }
-
+    
+    public void updateBestFitness(double bestFitness) {
+    	if (bestFitness < this.bestFitness) {
+    		this.bestFitness = bestFitness;
+    	}
+    }
+    
     /**
      * Records a fitness snapshot at the given generation and evaluation count.
      * Called by MOSA_Generic once per generation for every objective.
@@ -109,7 +94,10 @@ public abstract class GenericObjective {
     public void clearSnapshots() {
         fitnessSnapshots.clear();
     }
-    // ---- new code ends here ----
+    
+    public List<double[]> getSnapshots() {
+    	return fitnessSnapshots;
+    }
 
     @Override
     public int hashCode() {
@@ -130,9 +118,9 @@ public abstract class GenericObjective {
 
     @Override
     public String toString() {
-        return "GenericObjective [isCovered=" + isCovered
+        return "GenericObjective [bestFitness=" + bestFitness
                 + ", objectiveID=" + objectiveID + "]";
     }
 
-    public abstract double getFitness(Object[][][] arguments);
+    public abstract double getFitness(GenericSolution solution);
 }

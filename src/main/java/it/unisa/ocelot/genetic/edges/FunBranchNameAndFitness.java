@@ -1,10 +1,13 @@
 package it.unisa.ocelot.genetic.edges;
 
 import java.util.Objects;
-
+/**
+ * EVINT_TOOL_MARKER
+ * This class is used by the EvInT (Evolutionary Integration Testing) tool.
+ */
 public class FunBranchNameAndFitness {
-    private String funBranchName;
-    private double currFitnessVal;
+    private final String funBranchName;
+    private final double currFitnessVal;
 	@Override
 	public int hashCode() {
 		return Objects.hash(currFitnessVal, funBranchName);
@@ -28,22 +31,14 @@ public class FunBranchNameAndFitness {
 	public String getFunBranchName() {
 		return funBranchName;
 	}
-	public void setFunBranchName(String funBranchName) {
-		this.funBranchName = funBranchName;
-	}
 	public double getCurrFitnessVal() {
 		return currFitnessVal;
-	}
-	public void setCurrFitnessVal(double currFitnessVal) {
-		this.currFitnessVal = currFitnessVal;
 	}
 	public FunBranchNameAndFitness(String funBranchName, double currFitnessVal) {
 		super();
 		this.funBranchName = funBranchName;
 		this.currFitnessVal = currFitnessVal;
 	}
-	public FunBranchNameAndFitness() {
-		// TODO Auto-generated constructor stub
-	}
+
 
 }

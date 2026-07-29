@@ -7,7 +7,10 @@ import java.util.List;
 import org.eclipse.cdt.core.dom.ast.IASTNode;
 
 import it.unisa.ocelot.c.cfg.nodes.CFGNode;
-
+/**
+ * EVINT_TOOL_MARKER
+ * This class is used by the EvInT (Evolutionary Integration Testing) tool.
+ */
 /**
  * Represents a node in the Control Dependence Graph.
  * Wraps a CFGNode and maintains control dependence relationships.

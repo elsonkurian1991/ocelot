@@ -21,7 +21,10 @@ import org.eclipse.cdt.internal.core.dom.parser.c.CASTKnRFunctionDeclarator;
 import org.eclipse.cdt.internal.core.dom.parser.c.CPointerType;
 import org.eclipse.cdt.internal.core.dom.parser.c.CStructure;
 import org.eclipse.cdt.internal.core.dom.parser.c.CTypedef;
-
+/**
+ * EVINT_TOOL_MARKER
+ * This class is used by the EvInT (Evolutionary Integration Testing) tool.
+ */
 /**
  * Generates the macro that will contain the call. Besides, it removes all typedefs from the tree, putting them in the
  * "typedef" field.

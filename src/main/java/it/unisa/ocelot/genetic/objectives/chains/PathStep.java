@@ -1,10 +1,18 @@
-package it.unisa.ocelot.c.cdg;
+package it.unisa.ocelot.genetic.objectives.chains;
+
+import java.util.HashMap;
+
+import it.unisa.ocelot.c.cdg.CDGNode;
+import it.unisa.ocelot.c.cdg.ControlDependenceEdge;
+/**
+ * EVINT_TOOL_MARKER
+ * This class is used by the EvInT (Evolutionary Integration Testing) tool.
+ */
 /**
  * Represents one step in a branch-chain path.
  * Contains source node, target node, and the branch condition taken.
  */
 public class PathStep {
-
     private CDGNode from;
     private CDGNode to;
     private ControlDependenceEdge edge;
@@ -48,15 +56,17 @@ public class PathStep {
     }
 
     /**
-     * A step has a branch condition if the edge encodes a conditional (not a FLOW edge)
-     * or if an explicit branchConditionLabel was attached by the extractor.
+     * A step has a branch condition if an explicit branchConditionLabel 
+     * was attached by the extractor.
      */
     public boolean hasBranchCondition() {
-        if (branchConditionLabel != null && !branchConditionLabel.isEmpty()) return true;
-        if (edge == null) return false;
-        return !edge.toString().equals("FLOW");
+        return (branchConditionLabel != null);
     }
-
+    
+    public Object getBranchDistance(HashMap<String, Object> fitnessMap) {
+    	return fitnessMap.get(getBranchLabel()); //TODO check whether the branch label is the right key to use for the fitness map
+	}
+    
     @Override
     public String toString() {
         return from.getId() + " --[" + getBranchLabel() + "]--> " + to.getId();

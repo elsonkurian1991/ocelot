@@ -14,7 +14,10 @@ import jmetal.core.Problem;
 import jmetal.core.Solution;
 import jmetal.encodings.solutionType.ArrayParametersSolutionType;
 import jmetal.util.JMException;
-
+/**
+ * EVINT_TOOL_MARKER
+ * This class is used by the EvInT (Evolutionary Integration Testing) tool.
+ */
 public abstract class StandardProblem extends Problem {
 	private static final int MAX_TRIES = 10;
 	private static final long serialVersionUID = -462606769605747252L;
@@ -171,7 +174,7 @@ public abstract class StandardProblem extends Problem {
 	public final void evaluate(Solution solution) throws JMException {
 		int tries = MAX_TRIES;
 		
-		Object[][][] arguments = this.getParameters(solution); //I hope here the inputs are generated!!
+		Object[][][] arguments = this.getParameters(solution);
 		
 		for (Object obj : arguments[2][0]) {
 			Integer pointerRef = (Integer)obj;
@@ -186,7 +189,7 @@ public abstract class StandardProblem extends Problem {
 		
 		while (tries > 0) {
 			try {
-				this.evaluateSolution(solution);			
+				this.evaluateSolution(solution);
 				return;
 			} catch (SimulationException ex) {
 				e.addSuppressed(ex);

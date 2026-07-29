@@ -7,7 +7,10 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
+/**
+ * EVINT_TOOL_MARKER
+ * This class is used by the EvInT (Evolutionary Integration Testing) tool.
+ */
 /**
  * Multi-Armed Bandit (MAB) controller for selecting which subset of uncovered
  * objectives to pass to MOSA in each iteration.
@@ -45,13 +48,11 @@ import java.util.Map;
  */
 public class MABController {
 
-	// -----------------------------------------------------------------------
 	// UCB1 exploration constant.
 	// sqrt(2) is the theoretically optimal value for UCB1.
 	// Increase to explore more (try less-attempted objectives more often).
 	// Decrease to exploit more (focus on objectives already showing progress).
-	// --- Change this formula / constant here if needed ---
-	// -----------------------------------------------------------------------
+	//TODO --- Change this formula / constant here if needed ---
 	private static final double EXPLORATION_CONSTANT = Math.sqrt(2.0);
 
 	// Weight applied to velocity bonus on top of UCB score.
@@ -71,9 +72,6 @@ public class MABController {
 		this.totalAttempts = 0;
 	}
 
-	// -----------------------------------------------------------------------
-	// Step 1: Select the next subset of objectives for MOSA
-	// -----------------------------------------------------------------------
 
 	/**
 	 * Selects a subset of objectives for the next MOSA iteration using UCB1.
@@ -109,10 +107,6 @@ public class MABController {
 		return subset;
 	}
 
-	// -----------------------------------------------------------------------
-	// Step 2: Compute statistics (velocity, fitness improvement)
-	// -----------------------------------------------------------------------
-
 	/**
 	 * Computes velocity for each objective in the subset after a MOSA run.
 	 *
@@ -135,11 +129,11 @@ public class MABController {
 	 */
 	public void computeVelocities(List<GenericObjective> subsetObjectives) {
 		for (GenericObjective obj : subsetObjectives) {
-			List<double[]> snapshots = obj.fitnessSnapshots;
+			List<double[]> snapshots = obj.getSnapshots();
 
 			if (snapshots == null || snapshots.size() < 2) {
 				// Not enough data points — velocity stays at previous value
-				obj.velocity = 0.0;
+				obj.setVelocity(0.0);
 				continue;
 			}
 
@@ -150,19 +144,15 @@ public class MABController {
 			double evaluationDelta = last[0] - first[0];
 
 			if (evaluationDelta <= 0) {
-				obj.velocity = 0.0;
+				obj.setVelocity(0.0);
 				continue;
 			}
 
 			// Normalise to [0, 1] range — fitness values are already in [0, 1]
 			// --- Velocity formula — change here if needed ---
-			obj.velocity = fitnessDelta / evaluationDelta;
+			obj.setVelocity(fitnessDelta / evaluationDelta);
 		}
 	}
-
-	// -----------------------------------------------------------------------
-	// Step 3: Record results and update MAB statistics after each iteration
-	// -----------------------------------------------------------------------
 
 	/**
 	 * Records the result of a MOSA iteration for each objective in the subset.
@@ -194,7 +184,7 @@ public class MABController {
 				reward = 1.0; // maximum reward for full coverage
 			} else if (totalEvaluations > 0) {
 				// Partial reward proportional to velocity (how much progress was made)
-				reward = Math.max(0.0, obj.velocity);
+				reward = Math.max(0.0, obj.getVelocity());
 			} else {
 				reward = 0.0;
 			}
@@ -203,10 +193,6 @@ public class MABController {
 			totalAttempts++;
 		}
 	}
-
-	// -----------------------------------------------------------------------
-	// Internal: UCB1 score computation
-	// -----------------------------------------------------------------------
 
 	/**
 	 * Computes the UCB1 score for a single objective. Objectives never attempted
@@ -230,15 +216,11 @@ public class MABController {
 
 		// Velocity bonus — slight preference for objectives actively improving
 		// --- Velocity bonus formula — change here if needed ---
-		double velocityBonus = VELOCITY_WEIGHT * obj.velocity;
+		double velocityBonus = VELOCITY_WEIGHT * obj.getVelocity();
 
 		return exploitation + exploration + velocityBonus;
 	}
-
-	// -----------------------------------------------------------------------
-	// Internal helper classes
-	// -----------------------------------------------------------------------
-
+	
 	/** Tracks attempt count and cumulative reward for one objective. */
 	private static class ObjectiveStats {
 		int attempts = 0;

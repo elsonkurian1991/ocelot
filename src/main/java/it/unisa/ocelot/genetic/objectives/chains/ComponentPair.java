@@ -1,4 +1,8 @@
-package it.unisa.ocelot.c.cdg;
+package it.unisa.ocelot.genetic.objectives.chains;
+/**
+ * EVINT_TOOL_MARKER
+ * This class is used by the EvInT (Evolutionary Integration Testing) tool.
+ */
 /**
  * Represents a pair of components that should be analyzed together.
  * Parsed from configuration like "fun1,fun3;fun2,fun4".

@@ -49,7 +49,10 @@ import org.eclipse.cdt.internal.core.dom.rewrite.astwriter.ASTWriter;
 import it.unisa.ocelot.c.cfg.CFG;
 import it.unisa.ocelot.c.cfg.CFGVisitor;
 import it.unisa.ocelot.c.cfg.edges.CaseEdge;
-
+/**
+ * EVINT_TOOL_MARKER
+ * This class is used by the EvInT (Evolutionary Integration Testing) tool.
+ */
 public class InstrumentorVisitor extends ASTVisitor {
 	private Stack<List<IASTStatement>> switchExpressions;
 	private String functionName;
@@ -372,7 +375,6 @@ public class InstrumentorVisitor extends ASTVisitor {
 		return PROCESS_SKIP;
 	}
 	
-	//TODO start from here
 	public void visit(IASTIfStatement statement) {
 		IASTExpression[] instrArgs = new IASTExpression[3];
 		instrArgs[0] = this.transformOriginalExpression(statement.getConditionExpression().copy());
@@ -598,10 +600,7 @@ public class InstrumentorVisitor extends ASTVisitor {
 		IASTExpression[] operationArgs = new IASTExpression[2];
 		operationArgs[0] = instrumentedOp1;
 		operationArgs[1] = instrumentedOp2;
-		
-//		System.out.println("FROM:" + new ASTWriter().write(pExpression));
-//		System.out.println("TO:" + new ASTWriter().write(operationArgs[0]) + " " + pOperator +" " + new ASTWriter().write(operationArgs[1]));
-		
+				
 		IASTFunctionCallExpression operationFunction = makeFunctionCall("_f_ocelot_" + pOperator, operationArgs);
 		
 		return operationFunction;
@@ -650,10 +649,7 @@ public class InstrumentorVisitor extends ASTVisitor {
 		IASTExpression[] operationArgs = new IASTExpression[2];
 		operationArgs[0] = this.castToDouble(this.transformDistanceExpression(operand1, false, true));
 		operationArgs[1] = this.castToDouble(this.transformDistanceExpression(operand2, false, true));
-		
-//		System.out.println("FROM:" + new ASTWriter().write(pExpression));
-//		System.out.println("TO:" + new ASTWriter().write(operationArgs[0]) + " " + pOperator +" " + new ASTWriter().write(operationArgs[1]));
-		
+				
 		IASTFunctionCallExpression operationFunction;
 		if (op1Type instanceof IBasicType && op2Type instanceof IBasicType ||
 				op1Type instanceof IEnumeration && op2Type instanceof IEnumeration) {
@@ -758,7 +754,6 @@ public class InstrumentorVisitor extends ASTVisitor {
 	}
 	
 	private IType getType(IASTExpression pExpression) {
-//		System.out.println(pExpression.getRawSignature());
 		return getType(pExpression.getExpressionType());
 	}
 	

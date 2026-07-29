@@ -8,7 +8,10 @@ import jmetal.core.Algorithm;
 import jmetal.core.Problem;
 import jmetal.experiments.Settings;
 import jmetal.util.JMException;
-
+/**
+ * EVINT_TOOL_MARKER
+ * This class is used by the EvInT (Evolutionary Integration Testing) tool.
+ */
 public abstract class StandardSettings extends Settings {
     protected int populationSize;
     protected int maxEvaluations;

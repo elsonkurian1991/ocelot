@@ -10,7 +10,10 @@ import org.eclipse.cdt.core.dom.ast.IASTCaseStatement;
 import org.eclipse.cdt.core.dom.ast.IASTContinueStatement;
 import org.eclipse.cdt.core.dom.ast.IASTGotoStatement;
 import org.eclipse.cdt.core.dom.ast.IASTNode;
-
+/**
+ * EVINT_TOOL_MARKER
+ * This class is used by the EvInT (Evolutionary Integration Testing) tool.
+ */
 /**
  * This class represents a node of the Control Flow Graph. It references the
  * corresponding syntax tree node.
@@ -20,14 +23,10 @@ import org.eclipse.cdt.core.dom.ast.IASTNode;
  */
 public class CFGNode implements Comparable<CFGNode> {
 	private static int lastId;
-
 	private int id;
 	private List<IASTNode> nodes;
 	private boolean isSwitch;
-
-	/* */
 	private boolean isVisited;
-
 	private String name;
 
 	public boolean isVisited() {
@@ -154,7 +153,8 @@ public class CFGNode implements Comparable<CFGNode> {
 	}
 
 	public boolean isBreak() {
-		if (this.nodes.size() == 1 && this.nodes.get(0) instanceof IASTBreakStatement)
+		if (this.nodes.size() == 1
+				&& this.nodes.get(0) instanceof IASTBreakStatement)
 			return true;
 		return false;
 	}
@@ -220,30 +220,5 @@ public class CFGNode implements Comparable<CFGNode> {
 	@Override
 	public int compareTo(CFGNode o) {
 		return new Integer(this.id).compareTo(o.id);
-	}
-
-	public String getConditionText() {
-		if (this.nodes.size() > 0) {
-			IASTNode node = this.nodes.get(0);
-			String raw = node.getRawSignature();
-			if (raw.length() > 30)
-				return raw.substring(0, 30) + "...";
-			else
-				return raw;
-		} else {
-			return this.name;
-		}
-	}
-
-	public String getText() {
-		if (this.nodes.size() > 0) {
-			StringBuilder sb = new StringBuilder();
-			for (IASTNode node : this.nodes)
-				if (node != null)
-					sb.append(node.getRawSignature()).append("\n");
-			return sb.toString();
-		} else {
-			return this.name;
-		}
 	}
 }

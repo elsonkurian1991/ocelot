@@ -5,7 +5,10 @@ import jmetal.core.Algorithm;
 import jmetal.core.Problem;
 import jmetal.core.SolutionSet;
 import jmetal.util.JMException;
-
+/**
+ * EVINT_TOOL_MARKER
+ * This class is used by the EvInT (Evolutionary Integration Testing) tool.
+ */
 public abstract class OcelotAlgorithm extends Algorithm {
 	private static final long serialVersionUID = -7835611261947665056L;
 	

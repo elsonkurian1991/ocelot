@@ -3,52 +3,45 @@ package it.unisa.ocelot.runnable.runners;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.PrintStream;
+import java.io.PrintWriter;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
-import java.util.Spliterator.OfPrimitive;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 
 import org.apache.commons.io.output.TeeOutputStream;
+
 import it.unisa.ocelot.suites.FitnessTracker;
 import it.unisa.ocelot.TestCase;
-import it.unisa.ocelot.c.cdg.BranchChainManager;
-import it.unisa.ocelot.c.cdg.BranchChainPairStateMachine;
-import it.unisa.ocelot.c.cdg.BranchChain;
 import it.unisa.ocelot.c.cfg.CFG;
 import it.unisa.ocelot.c.cfg.CFGBuilder;
 import it.unisa.ocelot.c.types.CTypeHandler;
 import it.unisa.ocelot.conf.ConfigManager;
-import it.unisa.ocelot.genetic.objectives.BranchManager;
-import it.unisa.ocelot.genetic.objectives.BranchObjective;
 import it.unisa.ocelot.genetic.objectives.GenericObjective;
-import it.unisa.ocelot.genetic.objectives.PC_PairObjective;
-import it.unisa.ocelot.genetic.objectives.PC_PairsManager;
+import it.unisa.ocelot.genetic.objectives.chains.BranchChainManager;
+import it.unisa.ocelot.genetic.objectives.chains.BranchChainPairObjective;
 import it.unisa.ocelot.simulator.CBridge;
-import it.unisa.ocelot.simulator.CoverageCalculator;
 import it.unisa.ocelot.simulator.GenericCoverageCalculator;
 import it.unisa.ocelot.suites.CoverageVerifier;
 import it.unisa.ocelot.suites.MABController;
 import it.unisa.ocelot.suites.ObjSubsetLoader;
-import it.unisa.ocelot.suites.ObjectiveDecomposer;
 import it.unisa.ocelot.suites.PopulationStore;
 import it.unisa.ocelot.suites.generators.TestSuiteGenerator;
 import it.unisa.ocelot.suites.generators.TestSuiteGeneratorHandler;
 import it.unisa.ocelot.suites.generators.many_objective.GenericMOSATestSuiteGenerator;
-import it.unisa.ocelot.suites.minimization.TestSuiteMinimizer;
-import it.unisa.ocelot.suites.minimization.TestSuiteMinimizerHandler;
-import it.unisa.ocelot.util.Utils;
 import it.unisa.ocelot.writer.TestFramework;
 import it.unisa.ocelot.writer.check.CheckFactory;
 import jmetal.core.SolutionSet;
 import it.unisa.ocelot.suites.SerendipitousCoverageChecker;
+/**
+ * EVINT_TOOL_MARKER
+ * This class is used by the EvInT (Evolutionary Integration Testing) tool.
+ */
 /**
  * GenAndWrite orchestrates iterative test suite generation using a Multi-Armed
  * Bandit (MAB) strategy for objective subset selection.
@@ -78,10 +71,12 @@ import it.unisa.ocelot.suites.SerendipitousCoverageChecker;
 public class GenAndWrite {
 	// Budget: maximum number of generation iterations across all loops.
 	// Adjust this constant (or load it from ConfigManager) as needed.
-	private static final int MAX_ITERATIONS = 5;
+	private static final int MAX_ITERATIONS = 3;
 
-	// One-time-per-JVM guard: delete old fitness mapping output file on first call to getOutputFile()
+	// One-time-per-JVM guard: delete old fitness mapping output file on first call
+	// to getOutputFile()
 	private static volatile boolean OUTPUT_FITNESS_FILE_CLEANED = false;
+
 	public void run() {
 		try {
 			ConfigManager config = ConfigManager.getInstance();
@@ -129,7 +124,7 @@ public class GenAndWrite {
 			Set<TestCase> suite = new HashSet<>();
 			// Checks whether TCs from each iteration incidentally cover
 			// objectives outside the current subset — free coverage gain
-			SerendipitousCoverageChecker serendipityChecker = new SerendipitousCoverageChecker(cfg);
+			SerendipitousCoverageChecker serendipityChecker = new SerendipitousCoverageChecker();
 			// Start with all objectives uncovered
 			List<GenericObjective> uncoveredObjectives = new ArrayList<>(allObjectives);
 
@@ -139,39 +134,12 @@ public class GenAndWrite {
 			// Tracks and persists fitness snapshots to CSV for post-run analysis.
 			// "." writes fitness_progress.csv to the current working directory —
 			// change to config.getOutputDir() or similar if you have an output path.
-			FitnessTracker fitnessTracker;
-			try {
-				String outputDir = config.getTestBasedir();
-				// Ensure we delete any old fitness mapping output file only once per JVM run.
-				if (!OUTPUT_FITNESS_FILE_CLEANED) {
-					File candidate = new File(outputDir + "fitness_progress.csv");
-					try {
-						// Ensure parent directory exists
-						File parent = candidate.getParentFile();
-						if (parent != null && !parent.exists()) {
-							parent.mkdirs();
-						}
-
-						if (candidate.exists()) {
-							boolean deleted = candidate.delete();
-							if (!deleted) {
-								System.err.println("Warning: unable to delete existing fitness_progress.csv file: " + candidate.getAbsolutePath());
-							}
-						}
-					} catch (SecurityException se) {
-						System.err.println("Warning deleting fitness_progress.csv file: " + se.getMessage());
-					} finally {
-						OUTPUT_FITNESS_FILE_CLEANED = true;
-						System.err.println("deleted previous fitness_progress.csv file: ");
-					}
-				}
-
-				fitnessTracker = new FitnessTracker(outputDir);
-			} catch (IOException e) {
-				throw new RuntimeException("Could not create FitnessTracker CSV", e);
-			}
+			FitnessTracker fitnessTracker = null;
+			openFitnessProgressFile(config,fitnessTracker);
+			
 			// Main iterative generation loop
 			for (int iteration = 1; iteration <= MAX_ITERATIONS; iteration++) {
+				
 				System.out.println("\n=== Iteration " + iteration + "/" + MAX_ITERATIONS + " ===");
 				System.out.println("Uncovered objectives remaining: " + uncoveredObjectives.size());
 
@@ -189,17 +157,10 @@ public class GenAndWrite {
 				// internal deactivation and preference criterion start fresh.
 				// fitnessSnapshots are cleared so velocity computation for THIS
 				// iteration only uses data from THIS run.
-				BranchChainManager.newFitnessHashMap.clear();
+				int uncoveredBefore = uncoveredObjectives.size();
 
 				for (GenericObjective obj : subsetObjectives) {
-					obj.setActive(true);
-					obj.bestFitness = Double.MAX_VALUE;
-					obj.counter = 0;
-					obj.clearSnapshots(); // clear velocity snapshot history
-					// Reset state machine for BranchChainPairStateMachine objectives
-					if (obj instanceof BranchChainPairStateMachine) {
-						((BranchChainPairStateMachine) obj).setCurrState(BranchChainPairStateMachine.State.zeroCover);
-					}
+					obj.reset();
 				}
 				// Re-index objective IDs to contiguous 0-based range.
 				// jmetal Solution array is sized by objectives.size(), and
@@ -225,8 +186,7 @@ public class GenAndWrite {
 				if (generator instanceof GenericMOSATestSuiteGenerator && populationStore.hasSeedPopulation()) {
 					int seedSize = config.getPopulationSize() / 2;
 					SolutionSet seeds = populationStore.getSeedPopulation(seedSize);
-					//here we need to set the new seed pop according to the new objective list.
-					// seeds and subsetobjectives are, if this are not same size, we need to reduce size of seed.obj = subsetobj					((GenericMOSATestSuiteGenerator) generator).setSeedPopulation(seeds);
+					((GenericMOSATestSuiteGenerator) generator).setSeedPopulation(seeds);
 					System.out.println("Seeded MOSA with " + seeds.size() + " solutions from previous iteration.");
 				}
 				// Run MOSA — the core generation step.
@@ -259,13 +219,11 @@ public class GenAndWrite {
 				// Any objective whose fitness == 0.0 is marked covered for free,
 				// without spending an additional MOSA iteration on it.
 				// ------------------------------------------------------------------
-				int serendipitouslyCovered = serendipityChecker.check(
-						iterationSuite,     // TCs produced this iteration
-						allObjectives,      // full objective list to scan
-						subsetObjectives);  // exclude — MOSA already handled these
+				int serendipitouslyCovered = serendipityChecker.check(iterationSuite, // TCs produced this iteration
+						allObjectives, // full objective list to scan
+						subsetObjectives); // exclude — MOSA already handled these
 				if (serendipitouslyCovered > 0) {
-					System.out.println("Serendipitous coverage: "
-							+ serendipitouslyCovered
+					System.out.println("Serendipitous coverage: " + serendipitouslyCovered
 							+ " additional objective(s) covered at no extra cost.");
 				}
 
@@ -274,16 +232,25 @@ public class GenAndWrite {
 				mab.computeVelocities(subsetObjectives);
 
 				// Flush per-generation snapshots for ALL objectives — subset ones have
-			    // real snapshots, non-subset ones get last-known fitness as placeholder
-			    fitnessTracker.flush(iteration, allObjectives, subsetObjectives);
+				// real snapshots, non-subset ones get last-known fitness as placeholder
+				//fitnessTracker.flush(iteration, allObjectives, subsetObjectives);
 
 				// Coverage verification — identify newly covered objectives
 				System.out.println(verifier.summarise(allObjectives));
 
 				// Update the uncovered list using the full allObjectives state
 				uncoveredObjectives = verifier.getUncoveredObjectivesSorted(allObjectives, suite);
-
-				System.out.println("Uncovered after iteration " + iteration + ": " + uncoveredObjectives.size());
+				long chainPairCount = uncoveredObjectives.stream()
+					    .filter(o -> o instanceof BranchChainPairObjective)
+					    .count();
+				String lineChainPairCount = "\n" + iteration + "/" + MAX_ITERATIONS + " -> " + "Uncovered BranchChainPairObjectives: "
+						+ "" + chainPairCount + " / " + uncoveredObjectives.size();
+				objCovEachIter.append(lineChainPairCount);
+					System.out.println("Uncovered BranchChainPairObjectives: " + chainPairCount + " / " + uncoveredObjectives.size());
+				int newlyCovered = uncoveredBefore - uncoveredObjectives.size();
+				String line = "\n" + iteration + "/" + MAX_ITERATIONS + " -> " + iterationSuite.size()
+				        + " test cases, " + newlyCovered + " objectives newly covered";
+				//System.out.println("Uncovered after iteration " + iteration + ": " + uncoveredObjectives.size());
 				// MAB step 3 — record result and update UCB statistics.
 				// Uses the number of evaluations MOSA spent this iteration.
 				int evaluationsThisIteration = generator.getNumberOfEvaluations();
@@ -296,13 +263,15 @@ public class GenAndWrite {
 					System.out.println("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%");
 					break;
 				}
-				String line = "\n" + iteration + "/" + MAX_ITERATIONS + " -> " + iterationSuite.size()
-				+ " Objectives covered";
+				//String line = "\n" + iteration + "/" + MAX_ITERATIONS + " -> " + iterationSuite.size()+ " Objectives covered";
 				objCovEachIter.append(line);
+				System.err.println("[Iter " + iteration + "] "
+			    + " | suite size: " + suite.size()
+			    + " | populationStore pool size: " + populationStore.size()); // or equivalent getter
 			} // For loop end
 
 			// Close the CSV file writer cleanly after all iterations complete
-			fitnessTracker.close();
+			//fitnessTracker.close();
 
 			// Final coverage report
 			if (!verifier.isFullyCovered(allObjectives)) {
@@ -335,12 +304,11 @@ public class GenAndWrite {
 			System.out.println("Objective coverage achieved: " + calculator.getObjectiveCoverage());
 			System.out.println("-------------------------------------------------------");
 
-			for (GenericObjective objective : uncoveredObjectives) {
-				if (!objective.isCovered()) {
-					System.out.println(objective.toString());
-					printUncoveredBCobjectives(calculator, allObjectives, minimizedSuite);
-				}
-			}
+			/*
+			 * for (GenericObjective objective : uncoveredObjectives) { if
+			 * (!objective.isCovered()) { //System.out.println(objective.toString()); } }
+			 */
+			//TODO printUncoveredBCobjectives(calculator, allObjectives, minimizedSuite);
 			// System.out.println("Branch coverage achieved: " +
 			// calculator.getBranchCoverage());
 			// System.out.println("Statement coverage achieved: " +
@@ -348,21 +316,58 @@ public class GenAndWrite {
 
 			// TODO last enable the following to print the test cases.
 
-			String formattedFilename = config.getTestFilename(); formattedFilename =
-					formattedFilename.replaceAll("[^A-Za-z0-9]", "_"); String filename = "_Test_"
-							+ config.getTestFunction() + "_" + formattedFilename + ".c";
-					System.out.println("Writing test suite on " + filename + "...");
+			String formattedFilename = config.getTestFilename();
+			formattedFilename = formattedFilename.replaceAll("[^A-Za-z0-9]", "_");
+			String filename = "_Test_" + config.getTestFunction() + "_" + formattedFilename + ".c";
+			System.out.println("Writing test suite on " + filename + "...");
 
-					TestFramework framework = new TestFramework(new CheckFactory());
+			TestFramework framework = new TestFramework(new CheckFactory());
 
-					String content = framework.writeTestSuite(minimizedSuite, cfg, config);
-					Utils.writeFile(filename, content);
+			String content = framework.writeTestSuite(minimizedSuite, cfg, config);
+			String dir_file = config.getTestBasedir() + "/" + filename;
+			PrintWriter writer = new PrintWriter(dir_file, "UTF-8");
+			writer.print(content);
+			writer.close();
+			// Utils.writeFile(filename, content);
 
-
-					System.out.println("Operation completed!");
+			System.out.println("Operation completed!");
 		} catch (Exception e) {
 			e.printStackTrace();
 			throw new RuntimeException(e);
+		}
+	}
+
+	private void openFitnessProgressFile(ConfigManager config, FitnessTracker fitnessTracker) {
+		try {
+			String outputDir = config.getTestBasedir();
+			// Ensure we delete any old fitness mapping output file only once per JVM run.
+			if (!OUTPUT_FITNESS_FILE_CLEANED) {
+				File candidate = new File(outputDir + "fitness_progress.csv");
+				try {
+					// Ensure parent directory exists
+					File parent = candidate.getParentFile();
+					if (parent != null && !parent.exists()) {
+						parent.mkdirs();
+					}
+
+					if (candidate.exists()) {
+						boolean deleted = candidate.delete();
+						if (!deleted) {
+							System.err.println("Warning: unable to delete existing fitness_progress.csv file: "
+									+ candidate.getAbsolutePath());
+						}
+					}
+				} catch (SecurityException se) {
+					System.err.println("Warning deleting fitness_progress.csv file: " + se.getMessage());
+				} finally {
+					OUTPUT_FITNESS_FILE_CLEANED = true;
+					System.err.println("deleted previous fitness_progress.csv file: ");
+				}
+			}
+
+			fitnessTracker = new FitnessTracker(outputDir);
+		} catch (IOException e) {
+			throw new RuntimeException("Could not create FitnessTracker CSV", e);
 		}
 	}
 
@@ -398,74 +403,7 @@ public class GenAndWrite {
 
 	// Helper: prints uncovered branch-chain objectives (human readable) and writes
 	// them to uncoveredBCobjectives.txt
-	// Also computes how many times each branch chain is covered across the provided
-	// test suite
-	private void printUncoveredBCobjectives(GenericCoverageCalculator calculator,
-			List<GenericObjective> branchChainObjectives, Set<TestCase> suite) {
-		List<GenericObjective> uncovered = calculator.getUncoveredObjectives();
-		System.out.println("Uncovered Branch-Chain Objectives: " + uncovered.size());
-		// Build counts for each branch chain label
-		Map<String, Integer> coverageCounts = new HashMap<>();
-		for (GenericObjective obj : branchChainObjectives) {
-			if (obj instanceof BranchChainPairStateMachine) {
-				BranchChainPairStateMachine bcsm = (BranchChainPairStateMachine) obj;
-				BranchChain bc1 = bcsm.getBranchChainOne();
-				BranchChain bc2 = bcsm.getBranchChainTwo();
-				coverageCounts.putIfAbsent(bc1.getLabel(), 0);
-				coverageCounts.putIfAbsent(bc2.getLabel(), 0);
-			} else {
-				coverageCounts.putIfAbsent(obj.toString(), 0);
-			}
-		}
-		// Re-evaluate objectives for each test and increment counts when objective is
-		// covered
-		for (TestCase tc : suite) {
-			Object[][][] params = tc.getParameters();
-			for (GenericObjective obj : branchChainObjectives) {
-				double fitness = obj.getFitness(params);
-				if (fitness == 0.0) {
-					if (obj instanceof BranchChainPairStateMachine) {
-						BranchChainPairStateMachine bcsm = (BranchChainPairStateMachine) obj;
-						String l1 = bcsm.getBranchChainOne().getLabel();
-						String l2 = bcsm.getBranchChainTwo().getLabel();
-						coverageCounts.put(l1, coverageCounts.getOrDefault(l1, 0) + 1);
-						coverageCounts.put(l2, coverageCounts.getOrDefault(l2, 0) + 1);
-					} else {
-						String key = obj.toString();
-						coverageCounts.put(key, coverageCounts.getOrDefault(key, 0) + 1);
-					}
-				}
-			}
-		}
-
-		try (FileWriter fw = new FileWriter("uncoveredBCobjectives.txt")) {
-			for (GenericObjective obj : uncovered) {
-				if (obj instanceof BranchChainPairStateMachine) {
-					BranchChainPairStateMachine bcsm = (BranchChainPairStateMachine) obj;
-					BranchChain bc1 = bcsm.getBranchChainOne();
-					BranchChain bc2 = bcsm.getBranchChainTwo();
-					String idLine = "ObjectiveID:" + obj.getObjectiveID();
-					int count1 = coverageCounts.getOrDefault(bc1.getLabel(), 0);
-					int count2 = coverageCounts.getOrDefault(bc2.getLabel(), 0);
-					String summary = idLine + " | " + bc1.getLabel() + " (covered " + count1 + " times)  <->  "
-							+ bc2.getLabel() + " (covered " + count2 + " times)";
-					// System.out.println(summary);
-					fw.write(summary + "\n");
-					fw.write("--- Chain 1 (text) ---\n");
-					fw.write(bc1.toTextRepresentation() + "\n");
-					fw.write("--- Chain 2 (text) ---\n");
-					fw.write(bc2.toTextRepresentation() + "\n");
-					fw.write("--------------------------------------------------\n");
-				} else {
-					String s = obj.toString();
-					int count = coverageCounts.getOrDefault(s, 0);
-					String line = s + " (covered " + count + " times)";
-					System.out.println(line);
-					fw.write(line + "\n");
-				}
-			}
-		} catch (IOException e) {
-			System.err.println("Unable to write uncoveredBCobjectives.txt: " + e.getMessage());
-		}
-	}
+	//TODO: Consider refactoring this method to separate printing and file writing for clarity and testability.
+	
+	
 }

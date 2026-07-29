@@ -6,7 +6,10 @@ import it.unisa.ocelot.conf.ConfigManager;
 
 import java.util.HashSet;
 import java.util.Set;
-
+/**
+ * EVINT_TOOL_MARKER
+ * This class is used by the EvInT (Evolutionary Integration Testing) tool.
+ */
 public class TestFramework {
 	
 	private TestFrameworkFactory factory;

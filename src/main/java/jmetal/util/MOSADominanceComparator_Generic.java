@@ -22,12 +22,12 @@ public class MOSADominanceComparator_Generic implements Comparator {
 	private final List<GenericObjective> target;
 
 	/**
-	 * Constructor of MOSADominanceComparator class
+	 * Constructor of MOSADominanceComparator_Generic class
 	 * 
-	 * @param uncoveredBranches
+	 * @param uncoveredObjectives
 	 */
-	public MOSADominanceComparator_Generic(List<GenericObjective> uncoveredBranches) {
-		this.target = new ArrayList<>(uncoveredBranches);
+	public MOSADominanceComparator_Generic(List<GenericObjective> uncoveredObjectives) {
+		this.target = new ArrayList<>(uncoveredObjectives);
 	}
 
 	/**
@@ -63,7 +63,7 @@ public class MOSADominanceComparator_Generic implements Comparator {
 		double value1, value2;
 
 		for (GenericObjective uncoveredBranch : target) {
-			if (uncoveredBranch.isCovered() || !uncoveredBranch.isActive())
+			if (uncoveredBranch.isCovered())
 				continue; //branch covered
 			
 			value1 = solution1.getObjective(uncoveredBranch.getObjectiveID());

@@ -55,27 +55,27 @@ import org.eclipse.cdt.internal.core.dom.rewrite.astwriter.ASTWriter;
 import it.unisa.ocelot.c.cfg.CFG;
 import it.unisa.ocelot.c.cfg.CFGVisitor;
 import it.unisa.ocelot.c.cfg.edges.CaseEdge;
-
+/**
+ * EVINT_TOOL_MARKER
+ * This class is used by the EvInT (Evolutionary Integration Testing) tool.
+ */
 public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 	private Stack<List<IASTStatement>> switchExpressions;
 	private String functionName;
 	private List<IASTNode> typedefs;
 	private List<IASTExpression> functionCallsInExpressions;
 	private ArrayList<String> testObjectives;
+	private Integer branchNumber;
+	private HashSet<String> targetFunctions;
+	private HashMap<IASTNode, List<String>> nodeBranchMap;
 	// Map a function to all the branches that can be taken to reach that function
 	public Map<String, List<String>> functionBranchPairMap;
 	// Map a node in the AST to the branches taken to reach that node
-	private HashMap<IASTNode, List<String>> nodeBranchMap;
 	// A list of all the branches present in this function
-	// public List<String> functionBranches;
-
-	private Integer branchNumber;
-	private HashSet<String> targetFunctions;
-	
+	public Map<IASTExpression, Integer> branchChainsMap;
 	// For synthetic generated ifs from boolean variables, see BooleanAssignmentTransformer
-	public ArrayList<String> SyntheticBranches;
-	public Set<IASTNode> trackSynthetics = new HashSet<>();
-	
+	public ArrayList<String> syntheticBranches;
+	public Set<IASTNode> trackSynthetics = new HashSet<>();	
 	public Set<IASTNode> foundSynthetics = new HashSet<>();
 
 	public UnitComponentInstrumentorVisitor(String pInstrumentFunction, ArrayList<String> testObjectives,
@@ -88,26 +88,19 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 		this.shouldVisitDeclSpecifiers = true;
 		this.shouldVisitPointerOperators = true;
 
-		// Function that i'm executing
 		this.functionName = pInstrumentFunction;
-
 		this.switchExpressions = new Stack<List<IASTStatement>>();
 		this.typedefs = new ArrayList<IASTNode>();
 		this.functionCallsInExpressions = new ArrayList<>();
 
 		this.branchNumber = 0;
 		this.testObjectives = testObjectives;
-		
 		this.trackSynthetics = trackSynthetics;
-
-		// Stores the names of the functions we are interested in for integration
-		// testing
 		this.functionBranchPairMap = new HashMap<>();
 		this.targetFunctions = new HashSet<String>(functionNames);
 		this.nodeBranchMap = new HashMap<IASTNode, List<String>>();
-		
-		this.SyntheticBranches = new ArrayList<String>();
-
+		this.branchChainsMap = new HashMap<IASTExpression, Integer>();
+		this.syntheticBranches = new ArrayList<String>();
 	}
 
 	public List<IASTNode> getTypedefs() {
@@ -218,7 +211,6 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 
 	public IASTExpression transformDistanceExpression(IASTExpression expression, boolean pNegation,
 			boolean pTransPerformed) {
-		// System.out.println(expression.getRawSignature());
 		if (expression instanceof IASTBinaryExpression) {
 			IASTBinaryExpression realExpression = (IASTBinaryExpression) expression;
 			if (realExpression.getOperator() == IASTBinaryExpression.op_equals)
@@ -260,20 +252,7 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 				// the distance
 				return this.trasformArithmetic(realExpression, pNegation, IASTBinaryExpression.op_binaryOr);
 			else if (realExpression.getOperator() == IASTBinaryExpression.op_binaryAnd)
-				return this.trasformArithmetic(realExpression, pNegation, IASTBinaryExpression.op_binaryAnd); // make
-			// changes
-			// to
-			// handle:
-			// if
-			// 'and'
-			// then
-			// add
-			// the
-			// distance
-			// return this.trasformArithmetic(realExpression, pNegation,
-			// IASTBinaryExpression.op_binaryAnd);
-			/**/
-			/**/
+				return this.trasformArithmetic(realExpression, pNegation, IASTBinaryExpression.op_binaryAnd); 
 			else if (realExpression.getOperator() == IASTBinaryExpression.op_assign
 					|| realExpression.getOperator() == IASTBinaryExpression.op_plusAssign
 					|| realExpression.getOperator() == IASTBinaryExpression.op_minusAssign
@@ -361,7 +340,6 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 						result = makeFunctionCall("_f_ocelot_istrue", arguments);
 					else
 						result = makeFunctionCall("_f_ocelot_isfalse", arguments);
-					// System.out.println(result.getRawSignature().toString());
 					return result;
 				} else {
 					return realExpression;
@@ -399,7 +377,6 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 				|| expression instanceof IASTCastExpression || expression instanceof IASTFieldReference
 				|| expression instanceof IASTTypeIdExpression) {
 			if (!pTransPerformed) {
-				//System.out.println(expression.getRawSignature());
 				IASTExpression[] arguments = new IASTExpression[1];
 				arguments[0] = expression;
 
@@ -409,7 +386,6 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 					result = makeFunctionCall("_f_ocelot_istrue", arguments);
 				else
 					result = makeFunctionCall("_f_ocelot_isfalse", arguments);
-				// System.out.println(result.getRawSignature().toString());
 				return result;
 			}
 		} else if (expression instanceof IASTFunctionCallExpression) {
@@ -426,9 +402,7 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 		return expression;
 	}
 
-	// here we need to change the logic...
 	public IASTExpression transformOriginalExpression(IASTExpression expression) {
-		// System.out.println(expression.getRawSignature());
 		if (expression instanceof IASTBinaryExpression) {
 			IASTBinaryExpression realExpression = (IASTBinaryExpression) expression;
 
@@ -449,30 +423,22 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 
 	@Override
 	public int visit(IASTExpression expression) {
-		// this.transformDistanceExpression(expression, false, false);
-
-		// Martino
 		if (expression instanceof IASTFunctionCallExpression) {
 			IASTFunctionCallExpression call = (IASTFunctionCallExpression) expression;
 
 			IASTExpression functionNameExpr = call.getFunctionNameExpression();
 			String functionName = extractFunctionName(functionNameExpr);
-			// System.out.println(functionName+" checking...");
 			if (functionName != null && targetFunctions.contains(functionName)) {
 				System.out.println("Found call to '" + functionName + "' at: " + expression.getFileLocation());
 				IASTNode ParentExpression = expression.getParent();
 				List<String> branchesTaken = new ArrayList<String>();
 				// Traverse the AST from bottom to top and collect the branches take to reach
 				// the function call
-				//System.out.println(functionName);
 				while (ParentExpression != null) {
-					//System.out.println(ParentExpression.getRawSignature());
 					List<String> present = nodeBranchMap.get(ParentExpression);
 					
 					if (present != null) {
 						branchesTaken.addAll(present);
-						//System.out.println(present);
-						//System.out.println(present.size());
 					}
 					ParentExpression = ParentExpression.getParent();
 				}
@@ -501,11 +467,8 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 		return null;
 	}
 
-	// TODO start from here
 	public void visit(IASTIfStatement statement) throws Exception {
-		//System.out.println(statement.getPropertyInParent().getName());
 		statement.getChildren();
-		// System.out.println(statement.getConditionExpression().getRawSignature().toString());
 		IASTExpression[] instrArgs = new IASTExpression[5];
 		instrArgs[0] = new CASTLiteralExpression(CASTLiteralExpression.lk_string_literal,
 				("\"" + functionName + "\"").toCharArray());
@@ -522,7 +485,7 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 
 		statement.setConditionExpression(resultExpression);
 
-		
+		branchChainsMap.put(resultExpression, branchNumber);
 		List<String> thenClause = new ArrayList<String>();
 		List<String> elseClause = new ArrayList<String>();
 		thenClause.add(functionName + ":" + "branch" + branchNumber + "-" + "true");
@@ -534,29 +497,19 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 			nodeBranchMap.put(statement.getElseClause(), elseClause);
 			
 		}
-		
 		//Tag the code after the if/else
 		markOutsideIfStatement(statement);
 		
-		// For synthetic generated ifs from boolean variables, see BooleanAssignmentTransformer
-		/*if (branchNumber == 12) {
-				System.out.println("Break");
-				System.out.println(statement.getPropertyInParent() != null);
-				System.out.println(statement.getPropertyInParent().getName());
-		}*/
 		if (trackSynthetics.contains(statement)) {
-			SyntheticBranches.add(functionName + ":" + "branch" + branchNumber + "-" + "true"); 
-			SyntheticBranches.add(functionName + ":" + "branch" + branchNumber + "-" + "false");
+			syntheticBranches.add(functionName + ":" + "branch" + branchNumber + "-" + "true"); 
+			syntheticBranches.add(functionName + ":" + "branch" + branchNumber + "-" + "false");
 			foundSynthetics.add(statement);
 			}
 		addTestObjectives(branchNumber);
-		branchNumber++;
-
-		
+		branchNumber++;	
 	}
 
 	public void visit(IASTSwitchStatement statement) throws Exception {
-		// OK, but handle types!!
 		CASTLiteralExpression cTrue = new CASTLiteralExpression(CASTLiteralExpression.lk_integer_constant,
 				new char[] { '1' });
 		CASTCompoundStatement substitute = new CASTCompoundStatement();
@@ -565,10 +518,8 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 		
 		List<String> outsideClause = new ArrayList<String>();
 
-		//System.out.println(statement.getRawSignature());
 		int counter = -1; // the first case is branchNumber + 0
 		for(IASTNode child : statement.getBody().getChildren()) {
-			//System.out.println(child.getRawSignature() + " --- " +  child.getClass().toString());
 			if (!(child instanceof CASTCaseStatement) && !(child instanceof CASTDefaultStatement)) {
 				List<String> caseClause = new ArrayList<String>();
 				caseClause.add(functionName + ":" + "branch" + (branchNumber + counter) + "-" + "true");
@@ -581,9 +532,6 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 				counter++;
 				}
 		}
-		
-		
-		
 		
 		List<IASTStatement> caseStatements = switchExpressions.pop();
 		CASTBinaryExpression defaultExpression = new CASTBinaryExpression(CASTBinaryExpression.op_logicalAnd,
@@ -606,9 +554,6 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 				substitute.addStatement(registerFcall);
 			}
 		}
-		
-		
-		
 
 		//Tag the code after the switch
 		markOutsideSwitchStatement(statement, counter);
@@ -637,12 +582,6 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 
 				currentDefaultExpression.setOperand2(defaultExpressionSubtree);
 				currentDefaultExpression = defaultExpressionSubtree;
-				/*} else {
-				defaultWritten = true;
-				label = "default";
-				distanceCalculation = defaultExpression;
-			}
-				 */
 
 				IASTExpression[] arguments = new IASTExpression[5];
 				arguments[0] = new CASTLiteralExpression(CASTLiteralExpression.lk_string_literal,
@@ -651,8 +590,6 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 						branchNumber.toString().toCharArray());
 				arguments[2] = new CASTLiteralExpression(CASTLiteralExpression.lk_integer_constant,
 						String.valueOf(CaseEdge.retrieveUniqueId(label)).toCharArray());
-				// aCase.getChildren. find the list of children.
-				// System.out.println(aCase.getChildren().length);
 				if (aCase.getChildren().length == 0) {
 					arguments[3] = distanceCalculation.copy(); // 1 return
 					arguments[4] = distanceCalculation.copy(); // 0 return
@@ -663,11 +600,6 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 				}
 				substitute.addStatement(new CASTExpressionStatement(makeFunctionCall("_f_ocelot_branch_out", arguments)));
 
-				
-				
-				
-				
-				
 				addTestObjectives(branchNumber);
 				branchNumber++;
 			}
@@ -685,7 +617,7 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 			arguments[2] = new CASTLiteralExpression(CASTLiteralExpression.lk_integer_constant,
 					String.valueOf(CaseEdge.retrieveUniqueId(label)).toCharArray());
 			arguments[3] = this.transformDistanceExpression(distanceCalculation, false, false);
-			arguments[4] =  this.transformDistanceExpression(distanceCalculation, true, false);//distanceCalculation.copy();
+			arguments[4] =  this.transformDistanceExpression(distanceCalculation, true, false);
 
 			substitute.addStatement(new CASTExpressionStatement(makeFunctionCall("_f_ocelot_branch_out", arguments)));
 
@@ -780,7 +712,6 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 				IASTStatement[] StatementsList = ParentCompound.getStatements();
 				boolean postStatement = false;
 				for (IASTStatement stm : StatementsList) {
-					//System.out.println(stm.equals(statement));
 					if (postStatement) {
 						List<String> present = nodeBranchMap.get((IASTNode) stm);
 						if (present != null) {
@@ -790,8 +721,6 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 							outsideStatements = statementsSet;
 							}
 						nodeBranchMap.put(stm, outsideStatements);
-						//System.out.println(outsideStatements);
-						//System.out.println(outsideStatements.size());
 					}
 					if (stm.equals(statementToLoop))
 						postStatement = true;
@@ -812,7 +741,6 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 			outsideStatements.add(functionName + ":" + "branch" + (branchNumber + counter) + "-" + "true");
 			outsideStatements.add(functionName + ":" + "branch" + (branchNumber + counter) + "-" + "false");
 			}
-
 		
 		IASTNode Parent = statement.getParent();
 		IASTNode statementToLoop = statement;
@@ -822,7 +750,6 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 				IASTStatement[] StatementsList = ParentCompound.getStatements();
 				boolean postStatement = false;
 				for (IASTStatement stm : StatementsList) {
-					//System.out.println(stm.equals(statement));
 					if (postStatement) {
 						List<String> present = nodeBranchMap.get((IASTNode) stm);
 						if (present != null) {
@@ -832,8 +759,6 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 							outsideStatements = statementsSet;
 							}
 						nodeBranchMap.put(stm, outsideStatements);
-						//System.out.println(outsideStatements);
-						//System.out.println(outsideStatements.size());
 					}
 					if (stm.equals(statementToLoop))
 						postStatement = true;
@@ -914,7 +839,7 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 		IASTFunctionCallExpression instrFunction = makeFunctionCall("_f_ocelot_branch_out", instrArgs);
 		IASTExpression resultExpression = this.buildFcallExpression(instrFunction);
 		statement.setConditionExpression(resultExpression);
-
+		branchChainsMap.put(resultExpression, branchNumber);
 		// Martino
 		markWhileForDoStatements(statement, statement.getBody());
 
@@ -933,9 +858,6 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 	// read the statement line by line
 	public int visit(IASTStatement statement) {
 		try {
-			// System.out.println(((IASTCompoundStatement)statement).getStatements());
-			// System.out.println(((ASTNode) statement).getAST());
-			// System.out.println(statement.getRawSignature());
 			this.functionCallsInExpressions.clear();
 			if (statement instanceof IASTIfStatement)
 				this.visit((IASTIfStatement) statement);
@@ -947,8 +869,8 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 			else if (statement instanceof IASTDoStatement)
 				this.visit((IASTDoStatement) statement);
 			else if (statement instanceof IASTForStatement) {
-				//this.visit((IASTForStatement) statement);
-				return PROCESS_CONTINUE; // for this experiment we skip for-loops instrumentation. 
+				this.visit((IASTForStatement) statement);
+				//return PROCESS_CONTINUE; // for this experiment we skip for-loops instrumentation. 
 			}
 			/*else if (statement instanceof IASTCaseStatement) {
 				this.visit((IASTCaseStatement) statement);
@@ -988,10 +910,6 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 		IASTExpression[] operationArgs = new IASTExpression[2];
 		operationArgs[0] = instrumentedOp1;
 		operationArgs[1] = instrumentedOp2;
-
-		// System.out.println("FROM:" + new ASTWriter().write(pExpression));
-		// System.out.println("TO:" + new ASTWriter().write(operationArgs[0]) + " " +
-		// pOperator +" " + new ASTWriter().write(operationArgs[1]));
 
 		IASTFunctionCallExpression operationFunction = makeFunctionCall("_f_ocelot_" + pOperator, operationArgs);
 
@@ -1055,10 +973,6 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 		IASTExpression[] operationArgs = new IASTExpression[2];
 		operationArgs[0] = this.castToDouble(this.transformDistanceExpression(operand1, false, true));
 		operationArgs[1] = this.castToDouble(this.transformDistanceExpression(operand2, false, true));
-
-		// System.out.println("FROM:" + new ASTWriter().write(pExpression));
-		// System.out.println("TO:" + new ASTWriter().write(operationArgs[0]) + " " +
-		// pOperator +" " + new ASTWriter().write(operationArgs[1]));
 
 		IASTFunctionCallExpression operationFunction;
 		if (op1Type instanceof IBasicType && op2Type instanceof IBasicType
@@ -1166,7 +1080,6 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 	}
 
 	private IType getType(IASTExpression pExpression) {
-		// System.out.println(pExpression.getRawSignature());
 		return getType(pExpression.getExpressionType());
 	}
 

@@ -22,29 +22,23 @@ import org.apache.commons.codec.digest.DigestUtils;
 import it.unisa.ocelot.c.Builder;
 import it.unisa.ocelot.c.BuildingException;
 import it.unisa.ocelot.c.StandardBuilder;
-import it.unisa.ocelot.c.StandardBuilder_new;
 import it.unisa.ocelot.c.makefile.DynamicMakefileGenerator;
 import it.unisa.ocelot.c.makefile.JNIMakefileGenerator;
 import it.unisa.ocelot.c.makefile.LinuxMakefileGenerator;
 import it.unisa.ocelot.c.makefile.MacOSXMakefileGenerator;
 import it.unisa.ocelot.c.makefile.WindowsMakefileGenerator;
 import it.unisa.ocelot.conf.ConfigManager;
-import it.unisa.ocelot.genetic.edges.CalculateFitnessFromEvalPC3;
-import it.unisa.ocelot.genetic.edges.FitType;
-import it.unisa.ocelot.genetic.edges.ReadEFLfilesforPairCombination;
-import it.unisa.ocelot.genetic.edges.ReadEFLfilesforPairCombination_V2;
-import it.unisa.ocelot.genetic.edges.TestObjStateMachine;
-import it.unisa.ocelot.genetic.objectives.BranchManager;
 import it.unisa.ocelot.genetic.objectives.GenericObjective;
-import it.unisa.ocelot.genetic.objectives.PC_PairObjective;
-import it.unisa.ocelot.genetic.objectives.PC_PairsManager;
 import it.unisa.ocelot.runnable.runners.ExecuteExperiment;
 import it.unisa.ocelot.runnable.runners.ExecuteWholeCoverage;
 import it.unisa.ocelot.runnable.runners.GenAndWrite;
 import it.unisa.ocelot.util.Debugger;
 import it.unisa.ocelot.util.Utils;
-
-@SuppressWarnings({ "unused", "deprecation", "restriction" })
+/**
+ * EVINT_TOOL_MARKER
+ * This class is used by the EvInT (Evolutionary Integration Testing) tool.
+ */
+@SuppressWarnings({ "unused", "deprecation" })
 public class Run {
 	public static final String VERSION = "1.0";
 
@@ -57,8 +51,14 @@ public class Run {
 	 * config_toyeight_cdg
 	 * config_toynine_cdg
 	 * config_toyten_cdg
+	 * config_toyeleven_cdg
+	 * config_toy_a.properties
+	 * config_toyninesmall
+	 * config_toyninesmalltwo
+	 * config_twelve.properties
 	 */
-	private static final String CONFIG_FILENAME = "config_toynine_cdg.properties";
+	private static final String CONFIG_FILENAME = "config_twelve.properties";
+	public static final String LOCALUSER_DIR=System.getProperty("user.dir"); 
 
 	private static final int RUNNER_ILLEGAL = -1;
 	private static final int RUNNER_SIMPLE_EXECUTE = 0;
@@ -69,147 +69,108 @@ public class Run {
 	private String[] experimentGenerators;
 	private boolean forceBuild;
 	private String configFilename;
-
 	private boolean forceNoBuild;
-	public static final String localOcelotDir=System.getProperty("user.dir"); 
-	public static final boolean isExpWithEvalFun=true;// this will treat as our version of OCELOT
 	public static StringBuilder logWriter = new StringBuilder();
-	public static int population_size;
-	public static int evaluations_max;
-	
-	//List of generated objectives
-	public static List<GenericObjective> generatedObjectives;
-	public static List<GenericObjective> branchObjective;
-	enum State{
-		zeroCover,
-		oneCover,
-		twoCover
-	}
-	public static void main(String[] args) throws Exception {
-		if(isExpWithEvalFun) {
-			welcome();
-		}
 
-		System.out.println("Now deleting old build file.... just for better debuging");
-		String filePathToDelete1 = localOcelotDir+"/.lastbuild.cks";
+	public static void main(String[] args) throws Exception {
+		// Visual Header Banner
+		System.out.println("==================================================");
+		System.out.println("                WELCOME TO EvInT                  ");
+		System.out.println("==================================================");
+		TimeUnit.SECONDS.sleep(1);
+		// Friendly Configuration Reminder
+		System.out.println("\n[!] REMINDER: Please ensure your config file is updated.");
+		System.out.println("[✓] Assuming valid configuration... Launching EvInT!\n");
+		TimeUnit.SECONDS.sleep(1);
+		System.out.println("--------------------------------------------------");
+
+		System.out.println("[INFO] Cleaning target workspace...");
+		System.out.println("[>] Deleting old build files...");
+		// deleting the old build files.
+		String filePathToDelete1 = LOCALUSER_DIR+"/.lastbuild.cks";
 		deleteFileIfExists(filePathToDelete1);
-		String filePathToDelete2 = localOcelotDir+"/libTest.so";
+		String filePathToDelete2 = LOCALUSER_DIR+"/libTest.so";
 		deleteFileIfExists(filePathToDelete2);
-		String filePathToDelete3 = localOcelotDir+"/fitnessValues.txt"; //do 
+		String filePathToDelete3 = LOCALUSER_DIR+"/fitnessValues.txt"; //do 
 		deleteFileIfExists(filePathToDelete3);
-		String filePathToDelete4 = localOcelotDir+"/testObjectives.to"; //do 
+		String filePathToDelete4 = LOCALUSER_DIR+"/testObjectives.to"; //do 
 		deleteFileIfExists(filePathToDelete4);
-		String filePathToDelete5 = localOcelotDir+"/fitnessValues.bin"; //do 
+		String filePathToDelete5 = LOCALUSER_DIR+"/fitnessValues.bin"; //do 
 		deleteFileIfExists(filePathToDelete5);
-		String filePathToDelete6 = localOcelotDir+"/cdg_output.txt"; //do 
+		String filePathToDelete6 = LOCALUSER_DIR+"/cdg_output.txt"; //do 
 		deleteFileIfExists(filePathToDelete6);
-		deleteOldEvalPCfiles(localOcelotDir);
+
+		System.out.println("[✓] Old build files successfully removed.");
+		System.out.println("--------------------------------------------------\n");
 
 		long startTime =System.currentTimeMillis();
+
+		//Main execution part start
 		Run runner = new Run(args);
 		if (runner.mustBuild())
 			runner.build();
 		runner.saveHash();
-		if(isExpWithEvalFun) {
-			//logWriter.append("\n");
-			//logWriter.append("Info:");
-			//logWriter.append("\n");
-			//ReadEFLfilesforPairCombination_V2.RunEFLfilesforPairCombination(); // run this to read the efl file and create pairwise combinations. find a best place to call this
-			//generatedObjectives = PC_PairsManager.loadObjectives();
-			branchObjective = BranchManager.loadObjectives(0);
-			//logWriter.append("\n");
-			//logWriter.append("List of PC PairCombinations:");
-			//logWriter.append("\n{\n");
-			//for(TestObjStateMachine sm:ReadEFLfilesforPairCombination_V2.files_SM_PC_FitVals) {
-			//logWriter.append(sm.getSMPairName().toString());
-			//logWriter.append("\n");
-			//}
-			//logWriter.append("}\n");
-
-		}
 		runner.run();
-		if(isExpWithEvalFun) {
-			//System.out.println(ReadEFLfilesforPairCombination.files_PC_PairCom_FitnessVals);
-			long endTime=System.currentTimeMillis();
-			long time=endTime-startTime;
-			long hours = time / 3600000;
-			long minutes = (time / 60000) % 60;
-			long seconds = (time / 1000) % 60;
+		//Main execution part end
+		
+		long endTime = System.currentTimeMillis();
+		long time = endTime - startTime;
+		long hours = TimeUnit.MILLISECONDS.toHours(time);
+		long minutes = TimeUnit.MILLISECONDS.toMinutes(time) % 60;
+		long seconds = TimeUnit.MILLISECONDS.toSeconds(time) % 60;
 
-			//PrintNumOfPathCovered();
-			System.out.println("Execution time: " + hours + " hours, " + minutes + " minutes, " + seconds + " seconds");
-			logWriter.append("Execution time: " + hours + " hours, " + minutes + " minutes, " + seconds + " seconds");
-			logWriter.append("\n");
-			//logWriter.append("\n");
-			/*logWriter.append("files_PC_PairCom_FitnessVals");*/
-			logWriter.append("\n");
-			//logWriter.append(generatedObjectives.toString());
+		System.out.println("Execution time: " + hours + " hours, " + minutes + " minutes, " + seconds + " seconds");
+		logWriter.append("Execution time: " + hours + " hours, " + minutes + " minutes, " + seconds + " seconds");
+		logWriter.append("\n");
 
-			/*for (TestObjStateMachine sm : ReadEFLfilesforPairCombination_V2.files_SM_PC_FitVals) {
-
-			}*/
-
-		}
 		createLogFile(logWriter);
-		//System.out.println(CalculateFitnessFromEvalPC3.linesFromFitnessFiles);
-		//delete all the target source files from the jni folder
+
 		deleteTargetSourceFilesFromJni();
 	}
 	private static void deleteTargetSourceFilesFromJni() throws IOException {
 		ConfigManager getConfInfo=ConfigManager.getInstance();		
 		String[] listFiles= getConfInfo.getTestIncludePaths();
 		String tragetSourceFolder=getConfInfo.getTestBasedir();
-        File outputJniFolder = new File(tragetSourceFolder, "jni");
-        // Create the 'jni' subfolder if it doesn't exist
-        if (!outputJniFolder.exists()) {
-            boolean created = outputJniFolder.mkdirs();
-            if (!created) {
-                System.out.println("Failed to create output JNI folder: " + outputJniFolder.getAbsolutePath());
-                return;
-            }
-        }
+		File outputJniFolder = new File(tragetSourceFolder, "jni");
+		// Create the 'jni' subfolder if it doesn't exist
+		if (!outputJniFolder.exists()) {
+			boolean created = outputJniFolder.mkdirs();
+			if (!created) {
+				System.out.println("Failed to create output JNI folder: " + outputJniFolder.getAbsolutePath());
+				return;
+			}
+		}
 		for(int i=0;i<listFiles.length;i++) {
 			//System.out.println(supportFiles[i]);
 			int lastIndex=listFiles[i].lastIndexOf('/');
 			File sourceFile = new File("jni/", listFiles[i].substring(lastIndex+1));
-            File destinationFile = new File(outputJniFolder, listFiles[i].substring(lastIndex+1));
+			File destinationFile = new File(outputJniFolder, listFiles[i].substring(lastIndex+1));
 
-            if (sourceFile.exists()) {
-                try {
-                    Files.move(sourceFile.toPath(), destinationFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
-                    //System.out.println("Moved: " + sourceFile.getAbsolutePath() + " -> " + destinationFile.getAbsolutePath());
-                } catch (IOException e) {
-                    System.out.println("Failed to move: " + sourceFile.getAbsolutePath());
-                    e.printStackTrace();
-                }
-            } else {
-                System.out.println("File not found: " + sourceFile.getAbsolutePath());
-            }
-            //delete the unwanted header files
-            String headerFileName=listFiles[i].substring(lastIndex+1);
-            headerFileName=headerFileName.replace(".c", ".h");
-            File headerFile = new File("jni/",headerFileName);
-            if(headerFile.exists()) {
-            	headerFile.delete();
-            }
-           
+			if (sourceFile.exists()) {
+				try {
+					Files.move(sourceFile.toPath(), destinationFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+				} catch (IOException e) {
+					System.out.println("Failed to move: " + sourceFile.getAbsolutePath());
+					e.printStackTrace();
+				}
+			} else {
+				System.out.println("File not found: " + sourceFile.getAbsolutePath());
+			}
+			//delete the unwanted header files
+			String headerFileName=listFiles[i].substring(lastIndex+1);
+			headerFileName=headerFileName.replace(".c", ".h");
+			File headerFile = new File("jni/",headerFileName);
+			if(headerFile.exists()) {
+				headerFile.delete();
+			}
+
 		}
-		 //spcl case
-        File kcg_imported_functions = new File("jni/","kcg_imported_functions.h");
-        if(kcg_imported_functions.exists()) {
-        	kcg_imported_functions.delete();
-        }
-		 System.out.println("Files moved to "+outputJniFolder+"/ for backup.");
-
-	}
-	private static void welcome() throws InterruptedException {
-		System.out.println("WELCOME to EvInT");
-		System.out.println("Did you update the localOcelotDir, function name, includes and parameter list correctly?");
-		System.out.println("Please update the Config file correctly??? Thanks");
-		System.out.println("Yes/No");
-		TimeUnit.SECONDS.sleep(1);
-		System.out.println("Hope you updated the information... else...please update the files...");
-		TimeUnit.SECONDS.sleep(1);
+		//spcl case
+		File kcg_imported_functions = new File("jni/","kcg_imported_functions.h");
+		if(kcg_imported_functions.exists()) {
+			kcg_imported_functions.delete();
+		}
+		System.out.println("Files moved to "+outputJniFolder+"/ for backup.");
 
 	}
 	public static void createLogFile(StringBuilder logWriter) throws IOException {
@@ -217,116 +178,27 @@ public class Run {
 		DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss");
 		String formatedDateTime = now.format(formatter);
 		String fileName= "Log_"+formatedDateTime+".txt";
-		String dir_FileName =localOcelotDir+"/ocelot_logs/"+fileName;
+		String dir_FileName =LOCALUSER_DIR+"/ocelot_logs/"+fileName;
 		try (BufferedWriter writer = new BufferedWriter(new FileWriter(dir_FileName))){
 			writer.write(logWriter.toString());
 		}
 
 	}
-	private static void PrintNumOfPathCovered() {
-
-
-		int totalPairCombination= generatedObjectives.size();
-		int totalPairTestGenerated = 0;
-		String pairList="";
-
-		logWriter.append("\n");
-		//System.out.println("Test case NOT generated for following pair combination: ");
-		//logWriter.append("Test case NOT generated for following pair combination: ");
-		//logWriter.append("\n");logWriter.append("\n");
-		int totalCovered = 0;
-		int forwardLevel1covered = 0;
-		int forwardLevel2covered = 0;
-		
-		int forwardLevel1notCovered = 0;
-		int forwardLevel2notCovered = 0;
-		for (GenericObjective obj : generatedObjectives) {	
-			if (obj instanceof PC_PairObjective) {
-				PC_PairObjective pairObj = (PC_PairObjective) obj;
-				
-				
-				// TODO: refactor to handle multiple indirections level and to allow non PC_PairObjective as objective
-				if (obj.isCovered()) {
-					if ( pairObj.indirectionLevel == 1) {
-						forwardLevel1covered++;
-					}
-					else if (pairObj.indirectionLevel == 2) {
-						forwardLevel2covered++;
-					}
-				}
-				else if (!obj.isCovered()) {
-					if ( pairObj.indirectionLevel == 1) {
-						forwardLevel1notCovered++;
-					}
-					else if (pairObj.indirectionLevel == 2) {
-						forwardLevel2notCovered++;
-					}
-				}
-				
-				
-				int acc = 0;
-			}
-		}
-		//System.out.println(listofObjNotCov);
-		logWriter.append("\n");
-		logWriter.append("The covered pair combinations are: ");
-		logWriter.append("\n");logWriter.append("{\n");
-		//System.out.print(pairList);
-		logWriter.append(pairList.toString());
-		logWriter.append("}\n");
-		logWriter.append("\n");logWriter.append("\n");
-		logWriter.append("population.size:"+population_size);
-		logWriter.append("\n");logWriter.append("\n");
-		logWriter.append("evaluations.max:"+evaluations_max);
-		logWriter.append("\n");logWriter.append("\n");
-		System.out.println("population.size:"+population_size);
-		System.out.println("evaluations.max:"+evaluations_max);
-		System.out.println((forwardLevel1covered + forwardLevel2covered)+" out of "+totalPairCombination+" pair combination  covered in the generated test suite ");
-		System.out.println("Forward pairs covered:" + (forwardLevel1covered + forwardLevel2covered));
-		System.out.println("Forward pairs size:" + totalPairCombination);
-		logWriter.append((forwardLevel1covered + forwardLevel2covered)+" out of "+totalPairCombination+" pair combination  covered in the generated test suite ");
-		logWriter.append("\n");logWriter.append("\n");
-		//System.out.println("The covered pair combinations are: ");
-
-	}
-	private static void deleteOldEvalPCfiles(String directoryPath) {
-		File directory = new File(directoryPath);
-
-		// Check if the directory exists
-		if (directory.exists() && directory.isDirectory()) {
-			// Get all files in the directory
-			File[] files = directory.listFiles();
-
-			// Iterate through the files and delete .epc files
-			if (files != null) {
-				for (File file : files) {
-					if (file.isFile() && file.getName().endsWith(".epc")) {
-						if (file.delete()) {
-							System.out.println("Deleted: " + file.getName());
-						} else {
-							System.out.println("Failed to delete: " + file.getName());
-						}
-					}
-				}
-			}
-		} else {
-			System.out.println("Invalid directory path.");
-		}
-
-	}
+	
 	public static void deleteFileIfExists(String filePath) {
 		Path path = Paths.get(filePath);
 
-		if (Files.exists(path)) {
-			try {
-				// Use the Files.delete method to delete the file
-				Files.delete(path);
-				System.out.println("File deleted successfully: " + filePath);
-			} catch (IOException e) {
-				System.err.println("Error deleting file: " + e.getMessage());
+		try {
+			// Atomic check-and-delete provided by NIO2
+			boolean deleted = Files.deleteIfExists(path);
+
+			if (deleted) {
+				System.out.println("[✓] Deleted old build file: " + filePath);
+			} else {
+				System.out.println("[i] File not found (skipping): " + filePath);
 			}
-		} else {
-			System.out.println("File does not exist: " + filePath+ " --No problem");
+		} catch (IOException e) {
+			System.err.println("[X] Error deleting file (" + filePath + "): " + e.getMessage());
 		}
 	}
 
@@ -412,8 +284,7 @@ public class Run {
 
 	public void build() throws Exception {
 		ConfigManager config = ConfigManager.getInstance();
-
-		Builder builder = new StandardBuilder_new( //here we use the new Standard builder to use new branch chains
+		Builder builder = new StandardBuilder( 
 				config.getTestFilename(), 
 				config.getTestFunction(), 
 				config.getTestIncludePaths());
@@ -438,13 +309,10 @@ public class Run {
 		builder.setOutput(System.out);
 
 		builder.build();
-		/*update the population.size and evaluations.max value to a var*/
-		evaluations_max= config.getMaxEvaluations();
-		population_size= config.getPopulationSize();
 	}
 
 	public void run() throws Exception {
-		System.load(localOcelotDir+"/libTest.so");
+		System.load(LOCALUSER_DIR+"/libTest.so");
 		switch (this.runnerType) {
 		case RUNNER_SIMPLE_EXECUTE:
 			System.out.println("Running simple coverage test");
