@@ -91,7 +91,7 @@ public class Run {
 		deleteFileIfExists(filePathToDelete1);
 		String filePathToDelete2 = LOCALUSER_DIR+"/libTest.so";
 		deleteFileIfExists(filePathToDelete2);
-		String filePathToDelete3 = LOCALUSER_DIR+"/fitnessValues.txt"; //do 
+		String filePathToDelete3 = LOCALUSER_DIR+"/BranchDistanceTracker.txt"; //do 
 		deleteFileIfExists(filePathToDelete3);
 		String filePathToDelete4 = LOCALUSER_DIR+"/testObjectives.to"; //do 
 		deleteFileIfExists(filePathToDelete4);

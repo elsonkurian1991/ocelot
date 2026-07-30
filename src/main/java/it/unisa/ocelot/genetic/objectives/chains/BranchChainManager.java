@@ -544,8 +544,8 @@ public class BranchChainManager {
 	public static void cacheFitnessValues(GenericSolution solution) {
 		HashMap<String, Double> fitnessMap = new HashMap<>();
 
-		// Fills fitnessMap with the data from the fitnessValues.txt file
-		try (BufferedReader f_Val_File = new BufferedReader(new FileReader("./fitnessValues.txt"))) {//TODO trace.txt
+		// Fills fitnessMap with the data from the BranchDistanceTracker.txt file
+		try (BufferedReader f_Val_File = new BufferedReader(new FileReader("./BranchDistanceTracker.txt"))) {
 			String lineBr = f_Val_File.readLine();
 			while (lineBr != null) {
 				FunBranchNameAndFitness infoFromLinebr = readInfoFromLine(lineBr);
@@ -557,7 +557,7 @@ public class BranchChainManager {
 				lineBr = f_Val_File.readLine();
 			}
 		} catch (IOException e) {
-			System.err.println("Error reading fitnessValues.txt file: " + e.getMessage());
+			System.err.println("Error reading BranchDistanceTracker.txt file: " + e.getMessage());
 		}
 
 		// updates the solution
