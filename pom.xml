@@ -158,11 +158,11 @@
 		    <version>1.0.1</version>
 		</dependency>
 		<dependency>
-            <groupId>org.eclipse.cdt</groupId>
-            <artifactId>core</artifactId>
-            <version>5.9.1</version>
-            <scope>system</scope> 
-             <systemPath>${basedir}/libs/org.eclipse.cdt.core_5.9.1.201502131403.jar</systemPath>
+            <groupId>com.github.mhoffrog.attached<!-- org.eclipse.cdt --></groupId>
+            <artifactId>org.eclipse.cdt.core <!-- core --></artifactId>
+            <version>5.11.0</version>
+            <!-- <scope>system</scope> 
+             <systemPath>${basedir}/libs/org.eclipse.cdt.core_5.11.0...jar</systemPath> -->
         </dependency>
 
         <dependency>
