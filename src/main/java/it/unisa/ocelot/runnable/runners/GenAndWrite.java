@@ -23,8 +23,9 @@ import it.unisa.ocelot.c.cfg.CFGBuilder;
 import it.unisa.ocelot.c.types.CTypeHandler;
 import it.unisa.ocelot.conf.ConfigManager;
 import it.unisa.ocelot.genetic.objectives.GenericObjective;
-import it.unisa.ocelot.genetic.objectives.chains.BranchChainManager;
-import it.unisa.ocelot.genetic.objectives.chains.BranchChainPairObjective;
+import it.unisa.ocelot.genetic.objectives.branch_chains.BranchChainManager;
+import it.unisa.ocelot.genetic.objectives.branch_chains.BranchChainPairObjective;
+import it.unisa.ocelot.runnable.Run;
 import it.unisa.ocelot.simulator.CBridge;
 import it.unisa.ocelot.simulator.GenericCoverageCalculator;
 import it.unisa.ocelot.suites.CoverageVerifier;
@@ -54,7 +55,7 @@ import it.unisa.ocelot.suites.SerendipitousCoverageChecker;
  * <li>Reset per-objective state so MOSA starts clean.</li>
  * <li>Seed MOSA with the final population from the previous iteration (via
  * PopulationStore) so progress is not lost.</li>
- * <li>Run MOSA on the selected subset.</li>
+ * <li>Run MOSA on the selected subset.</li>  
  * <li>Store MOSA's final population in PopulationStore.</li>
  * <li>CoverageVerifier identifies newly covered and still-uncovered
  * objectives.</li>
@@ -71,7 +72,7 @@ import it.unisa.ocelot.suites.SerendipitousCoverageChecker;
 public class GenAndWrite {
 	// Budget: maximum number of generation iterations across all loops.
 	// Adjust this constant (or load it from ConfigManager) as needed.
-	private static final int MAX_ITERATIONS = 3;
+	private static final int MAX_ITERATIONS = 4;
 
 	// One-time-per-JVM guard: delete old fitness mapping output file on first call
 	// to getOutputFile()
@@ -198,7 +199,10 @@ public class GenAndWrite {
 					// Restore original IDs before any coverage reporting
 					restoreObjectiveIds(savedIds);
 				}
-
+				//delete the old distance from the file 
+				System.out.println("Resetting BranchDistanceTracker.txt for next iteration...");
+				Run.resetFileQuietly(Run.LOCALUSER_DIR+"/BranchDistanceTracker.txt");
+				
 				// Accumulate test cases from this iteration into global suite
 				suite.addAll(iterationSuite);
 				System.out.println("Test cases this iteration: " + iterationSuite.size() + " | Total accumulated: "
@@ -295,19 +299,23 @@ public class GenAndWrite {
 			System.out.println("Size of objectivesToEvaluate: " + allObjectives.size());
 			System.out.println("-------------------------------------------------------");
 			System.out.println("Minimized test cases: " + minimizedSuite.size());
-			System.out.println("Objective coverage achieved: " + calculator.getObjectiveCoverage());
-			System.out.println("Computed coverage for " + suite.size() + " test cases");
+			System.out.println("Objective coverage achieved: " + verifier.getFinalCoverage(allObjectives));
+			//System.out.println("Objective coverage achieved: " + calculator.getObjectiveCoverage());//TODO this is not working
+		
+			System.out.println("-------------------------------------------------------");
 			System.out.println("Uncovered objectives: " + uncoveredObjectives.size());
-			System.out.println("Size of all objectives: " + allObjectives.size());
-			System.out.println("-------------------------------------------------------");
-			System.out.println("Total test cases: " + suite.size());
-			System.out.println("Objective coverage achieved: " + calculator.getObjectiveCoverage());
-			System.out.println("-------------------------------------------------------");
-
-			/*
-			 * for (GenericObjective objective : uncoveredObjectives) { if
-			 * (!objective.isCovered()) { //System.out.println(objective.toString()); } }
-			 */
+			
+			 for (GenericObjective objective : uncoveredObjectives) { 
+				 if (!objective.isCovered()) { System.out.println(objective.toString()); } }
+			 System.out.println("-------------------------------------------------------");
+			 
+			/* System.out.println("-------------------------------------------------------");
+				System.out.println("Covered objectives: " + verifier.getFinalCoverage(allObjectives));
+				
+				 for (GenericObjective objective : allObjectives) { 
+					 if (objective.isCovered()) { System.out.println(objective.toString()); } }
+				 System.out.println("-------------------------------------------------------");
+				*/ 
 			//TODO printUncoveredBCobjectives(calculator, allObjectives, minimizedSuite);
 			// System.out.println("Branch coverage achieved: " +
 			// calculator.getBranchCoverage());

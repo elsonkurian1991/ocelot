@@ -9,6 +9,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.nio.file.StandardOpenOption;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -56,8 +57,9 @@ public class Run {
 	 * config_toyninesmall
 	 * config_toyninesmalltwo
 	 * config_twelve.properties
+	 * config_five.properties
 	 */
-	private static final String CONFIG_FILENAME = "config_twelve.properties";
+	private static final String CONFIG_FILENAME = "config_five.properties";
 	public static final String LOCALUSER_DIR=System.getProperty("user.dir"); 
 
 	private static final int RUNNER_ILLEGAL = -1;
@@ -201,7 +203,23 @@ public class Run {
 			System.err.println("[X] Error deleting file (" + filePath + "): " + e.getMessage());
 		}
 	}
-
+	
+	public static void resetFileQuietly(String filePathString) {
+        Path path = Paths.get(filePathString);
+        
+        // 1. Check if the file exists at the location
+        if (Files.exists(path) && Files.isRegularFile(path)) {
+            try {
+                // 2. If yes, empty the content instantly
+                Files.newByteChannel(path, StandardOpenOption.WRITE, StandardOpenOption.TRUNCATE_EXISTING).close();
+                //System.out.println("Success: File content has been reset / emptied.");
+            } catch (IOException e) {
+                // This only runs if there is a system permission or locking issue
+                System.err.println("Could not empty the file: " + e.getMessage());
+            }
+        }
+        // 3. If no, it exits silently. No worries, no warning messages printed.
+    }
 
 	public Run(String[] args) throws IOException {
 		this.runnerType = RUNNER_WRITE;
