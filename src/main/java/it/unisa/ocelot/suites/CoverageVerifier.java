@@ -107,4 +107,16 @@ public class CoverageVerifier {
         return String.format("Coverage: %d/%d objectives covered (%d remaining)",
                 covered, total, remaining);
     }
+
+	public String getFinalCoverage(List<GenericObjective> allObjectives) {
+		double coveredObj = allObjectives.stream()
+                .filter(GenericObjective::isCovered)
+                .count();
+		  int totalObj = allObjectives.size();
+		// Cast one variable to double to prevent integer division truncation
+		  double totalObjCovered = ((double) coveredObj / totalObj) * 100;
+		// Format to 2 decimal places and append the % symbol
+		  return  String.format("%.2f%%", totalObjCovered);
+		
+	}
 }
