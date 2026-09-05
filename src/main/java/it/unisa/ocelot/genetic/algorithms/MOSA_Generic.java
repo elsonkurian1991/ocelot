@@ -248,7 +248,7 @@ public class MOSA_Generic extends OcelotAlgorithm {
 
 			// feedback: print the current global fitness (i.e., the sum of the best fitnesses of
 			// the uncovered objectives)
-			if (generationCounter % 100 == 0) {
+			//if (generationCounter % 10 == 0) {
 				double globalFitness = 0;
 				for (GenericObjective obj : allTargets) {
 					if (obj.isCovered()) {
@@ -257,8 +257,8 @@ public class MOSA_Generic extends OcelotAlgorithm {
 					double objFitness = obj.getBestFitness();
 					globalFitness += objFitness;
 				}
-				System.err.println("[MOSA] Iteration: " + generationCounter + ", current global fitness: " + globalFitness);
-			}
+				System.out.println("[MOSA] Cycle: " + generationCounter + ", current global fitness: " + globalFitness);
+			//}
 			
 			// Record a fitness snapshot for every objective at the end of each
 			// generation so FitnessTracker can plot convergence curves.
@@ -384,7 +384,7 @@ public class MOSA_Generic extends OcelotAlgorithm {
 			return true;
 		}
 
-		System.out.println("This is while loop keepRunning: " + (endTime - startTime) / 1000000000);
+		System.out.println("This is while loop keepRunning: " + TimeUnit.NANOSECONDS.toSeconds(endTime - startTime) );
 		return false;
 
 	}
