@@ -26,6 +26,7 @@ import org.eclipse.cdt.core.dom.ast.IASTFunctionDefinition;
 import org.eclipse.cdt.core.dom.ast.IASTIdExpression;
 import org.eclipse.cdt.core.dom.ast.IASTIfStatement;
 import org.eclipse.cdt.core.dom.ast.IASTLiteralExpression;
+import org.eclipse.cdt.core.dom.ast.IASTName;
 import org.eclipse.cdt.core.dom.ast.IASTNode;
 import org.eclipse.cdt.core.dom.ast.IASTSimpleDeclaration;
 import org.eclipse.cdt.core.dom.ast.IASTStatement;
@@ -35,7 +36,12 @@ import org.eclipse.cdt.core.dom.ast.IASTTypeIdExpression;
 import org.eclipse.cdt.core.dom.ast.IASTUnaryExpression;
 import org.eclipse.cdt.core.dom.ast.IASTWhileStatement;
 import org.eclipse.cdt.core.dom.ast.IBasicType;
+import org.eclipse.cdt.core.dom.ast.IBinding;
 import org.eclipse.cdt.core.dom.ast.IEnumeration;
+import org.eclipse.cdt.core.dom.ast.INodeFactory;
+import org.eclipse.cdt.core.dom.ast.IPointerType;
+import org.eclipse.cdt.core.dom.ast.IProblemBinding;
+import org.eclipse.cdt.core.dom.ast.IProblemType;
 import org.eclipse.cdt.core.dom.ast.IType;
 import org.eclipse.cdt.core.dom.ast.c.ICPointerType;
 import org.eclipse.cdt.internal.core.dom.parser.c.CASTBinaryExpression;
@@ -50,6 +56,7 @@ import org.eclipse.cdt.internal.core.dom.parser.c.CASTIdExpression;
 import org.eclipse.cdt.internal.core.dom.parser.c.CASTLiteralExpression;
 import org.eclipse.cdt.internal.core.dom.parser.c.CASTName;
 import org.eclipse.cdt.internal.core.dom.parser.c.CTypedef;
+import org.eclipse.cdt.internal.core.dom.parser.cpp.semantics.SemanticUtil;
 import org.eclipse.cdt.internal.core.dom.rewrite.astwriter.ASTWriter;
 
 import it.unisa.ocelot.c.cfg.CFG;
@@ -403,13 +410,14 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 	}
 
 	public IASTExpression transformOriginalExpression(IASTExpression expression) {
+		
 		if (expression instanceof IASTBinaryExpression) {
 			IASTBinaryExpression realExpression = (IASTBinaryExpression) expression;
 
 			realExpression.setOperand1(this.transformOriginalExpression(realExpression.getOperand1()));
-			realExpression.setOperand2(this.transformOriginalExpression(realExpression.getOperand2()));
-
-			return realExpression;
+			realExpression.setOperand2(this.transformOriginalExpression(realExpression.getOperand2()));	
+			
+		return realExpression;
 		} else if (expression instanceof IASTUnaryExpression) {
 			IASTUnaryExpression realExpression = (IASTUnaryExpression) expression;
 			realExpression.setOperand(this.transformOriginalExpression(realExpression.getOperand()));
@@ -469,7 +477,7 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 
 	public void visit(IASTIfStatement statement) throws Exception {
 		statement.getChildren();
-		IASTExpression[] instrArgs = new IASTExpression[5];
+		IASTExpression[] instrArgs = new IASTExpression[6];
 		instrArgs[0] = new CASTLiteralExpression(CASTLiteralExpression.lk_string_literal,
 				("\"" + functionName + "\"").toCharArray());
 		instrArgs[1] = new CASTLiteralExpression(CASTLiteralExpression.lk_integer_constant,
@@ -479,7 +487,9 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 				false);
 		instrArgs[4] = this.transformDistanceExpression(this.cloneExpression(statement.getConditionExpression()), true,
 				false);
-
+		//Find the dataType of the variables used
+		instrArgs[5] = makeTypeForBranchDistance(statement.getConditionExpression());
+		System.out.println(instrArgs[5].toString());
 		IASTFunctionCallExpression instrFunction = makeFunctionCall("_f_ocelot_branch_out", instrArgs);
 		IASTExpression resultExpression = buildFcallExpression(instrFunction);
 
@@ -508,6 +518,7 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 		addTestObjectives(branchNumber);
 		branchNumber++;	
 	}
+
 
 	public void visit(IASTSwitchStatement statement) throws Exception {
 		CASTLiteralExpression cTrue = new CASTLiteralExpression(CASTLiteralExpression.lk_integer_constant,
@@ -1097,5 +1108,107 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 
 		testObjectives.add(this.functionName + ":" + "branch" + branch + "-true");
 		testObjectives.add(this.functionName + ":" + "branch" + branch + "-false");
+	}
+	private IASTExpression makeTypeForBranchDistance(IASTExpression conditionExpression) {
+		 IType chosenType = resolveComparisonType(conditionExpression);
+		    String typeTag = mapToTypeTag(chosenType);
+
+		    INodeFactory factory = conditionExpression.getTranslationUnit().getASTNodeFactory();
+		    return factory.newLiteralExpression(
+		        IASTLiteralExpression.lk_string_literal, "\"" + typeTag + "\"");
+	}
+
+	private IType resolveComparisonType(IASTExpression expression) {
+	    if (expression instanceof IASTBinaryExpression) {
+	        IASTBinaryExpression binExpr = (IASTBinaryExpression) expression;
+	  
+	        IType retVal = binExpr.getExpressionType();
+	        return retVal;
+	    } else if (expression instanceof IASTUnaryExpression) {
+	        return resolveComparisonType(((IASTUnaryExpression) expression).getOperand());
+	    }
+	    return expression.getExpressionType();
+	}
+	        /*
+      //IASTExpression exp1 = binExpr.getOperand1();
+	        //IASTExpression exp2 = binExpr.getOperand2();
+
+		    //INodeFactory factory = expression.getTranslationUnit().getASTNodeFactory();
+	        //IASTBinaryExpression expSub = factory.newBinaryExpression(IASTBinaryExpression.op_minus, exp1, exp2);
+	        
+	        if (type1 == null) return type2;
+	        if (type2 == null) return type1;
+
+	        IType ultimate1 = SemanticUtil.getUltimateType(type1, false);
+	        IType ultimate2 = SemanticUtil.getUltimateType(type2, false);
+
+	        if (ultimate1 instanceof IProblemType) return type2;
+	        if (ultimate2 instanceof IProblemType) return type1;
+
+	        // Pointer comparison: whichever side is the pointer wins outright.
+	        if (ultimate1 instanceof IPointerType) return type1;
+	        if (ultimate2 instanceof IPointerType) return type2;
+
+	        if (ultimate1 instanceof IBasicType && ultimate2 instanceof IBasicType) {
+	            int rank1 = rank((IBasicType) ultimate1);
+	            int rank2 = rank((IBasicType) ultimate2);
+	            return rank1 >= rank2 ? type1 : type2;
+	        }
+	        return type1;*/
+	
+
+	// Rough ordering mirroring C's usual arithmetic conversions -- just enough
+	// to pick the "wider" of two operand types for a comparison.
+	private int rank(IBasicType type) {
+	    switch (type.getKind()) {
+	        case eBoolean: return 0;
+	        case eChar:
+	        case eChar16:
+	        case eChar32:
+	        case eWChar:   return 1;
+	        case eInt:
+	            if (type.isLongLong()) return 5;
+	            if (type.isLong())     return 4;
+	            if (type.isShort())    return 2;
+	            return 3; // plain int
+	        case eFloat:  return 6;
+	        case eDouble: return type.isLong() ? 8 : 7; // long double vs double
+	        default:      return 3;
+	    }
+	}
+
+	private String mapToTypeTag(IType type) {
+	    if (type == null) return "unknown";
+	    IType ultimate = SemanticUtil.getUltimateType(type, false);
+
+	    if (ultimate instanceof IPointerType) return "pointer";
+	    if (!(ultimate instanceof IBasicType)) return "unknown";
+
+	    IBasicType basicType = (IBasicType) ultimate;
+	    boolean unsigned = basicType.isUnsigned();
+
+	    switch (basicType.getKind()) {
+	        case eBoolean:
+	            return "bool";
+	        case eChar:
+	        case eChar16:
+	        case eChar32:
+	        case eWChar:
+	            return unsigned ? "uint8" : "int8";
+	        case eInt:
+	            if (basicType.isLongLong()) return unsigned ? "uint64" : "int64";
+	            if (basicType.isLong())
+	                // NOTE: 'long' is 32-bit on LLP64 (Windows) but 64-bit on
+	                // LP64 (Linux/macOS). Pick the branch matching your target.
+	                return unsigned ? "uint64" : "int64";
+	            if (basicType.isShort()) return unsigned ? "uint16" : "int16";
+	            return unsigned ? "uint32" : "int32"; // plain int
+	        case eFloat:
+	            return "float32";
+	        case eDouble:
+	            return basicType.isLong() ? "float128" : "float64"; // long double
+	        default:
+	            return "unknown";
+	    }
 	}
 }
