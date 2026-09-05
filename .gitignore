@@ -69,6 +69,7 @@ testobject/
 *.epc
 *.efl
 *.kl
+BranchDistanceTracker.txt
 fitnessValues.txt
 testObjectives.to
 unitLevelComponents.txt
@@ -80,5 +81,6 @@ coveredPairs.txt
 coveredBranches.txt
 callgraph.txt
 branchObjectives.txt
+methodTracking.txt
 
 *.properties
