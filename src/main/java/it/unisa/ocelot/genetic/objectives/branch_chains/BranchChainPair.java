@@ -1,4 +1,4 @@
-package it.unisa.ocelot.genetic.objectives.chains;
+package it.unisa.ocelot.genetic.objectives.branch_chains;
 
 import java.util.HashMap;
 import java.util.List;
@@ -65,6 +65,7 @@ public class BranchChainPair {
 	    	double fitnessChain2 = chain2.calculateBranchChainFitness(fitnessMap);
 	        double fitness = (fitnessChain1 + fitnessChain2) / 2;
 			if (fitness == Double.POSITIVE_INFINITY) {
+				System.err.println("Warning: BranchChainPair " + pairLabel + " has infinite fitness. Setting to MAX_VALUE.");
 				fitness = Double.MAX_VALUE;
 			}
 			return fitness;
@@ -84,7 +85,7 @@ public class BranchChainPair {
 	            }
 		        
 	        }  
-	        sb.append("=====>");
+	        sb.append("===>");
 	        for (int i = 0; i < path2.size(); i++) {
 	            PathStep step = path2.get(i);
 	            String branchConditionsNew= step.getBranchConditionLabel();

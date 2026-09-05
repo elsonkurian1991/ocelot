@@ -1,4 +1,4 @@
-package it.unisa.ocelot.genetic.objectives.chains;
+package it.unisa.ocelot.genetic.objectives.branch_chains;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
@@ -15,7 +15,6 @@ import it.unisa.ocelot.c.cdg.ControlDependenceEdge;
 import it.unisa.ocelot.c.cfg.CFG;
 import it.unisa.ocelot.c.cfg.nodes.CFGNode;
 import it.unisa.ocelot.conf.ConfigManager;
-import it.unisa.ocelot.genetic.edges.FunBranchNameAndFitness;
 import it.unisa.ocelot.genetic.objectives.GenericObjective;
 import it.unisa.ocelot.genetic.solutions.CacheAccessor;
 import it.unisa.ocelot.genetic.solutions.GenericSolution;
@@ -49,7 +48,8 @@ public class BranchChainManager {
 				objectiveID++;
 			}
 			generatedBranchChainObjectives = objectives;
-			System.out.println(generatedBranchChainObjectives);
+			//successfully generated branch-chain objectives
+			System.out.println("Successfully generated " + generatedBranchChainObjectives.size() + " branch-chain objectives");
 		}
 		return generatedBranchChainObjectives;
 	}
@@ -465,7 +465,7 @@ public class BranchChainManager {
 			String component1 = componentPair.getComponent1();
 			String component2 = componentPair.getComponent2();
 
-			System.out.println("\n\nProcessing pair: " + component1 + " <-> " + component2);
+			//System.out.println("\n\nProcessing pair: " + component1 + " <-> " + component2);
 			appendLine("\n\n");
 			appendLine("Processing pair: " + component1 + " <-> " + component2);
 
@@ -504,7 +504,7 @@ public class BranchChainManager {
 					++counter;
 				}
 			}
-			System.out.println("  Generated " + pairsForThisComponent.size() + " branch-chain pairs");
+			//System.out.println("  Generated " + pairsForThisComponent.size() + " branch-chain pairs");
 			appendLine("  Generated " + pairsForThisComponent.size() + " branch-chain pairs");
 		}
 

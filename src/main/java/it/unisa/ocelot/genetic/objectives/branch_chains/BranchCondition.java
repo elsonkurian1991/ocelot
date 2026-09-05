@@ -1,4 +1,4 @@
-package it.unisa.ocelot.genetic.objectives.chains;
+package it.unisa.ocelot.genetic.objectives.branch_chains;
 
 import org.eclipse.cdt.core.dom.ast.IASTForStatement;
 import org.eclipse.cdt.core.dom.ast.IASTIfStatement;
@@ -26,7 +26,7 @@ public class BranchCondition {
         this.conditionNode = condition;
         this.branchTaken = branch;
         this.label = label;
-        this.fitVal = 0.0;
+        this.fitVal = 1.0;
     }
     public IASTNode getConditionNode() {
         return conditionNode;

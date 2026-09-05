@@ -1,4 +1,4 @@
-package it.unisa.ocelot.genetic.objectives.chains;
+package it.unisa.ocelot.genetic.objectives.branch_chains;
 /**
  * EVINT_TOOL_MARKER
  * This class is used by the EvInT (Evolutionary Integration Testing) tool.

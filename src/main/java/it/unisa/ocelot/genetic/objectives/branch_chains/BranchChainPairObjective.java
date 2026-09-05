@@ -1,4 +1,4 @@
-package it.unisa.ocelot.genetic.objectives.chains;
+package it.unisa.ocelot.genetic.objectives.branch_chains;
 
 import java.io.Serializable;
 import java.util.HashMap;
@@ -36,7 +36,8 @@ public class BranchChainPairObjective extends GenericObjective implements Serial
 	
 	@Override
 	public String toString() {
-		return "BranchChainPairStateMachine [branchChainPair=" + branchChainPair + "]";
+		return branchChainPair.toString();
+		//return "BranchChainPairObjective= [branchChainPair=" + branchChainPair + "]";
 	}
 
 	@Override

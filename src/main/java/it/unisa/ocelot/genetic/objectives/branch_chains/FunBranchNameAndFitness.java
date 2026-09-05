@@ -1,4 +1,4 @@
-package it.unisa.ocelot.genetic.edges;
+package it.unisa.ocelot.genetic.objectives.branch_chains;
 
 import java.util.Objects;
 /**

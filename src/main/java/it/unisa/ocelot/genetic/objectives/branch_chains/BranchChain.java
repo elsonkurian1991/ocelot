@@ -1,4 +1,4 @@
-package it.unisa.ocelot.genetic.objectives.chains;
+package it.unisa.ocelot.genetic.objectives.branch_chains;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;

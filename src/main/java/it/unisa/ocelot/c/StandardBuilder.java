@@ -34,7 +34,7 @@ import it.unisa.ocelot.c.instrumentor.InstrumentorVisitorToAddBranch;
 import it.unisa.ocelot.c.instrumentor.MacroDefinerVisitor;
 import it.unisa.ocelot.c.instrumentor.UnitComponentInstrumentorVisitor;
 import it.unisa.ocelot.conf.ConfigManager;
-import it.unisa.ocelot.genetic.objectives.chains.BranchChainManager;
+import it.unisa.ocelot.genetic.objectives.branch_chains.BranchChainManager;
 import it.unisa.ocelot.util.Utils;
 /**
  * EVINT_TOOL_MARKER
@@ -131,19 +131,14 @@ public class StandardBuilder extends Builder {
 			e.printStackTrace();
 		}
 
-		if (stderr.isEmpty()) {
-			this.stream.println(stdout);
-		} else {
-			this.stream.println("Compiler errors:");
-			this.stream.println(stderr);
-		}
-
-
 		try {
 			int result;
 			if ((result = proc.waitFor()) == 0)
 				this.stream.println("Done!");
 			else {
+				this.stream.println("Compiler errors:");
+				this.stream.println(stdout);
+				this.stream.println(stderr);
 				this.stream.println("ABORTED. An error occurred, build error code: " + result);
 				throw new BuildingException(IOUtils.toString(proc.getErrorStream()));
 			}

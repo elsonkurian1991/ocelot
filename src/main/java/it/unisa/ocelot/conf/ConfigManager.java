@@ -3,7 +3,7 @@ package it.unisa.ocelot.conf;
 import it.unisa.ocelot.c.cfg.CFG;
 import it.unisa.ocelot.c.cfg.nodes.CFGNode;
 import it.unisa.ocelot.c.cfg.nodes.CFGNodeNavigator;
-import it.unisa.ocelot.genetic.objectives.chains.ComponentPair;
+import it.unisa.ocelot.genetic.objectives.branch_chains.ComponentPair;
 
 import java.io.FileInputStream;
 import java.io.IOException;

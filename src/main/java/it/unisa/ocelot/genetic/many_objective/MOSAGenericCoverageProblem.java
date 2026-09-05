@@ -8,9 +8,10 @@ import it.unisa.ocelot.c.types.CType;
 import it.unisa.ocelot.genetic.StandardProblem;
 import it.unisa.ocelot.genetic.VariableTranslator;
 import it.unisa.ocelot.genetic.objectives.GenericObjective;
-import it.unisa.ocelot.genetic.objectives.chains.BranchChainManager;
+import it.unisa.ocelot.genetic.objectives.branch_chains.BranchChainManager;
 import it.unisa.ocelot.genetic.solutions.CacheAccessor;
 import it.unisa.ocelot.genetic.solutions.GenericSolution;
+import it.unisa.ocelot.runnable.Run;
 import it.unisa.ocelot.simulator.CBridge;
 import it.unisa.ocelot.simulator.EventsHandler;
 import it.unisa.ocelot.simulator.SimulationException;
@@ -62,7 +63,7 @@ public class MOSAGenericCoverageProblem extends StandardProblem {
 			this.onError(solution, e);
 			return -1;
 		}
-
+		
 		Simulator simulator = new Simulator(cfg, handler.getEvents());
 		
 		simulator.simulate();

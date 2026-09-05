@@ -1,4 +1,4 @@
-package it.unisa.ocelot.genetic.objectives.chains;
+package it.unisa.ocelot.genetic.objectives.branch_chains;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -394,7 +394,7 @@ public class CDGBranchPathCollector {
 				sb.append("(LEAF)\n");
 				sb.append("  Leaf content: ").append(chain.getLeafNode().toString());
 			});
-			System.err.println(sb.toString());
+			//System.err.println(sb.toString());
 		});
 		return sb;
 	}
