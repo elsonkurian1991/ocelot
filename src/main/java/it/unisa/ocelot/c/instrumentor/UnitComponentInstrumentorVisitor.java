@@ -1,8 +1,9 @@
 package it.unisa.ocelot.c.instrumentor;
-
+import static org.eclipse.cdt.internal.core.dom.parser.cpp.semantics.ExpressionTypes.restoreTypedefs;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -16,9 +17,11 @@ import org.eclipse.cdt.core.dom.ast.IASTCastExpression;
 import org.eclipse.cdt.core.dom.ast.IASTCompoundStatement;
 import org.eclipse.cdt.core.dom.ast.IASTConditionalExpression;
 import org.eclipse.cdt.core.dom.ast.IASTDeclaration;
+import org.eclipse.cdt.core.dom.ast.IASTDeclarator;
 import org.eclipse.cdt.core.dom.ast.IASTDefaultStatement;
 import org.eclipse.cdt.core.dom.ast.IASTDoStatement;
 import org.eclipse.cdt.core.dom.ast.IASTExpression;
+import org.eclipse.cdt.core.dom.ast.IASTExpressionList;
 import org.eclipse.cdt.core.dom.ast.IASTFieldReference;
 import org.eclipse.cdt.core.dom.ast.IASTForStatement;
 import org.eclipse.cdt.core.dom.ast.IASTFunctionCallExpression;
@@ -28,6 +31,7 @@ import org.eclipse.cdt.core.dom.ast.IASTIfStatement;
 import org.eclipse.cdt.core.dom.ast.IASTLiteralExpression;
 import org.eclipse.cdt.core.dom.ast.IASTName;
 import org.eclipse.cdt.core.dom.ast.IASTNode;
+import org.eclipse.cdt.core.dom.ast.IASTNode.CopyStyle;
 import org.eclipse.cdt.core.dom.ast.IASTSimpleDeclaration;
 import org.eclipse.cdt.core.dom.ast.IASTStatement;
 import org.eclipse.cdt.core.dom.ast.IASTSwitchStatement;
@@ -43,7 +47,9 @@ import org.eclipse.cdt.core.dom.ast.IPointerType;
 import org.eclipse.cdt.core.dom.ast.IProblemBinding;
 import org.eclipse.cdt.core.dom.ast.IProblemType;
 import org.eclipse.cdt.core.dom.ast.IType;
+import org.eclipse.cdt.core.dom.ast.IVariable;
 import org.eclipse.cdt.core.dom.ast.c.ICPointerType;
+import org.eclipse.cdt.internal.core.dom.parser.ProblemType;
 import org.eclipse.cdt.internal.core.dom.parser.c.CASTBinaryExpression;
 import org.eclipse.cdt.internal.core.dom.parser.c.CASTCaseStatement;
 import org.eclipse.cdt.internal.core.dom.parser.c.CASTCompositeTypeSpecifier;
@@ -55,9 +61,12 @@ import org.eclipse.cdt.internal.core.dom.parser.c.CASTFunctionDefinition;
 import org.eclipse.cdt.internal.core.dom.parser.c.CASTIdExpression;
 import org.eclipse.cdt.internal.core.dom.parser.c.CASTLiteralExpression;
 import org.eclipse.cdt.internal.core.dom.parser.c.CASTName;
+import org.eclipse.cdt.internal.core.dom.parser.c.CArithmeticConversion;
 import org.eclipse.cdt.internal.core.dom.parser.c.CTypedef;
+import org.eclipse.cdt.internal.core.dom.parser.c.CVisitor;
 import org.eclipse.cdt.internal.core.dom.parser.cpp.semantics.SemanticUtil;
 import org.eclipse.cdt.internal.core.dom.rewrite.astwriter.ASTWriter;
+import org.eclipse.core.runtime.model.Factory;
 
 import it.unisa.ocelot.c.cfg.CFG;
 import it.unisa.ocelot.c.cfg.CFGVisitor;
@@ -84,7 +93,8 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 	public ArrayList<String> syntheticBranches;
 	public Set<IASTNode> trackSynthetics = new HashSet<>();	
 	public Set<IASTNode> foundSynthetics = new HashSet<>();
-
+	private Map<IASTExpression, IType> resolvedTypeOverrides = new IdentityHashMap<>();
+	private INodeFactory nodeFactory;
 	public UnitComponentInstrumentorVisitor(String pInstrumentFunction, ArrayList<String> testObjectives,
 			List<String> functionNames, Set<IASTNode> trackSynthetics) {
 		this.shouldVisitExpressions = true;
@@ -109,7 +119,9 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 		this.branchChainsMap = new HashMap<IASTExpression, Integer>();
 		this.syntheticBranches = new ArrayList<String>();
 	}
-
+	public UnitComponentInstrumentorVisitor() {
+		
+	}
 	public List<IASTNode> getTypedefs() {
 		return this.typedefs;
 	}
@@ -410,14 +422,14 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 	}
 
 	public IASTExpression transformOriginalExpression(IASTExpression expression) {
-		
+
 		if (expression instanceof IASTBinaryExpression) {
 			IASTBinaryExpression realExpression = (IASTBinaryExpression) expression;
 
 			realExpression.setOperand1(this.transformOriginalExpression(realExpression.getOperand1()));
 			realExpression.setOperand2(this.transformOriginalExpression(realExpression.getOperand2()));	
-			
-		return realExpression;
+
+			return realExpression;
 		} else if (expression instanceof IASTUnaryExpression) {
 			IASTUnaryExpression realExpression = (IASTUnaryExpression) expression;
 			realExpression.setOperand(this.transformOriginalExpression(realExpression.getOperand()));
@@ -444,7 +456,7 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 				// the function call
 				while (ParentExpression != null) {
 					List<String> present = nodeBranchMap.get(ParentExpression);
-					
+
 					if (present != null) {
 						branchesTaken.addAll(present);
 					}
@@ -477,19 +489,18 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 
 	public void visit(IASTIfStatement statement) throws Exception {
 		statement.getChildren();
-		IASTExpression[] instrArgs = new IASTExpression[6];
+		IASTExpression[] instrArgs = new IASTExpression[5];
 		instrArgs[0] = new CASTLiteralExpression(CASTLiteralExpression.lk_string_literal,
 				("\"" + functionName + "\"").toCharArray());
 		instrArgs[1] = new CASTLiteralExpression(CASTLiteralExpression.lk_integer_constant,
 				branchNumber.toString().toCharArray());
 		instrArgs[2] = this.transformOriginalExpression(statement.getConditionExpression().copy());
+
 		instrArgs[3] = this.transformDistanceExpression(this.cloneExpression(statement.getConditionExpression()), false,
 				false);
 		instrArgs[4] = this.transformDistanceExpression(this.cloneExpression(statement.getConditionExpression()), true,
 				false);
-		//Find the dataType of the variables used
-		instrArgs[5] = makeTypeForBranchDistance(statement.getConditionExpression());
-		System.out.println(instrArgs[5].toString());
+
 		IASTFunctionCallExpression instrFunction = makeFunctionCall("_f_ocelot_branch_out", instrArgs);
 		IASTExpression resultExpression = buildFcallExpression(instrFunction);
 
@@ -500,21 +511,21 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 		List<String> elseClause = new ArrayList<String>();
 		thenClause.add(functionName + ":" + "branch" + branchNumber + "-" + "true");
 		elseClause.add(functionName + ":" + "branch" + branchNumber + "-" + "false");
-		
+
 		// Tag the then else statements block
 		nodeBranchMap.put((IASTNode) statement.getThenClause(), thenClause);
 		if (statement.getElseClause() != null) {
 			nodeBranchMap.put(statement.getElseClause(), elseClause);
-			
+
 		}
 		//Tag the code after the if/else
 		markOutsideIfStatement(statement);
-		
+
 		if (trackSynthetics.contains(statement)) {
 			syntheticBranches.add(functionName + ":" + "branch" + branchNumber + "-" + "true"); 
 			syntheticBranches.add(functionName + ":" + "branch" + branchNumber + "-" + "false");
 			foundSynthetics.add(statement);
-			}
+		}
 		addTestObjectives(branchNumber);
 		branchNumber++;	
 	}
@@ -526,24 +537,25 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 		CASTCompoundStatement substitute = new CASTCompoundStatement();
 		switchExpressions.push(new ArrayList<IASTStatement>());
 		//statement.getBody().accept(this);
-		
+
 		List<String> outsideClause = new ArrayList<String>();
 
 		int counter = -1; // the first case is branchNumber + 0
 		for(IASTNode child : statement.getBody().getChildren()) {
+			//System.out.println("Child: " + child.getRawSignature() + " of type: " + child.getClass().getName());
 			if (!(child instanceof CASTCaseStatement) && !(child instanceof CASTDefaultStatement)) {
 				List<String> caseClause = new ArrayList<String>();
 				caseClause.add(functionName + ":" + "branch" + (branchNumber + counter) + "-" + "true");
 				outsideClause.add(functionName + ":" + "branch" + (branchNumber + counter) + "-" + "false");
-				
+
 				nodeBranchMap.put((IASTNode) child, caseClause);
 			}
 			else {
 				this.switchExpressions.lastElement().add((IASTStatement) child);
 				counter++;
-				}
+			}
 		}
-		
+
 		List<IASTStatement> caseStatements = switchExpressions.pop();
 		CASTBinaryExpression defaultExpression = new CASTBinaryExpression(CASTBinaryExpression.op_logicalAnd,
 				cTrue.copy(), cTrue.copy());
@@ -575,7 +587,7 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 		for (IASTStatement aCase : caseStatements) {
 			IASTExpression distanceCalculation;
 			String label;
-
+			//System.out.println("Processing case: " + aCase.getRawSignature() + " of type: " + aCase.getClass().getName());
 			if (aCase instanceof IASTCaseStatement && !(aCase instanceof IASTDefaultStatement)) {
 				IASTCaseStatement realCase = (IASTCaseStatement) aCase;
 
@@ -583,14 +595,28 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 
 				distanceCalculation = new CASTBinaryExpression(CASTBinaryExpression.op_equals,
 						this.cloneExpression(switchExpression), this.cloneExpression(realCase.getExpression()));
-
+				distanceCalculation.setParent(statement.getParent());
+				INodeFactory  factory = statement.getTranslationUnit().getASTNodeFactory();
+				//distanceCalculation = new Factory();
+				/*if (getType(((IASTCastExpression) distanceCalculation).getOperand()) instanceof ProblemType
+				        || getType(((IASTBinaryExpression) distanceCalculation).getOperand2()) instanceof ProblemType) {
+				    System.err.println("ERROR: still ProblemType after clone-with-locations: "
+				            + distanceCalculation.getRawSignature());
+				}*/
+				// Resolve types from the ORIGINAL (unclonned) nodes, and attach them to the
+				// clones so downstream getType() calls don't need to re-resolve broken bindings.
+				IType switchExprType = getType(switchExpression);
+				IType caseExprType = getType(realCase.getExpression());
+				resolvedTypeOverrides.put(((IASTBinaryExpression) distanceCalculation).getOperand1(), switchExprType);
+				resolvedTypeOverrides.put(((IASTBinaryExpression) distanceCalculation).getOperand2(), caseExprType);
+				//System.out.println(distanceCalculation.getExpressionType());
 				// Creates an AND on with the != on the left and a "true"
 				CASTBinaryExpression defaultExpressionSubtree = new CASTBinaryExpression(
 						CASTBinaryExpression.op_logicalAnd,
 						new CASTBinaryExpression(CASTBinaryExpression.op_notequals,
 								this.cloneExpression(switchExpression), this.cloneExpression(realCase.getExpression())),
 						cTrue.copy());
-
+				//System.out.println(defaultExpressionSubtree.getRawSignature());
 				currentDefaultExpression.setOperand2(defaultExpressionSubtree);
 				currentDefaultExpression = defaultExpressionSubtree;
 
@@ -627,6 +653,7 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 					branchNumber.toString().toCharArray());
 			arguments[2] = new CASTLiteralExpression(CASTLiteralExpression.lk_integer_constant,
 					String.valueOf(CaseEdge.retrieveUniqueId(label)).toCharArray());
+
 			arguments[3] = this.transformDistanceExpression(distanceCalculation, false, false);
 			arguments[4] =  this.transformDistanceExpression(distanceCalculation, true, false);
 
@@ -682,39 +709,39 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 		IASTNode Parent = statement.getParent();
 		IASTNode statementToLoop = statement;
 		while (Parent != null) {
-		if (Parent instanceof IASTCompoundStatement) {
-			IASTCompoundStatement ParentCompound = (IASTCompoundStatement) Parent;
-			IASTStatement[] StatementsList = ParentCompound.getStatements();
-			boolean postStatement = false;
-			for (IASTStatement stm : StatementsList) {
-				if (postStatement) {
-					List<String> present = nodeBranchMap.get((IASTNode) stm);
-					if (present != null) {
-						outsideWhile.addAll(present);
-						List<String> statementsSet = new ArrayList<>();
-						statementsSet.addAll(convertArrayToSet(outsideWhile));
-						outsideWhile = statementsSet;
+			if (Parent instanceof IASTCompoundStatement) {
+				IASTCompoundStatement ParentCompound = (IASTCompoundStatement) Parent;
+				IASTStatement[] StatementsList = ParentCompound.getStatements();
+				boolean postStatement = false;
+				for (IASTStatement stm : StatementsList) {
+					if (postStatement) {
+						List<String> present = nodeBranchMap.get((IASTNode) stm);
+						if (present != null) {
+							outsideWhile.addAll(present);
+							List<String> statementsSet = new ArrayList<>();
+							statementsSet.addAll(convertArrayToSet(outsideWhile));
+							outsideWhile = statementsSet;
+						}
+						nodeBranchMap.put(stm, outsideWhile);
 					}
-					nodeBranchMap.put(stm, outsideWhile);
-				}
-				if (stm.equals(statementToLoop))
-					postStatement = true;
+					if (stm.equals(statementToLoop))
+						postStatement = true;
 
+				}
+			} else {
+				//throw new Exception("While parent not a CompoundStatement");
 			}
-		} else {
-			//throw new Exception("While parent not a CompoundStatement");
+			statementToLoop = Parent;
+			Parent = statementToLoop.getParent();
 		}
-		statementToLoop = Parent;
-		Parent = statementToLoop.getParent();
 	}
-	}
-	
+
 	private void markOutsideIfStatement(IASTStatement statement) throws Exception {
 		List<String> outsideStatements = new ArrayList<String>();
 		outsideStatements.add(functionName + ":" + "branch" + branchNumber + "-" + "true");
 		outsideStatements.add(functionName + ":" + "branch" + branchNumber + "-" + "false");
 
-		
+
 		IASTNode Parent = statement.getParent();
 		IASTNode statementToLoop = statement;
 		while (Parent != null) {
@@ -730,12 +757,12 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 							List<String> statementsSet = new ArrayList<>();
 							statementsSet.addAll(convertArrayToSet(outsideStatements));
 							outsideStatements = statementsSet;
-							}
+						}
 						nodeBranchMap.put(stm, outsideStatements);
 					}
 					if (stm.equals(statementToLoop))
 						postStatement = true;
-	
+
 				}
 			} else {
 				//throw new Exception("If parent not a CompoundStatement\n" + functionName + "\n" + "Parent:" + Parent.getRawSignature() +"\n" + "if statement:" + statement.getRawSignature());
@@ -744,15 +771,15 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 			Parent = statementToLoop.getParent();
 		}
 	}
-	
+
 	private void markOutsideSwitchStatement(IASTStatement statement, int counter) throws Exception {
 		List<String> outsideStatements = new ArrayList<String>();
-		
+
 		for (;counter >= 0; counter--) {
 			outsideStatements.add(functionName + ":" + "branch" + (branchNumber + counter) + "-" + "true");
 			outsideStatements.add(functionName + ":" + "branch" + (branchNumber + counter) + "-" + "false");
-			}
-		
+		}
+
 		IASTNode Parent = statement.getParent();
 		IASTNode statementToLoop = statement;
 		while (Parent != null) {
@@ -768,12 +795,12 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 							List<String> statementsSet = new ArrayList<>();
 							statementsSet.addAll(convertArrayToSet(outsideStatements));
 							outsideStatements = statementsSet;
-							}
+						}
 						nodeBranchMap.put(stm, outsideStatements);
 					}
 					if (stm.equals(statementToLoop))
 						postStatement = true;
-	
+
 				}
 			} else {
 				//throw new Exception("If parent not a CompoundStatement\n" + functionName + "\n" + "Parent:" + Parent.getRawSignature() +"\n" + "if statement:" + statement.getRawSignature());
@@ -782,16 +809,16 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 			Parent = statementToLoop.getParent();
 		}
 	}
-	
-    public HashSet<String> convertArrayToSet(List<String> array)
-    {
-    	HashSet<String> set = new HashSet<String>();
-        for (String t : array) {
-            set.add(t);
-        }
 
-        return set;
-    }
+	public HashSet<String> convertArrayToSet(List<String> array)
+	{
+		HashSet<String> set = new HashSet<String>();
+		for (String t : array) {
+			set.add(t);
+		}
+
+		return set;
+	}
 
 	public void visit(IASTWhileStatement statement) throws Exception {
 		IASTExpression[] instrArgs = new IASTExpression[5];
@@ -869,10 +896,14 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 	// read the statement line by line
 	public int visit(IASTStatement statement) {
 		try {
+			//System.out.println("Visiting statement: " + statement.getRawSignature());
 			this.functionCallsInExpressions.clear();
 			if (statement instanceof IASTIfStatement)
 				this.visit((IASTIfStatement) statement);
 			else if (statement instanceof IASTSwitchStatement) {
+				if (this.nodeFactory == null) {
+				    this.nodeFactory = statement.getTranslationUnit().getASTNodeFactory();
+				}
 				this.visit((IASTSwitchStatement) statement);
 				//return PROCESS_SKIP; // Visits the statement on its own! Problem, the function calls inside a statement are visited befor the switch branches are created
 			} else if (statement instanceof IASTWhileStatement)
@@ -891,7 +922,7 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 				this.visit((IASTDefaultStatement) statement);
 				return PROCESS_SKIP;
 			}*/
-				
+
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -914,14 +945,12 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 		pExpression.setOperator(pRealOperator);
 		IASTExpression op1 = pExpression.getOperand1();
 		IASTExpression op2 = pExpression.getOperand2();
-
 		IASTExpression instrumentedOp1 = this.transformDistanceExpression(op1, pNegation, false);
 		IASTExpression instrumentedOp2 = this.transformDistanceExpression(op2, pNegation, false);
 
 		IASTExpression[] operationArgs = new IASTExpression[2];
 		operationArgs[0] = instrumentedOp1;
 		operationArgs[1] = instrumentedOp2;
-
 		IASTFunctionCallExpression operationFunction = makeFunctionCall("_f_ocelot_" + pOperator, operationArgs);
 
 		return operationFunction;
@@ -941,7 +970,6 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 			int pRealOperator) {
 		IASTExpression operand1 = pExpression.getOperand1();
 		IASTExpression operand2 = pExpression.getOperand2();
-
 		IASTExpression instrumentedOp1 = this.transformDistanceExpression(operand1, negation, false);
 		IASTExpression instrumentedOp2 = this.transformDistanceExpression(operand2, negation, false);
 
@@ -977,14 +1005,17 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 		pExpression.setOperator(pRealOperator);
 		IASTExpression operand1 = pExpression.getOperand1();
 		IASTExpression operand2 = pExpression.getOperand2();
-
 		IType op1Type = getType(operand1);
 		IType op2Type = getType(operand2);
-
-		IASTExpression[] operationArgs = new IASTExpression[2];
+		if(op1Type instanceof ProblemType | op2Type instanceof ProblemType) {
+			System.err.println("ERROR: Problem binding found for operands: " + operand1.getRawSignature() + " and " + operand2.getRawSignature());
+		}
+		IASTExpression[] operationArgs = new IASTExpression[3];
+		//Find the dataType of the variables used
+		IASTExpression type = makeTypeForBranchDistance(pExpression, op1Type, op2Type);
 		operationArgs[0] = this.castToDouble(this.transformDistanceExpression(operand1, false, true));
 		operationArgs[1] = this.castToDouble(this.transformDistanceExpression(operand2, false, true));
-
+		operationArgs[2] = type;
 		IASTFunctionCallExpression operationFunction;
 		if (op1Type instanceof IBasicType && op2Type instanceof IBasicType
 				|| op1Type instanceof IEnumeration && op2Type instanceof IEnumeration) {
@@ -1075,7 +1106,18 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 		} else if (copy instanceof IASTArraySubscriptExpression) {
 			IASTArraySubscriptExpression realCopy = (IASTArraySubscriptExpression) copy;
 			IASTArraySubscriptExpression realOrig = (IASTArraySubscriptExpression) pExpression;
+			//TODO 
+			/*This doesn't clone — it takes the actual original arrayExpression/argument nodes (still attached to the real, live tree) 
+			and reparents them onto realCopy via the typed setter. Since a node can only have one parent, 
+			this steals those nodes out of the original tree and corrupts it: 
+				whatever real node used to hold them (e.g. the original switch/case expression subtree) now has a dangling reference, 
+				and later code walking through the original tree in that region can hit exactly the kind of
+				broken-parent-chain NullPointerException you saw on getTranslationUnit().*/
 
+			/*Fix: I don't know if this is the right way to do it!
+			realCopy.setArrayExpression(this.cloneExpression(realOrig.getArrayExpression()));
+			realCopy.setArgument(this.cloneExpression(realOrig.getArgument()));
+			 */
 			realCopy.setArrayExpression(realOrig.getArrayExpression());
 			realCopy.setArgument(realOrig.getArgument());
 		}
@@ -1090,8 +1132,12 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 		return pExpression;
 	}
 
-	private IType getType(IASTExpression pExpression) {
-		return getType(pExpression.getExpressionType());
+	private IType getType(IASTExpression expression) {
+		IType override = resolvedTypeOverrides.get(expression);
+		if (override != null) {
+			return getType(override);
+		}
+		return getType(expression.getExpressionType()); // existing logic continues below/unchanged
 	}
 
 	private IType getType(IType type) {
@@ -1109,33 +1155,284 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 		testObjectives.add(this.functionName + ":" + "branch" + branch + "-true");
 		testObjectives.add(this.functionName + ":" + "branch" + branch + "-false");
 	}
-	private IASTExpression makeTypeForBranchDistance(IASTExpression conditionExpression) {
-		 IType chosenType = resolveComparisonType(conditionExpression);
-		    String typeTag = mapToTypeTag(chosenType);
+	public IASTExpression makeTypeForBranchDistance(IASTNode pExpression, IType op1Type, IType op2Type) {
+		//System.out.println("makeTypeForBranchDistance: " + pExpression.getRawSignature());
+		IASTExpression conditionExpression = extractExpression(pExpression);
+		if(conditionExpression.getExpressionType() instanceof IProblemType) {
+			System.err.println("ERROR: cannot resolve type for expression: " + conditionExpression.getRawSignature());
+		}
+		TypePair types = resolveComparisonType(conditionExpression, op1Type, op2Type);
 
-		    INodeFactory factory = conditionExpression.getTranslationUnit().getASTNodeFactory();
-		    return factory.newLiteralExpression(
-		        IASTLiteralExpression.lk_string_literal, "\"" + typeTag + "\"");
+		TypeLimits leftLimits = mapToTypeTag(types.leftType);
+		TypeLimits rightLimits = mapToTypeTag(types.rightType);
+
+		/*System.out.println("makeTypeForBranchDistance: leftType=" + types.leftType
+				+ ", rightType=" + types.rightType
+				+ ", leftLimits=[" + leftLimits.min + "," + leftLimits.max + "]"
+				+ ", rightLimits=[" + rightLimits.min + "," + rightLimits.max + "]");
+		 */
+		//INodeFactory factory= conditionExpression.getTranslationUnit().getASTNodeFactory();
+		/*if(conditionExpression.getTranslationUnit().getASTNodeFactory()!=null) {
+			factory = conditionExpression.getTranslationUnit().getASTNodeFactory();
+		} else {
+			factory = this.nodeFactory;
+		}*/
+		IASTTranslationUnit tu = conditionExpression.getTranslationUnit();
+		INodeFactory factory = (tu != null) ? tu.getASTNodeFactory() : this.nodeFactory;
+		if (this.nodeFactory == null) {
+		    this.nodeFactory = conditionExpression.getTranslationUnit().getASTNodeFactory();
+		}
+
+		IASTLiteralExpression minLeftLit = factory.newLiteralExpression(
+				IASTLiteralExpression.lk_float_constant, leftLimits.min);
+		IASTLiteralExpression maxLeftLit = factory.newLiteralExpression(
+				IASTLiteralExpression.lk_float_constant, leftLimits.max);
+		IASTLiteralExpression minRightLit = factory.newLiteralExpression(
+				IASTLiteralExpression.lk_float_constant, rightLimits.min);
+		IASTLiteralExpression maxRightLit = factory.newLiteralExpression(
+				IASTLiteralExpression.lk_float_constant, rightLimits.max);
+
+		IASTExpressionList exprList = factory.newExpressionList();
+		exprList.addExpression(minLeftLit);
+		exprList.addExpression(maxLeftLit);
+		exprList.addExpression(minRightLit);
+		exprList.addExpression(maxRightLit);
+
+		return exprList;
 	}
 
-	private IType resolveComparisonType(IASTExpression expression) {
-	    if (expression instanceof IASTBinaryExpression) {
-	        IASTBinaryExpression binExpr = (IASTBinaryExpression) expression;
-	  
-	        IType retVal = binExpr.getExpressionType();
-	        return retVal;
-	    } else if (expression instanceof IASTUnaryExpression) {
-	        return resolveComparisonType(((IASTUnaryExpression) expression).getOperand());
-	    }
-	    return expression.getExpressionType();
+	/**
+	 * Normalizes any accepted node kind down to the IASTExpression
+	 * that should actually be analyzed.
+	 */
+	public IASTExpression extractExpression(IASTNode pExpression) {
+		if (pExpression instanceof IASTIfStatement) {
+			return ((IASTIfStatement) pExpression).getConditionExpression();
+		} else if (pExpression instanceof IASTWhileStatement) {
+			return ((IASTWhileStatement) pExpression).getCondition();
+		} else if (pExpression instanceof IASTDoStatement) {
+			return ((IASTDoStatement) pExpression).getCondition();
+		} else if (pExpression instanceof IASTForStatement) {
+			return ((IASTForStatement) pExpression).getConditionExpression();
+		} else if (pExpression instanceof IASTSwitchStatement) {
+			return ((IASTSwitchStatement) pExpression).getControllerExpression();
+		} else if (pExpression instanceof IASTExpression) {
+			// Already an expression (binary, unary, id, literal, etc.) — use as-is.
+			return (IASTExpression) pExpression;
+		}
+		return null;
 	}
-	        /*
+	public TypePair resolveComparisonType(IASTExpression expression, IType op1Type, IType op2Type) {
+		if (expression instanceof IASTBinaryExpression) {
+			IASTBinaryExpression binExpr = (IASTBinaryExpression) expression;
+
+			IType leftType = binExpr.getOperand1().getExpressionType();
+			IType rightType = binExpr.getOperand2().getExpressionType();
+
+			return new TypePair(op1Type, op2Type);
+
+		} else if (expression instanceof IASTUnaryExpression) {
+			return resolveComparisonType(((IASTUnaryExpression) expression).getOperand(), op2Type, op2Type);
+
+		} else if (expression instanceof IASTIdExpression) {
+			IType t = resolveIdExpressionType((IASTIdExpression) expression);
+			return new TypePair(t, t);
+
+		} else if (expression instanceof IASTLiteralExpression) {
+			IType t = expression.getExpressionType();
+			return new TypePair(t, t);
+
+		} else if (expression instanceof IASTCastExpression) {
+			IType t = ((IASTCastExpression) expression).getExpressionType();
+			return new TypePair(t, t);
+
+		} else if (expression instanceof IASTFunctionCallExpression) {
+			IType t = expression.getExpressionType();
+			return new TypePair(t, t);
+		}
+
+		// Fallback for any other expression kind not explicitly handled above.
+		IType t = expression.getExpressionType();
+		return new TypePair(t, t);
+	}
+
+	public IType resolveIdExpressionType(IASTIdExpression idExpr) {
+		IASTName name = idExpr.getName();
+		IBinding binding = name.resolveBinding();
+
+		if (binding instanceof IVariable && !(binding instanceof IProblemBinding)) {
+			return ((IVariable) binding).getType();
+		}
+
+		// Fallback: walk up to the enclosing declarator and synthesize the type
+		IASTNode node = name.getParent();
+		while (node != null && !(node instanceof IASTDeclarator)) {
+			node = node.getParent();
+		}
+		if (node instanceof IASTDeclarator) {
+			return CVisitor.createType((IASTDeclarator) node);
+		}
+
+		return idExpr.getExpressionType(); // last resort
+	}
+	/*private TypePair resolveComparisonType(IASTExpression expression) {
+		if (expression instanceof IASTBinaryExpression) {
+			IASTBinaryExpression binExpr = (IASTBinaryExpression) expression;
+
+			IType leftType = binExpr.getOperand1().getExpressionType();
+			IType rightType = binExpr.getOperand2().getExpressionType();
+
+
+			return new TypePair(leftType, rightType);
+
+		} else if (expression instanceof IASTUnaryExpression) {
+			return resolveComparisonType(((IASTUnaryExpression) expression).getOperand());
+
+		} else if (expression instanceof IASTIdExpression) {
+			return resolveIdExpressionType((IASTIdExpression) expression);
+
+		} else if (expression instanceof IASTLiteralExpression) {
+			return expression.getExpressionType();
+
+		} else if (expression instanceof IASTCastExpression) {
+			return ((IASTCastExpression) expression).getExpressionType();
+
+		} else if (expression instanceof IASTFunctionCallExpression) {
+			return expression.getExpressionType();
+
+		}
+		// Fallback for any other expression kind not explicitly handled above.
+		return expression.getExpressionType();
+	}
+
+	private IType resolveIdExpressionType(IASTIdExpression idExpr) {
+		IASTName name = idExpr.getName();
+		IBinding binding = name.resolveBinding();
+
+		if (binding instanceof IVariable && !(binding instanceof IProblemBinding)) {
+			return ((IVariable) binding).getType();
+		}
+
+		// Fallback: walk up to the enclosing declarator and synthesize the type
+		IASTNode node = name.getParent();
+		while (node != null && !(node instanceof IASTDeclarator)) {
+			node = node.getParent();
+		}
+		if (node instanceof IASTDeclarator) {
+			return CVisitor.createType((IASTDeclarator) node);
+		}
+
+		return idExpr.getExpressionType(); // last resort
+	}*/
+	public TypeLimits mapToTypeTag(IType type) {
+		if (type == null) return new TypeLimits("0", "0");
+		IType ultimate = SemanticUtil.getUltimateType(type, false);
+
+		if (ultimate instanceof IPointerType) {
+			// UINTPTR range on 64-bit Linux.
+			// TODO: same range applies on 64-bit Windows (LLP64 pointers are also 64-bit).
+			return new TypeLimits("0", "18446744073709551615");
+		}
+		if (!(ultimate instanceof IBasicType)) return new TypeLimits("0", "0");
+
+		IBasicType basicType = (IBasicType) ultimate;
+		boolean unsigned = basicType.isUnsigned();
+
+		switch (basicType.getKind()) {
+		case eBoolean:
+			return new TypeLimits("0", "1");
+
+		case eChar:
+			return unsigned ? new TypeLimits("0", "255")          /* UCHAR_MIN/MAX */
+					: new TypeLimits("-128", "127");      /* SCHAR_MIN/MAX */
+
+		case eChar16:
+			return unsigned ? new TypeLimits("0", "65535")
+					: new TypeLimits("-32768", "32767");
+
+		case eChar32:
+			return unsigned ? new TypeLimits("0", "4294967295")
+					: new TypeLimits("-2147483648", "2147483647");
+
+		case eWChar:
+			// WCHAR_MIN/MAX, 32-bit on Linux.
+			// TODO: on Windows, wchar_t is 16-bit and always unsigned:
+			//   WCHAR_MIN = 0, WCHAR_MAX = 65535.
+			return unsigned ? new TypeLimits("0", "4294967295")
+					: new TypeLimits("-2147483648", "2147483647");
+
+		case eInt:
+			if (basicType.isLongLong()) {
+				return unsigned ? new TypeLimits("0", "18446744073709551615")   /* ULLONG */
+						: new TypeLimits("-9223372036854775808", "9223372036854775807"); /* LLONG */
+			}
+			if (basicType.isLong()) {
+				// LONG_MIN/MAX, ULONG_MAX — 64-bit on Linux (LP64).
+				// TODO: on Windows (LLP64), 'long' is 32-bit:
+				//   LONG_MIN = -2147483648, LONG_MAX = 2147483647, ULONG_MAX = 4294967295.
+				return unsigned ? new TypeLimits("0", "18446744073709551615")
+						: new TypeLimits("-9223372036854775808", "9223372036854775807");
+			}
+			if (basicType.isShort()) {
+				return unsigned ? new TypeLimits("0", "65535")
+						: new TypeLimits("-32768", "32767");
+			}
+			// plain int
+			return unsigned ? new TypeLimits("0", "4294967295")
+					: new TypeLimits("-2147483648", "2147483647");
+
+		case eFloat:
+			return new TypeLimits("-3.402823466e+38F", "3.402823466e+38F");
+
+		case eDouble:
+			if (basicType.isLong()) {
+				// long double: LDBL_MIN/MAX.
+				// TODO: on Windows (MSVC), long double == double, so use
+				//   DBL_MIN/MAX ("-1.7976931348623158e+308" .. "1.7976931348623158e+308") there.
+				return new TypeLimits("-1.189731495357231765e+4932L", "1.189731495357231765e+4932L");
+			}
+			return new TypeLimits("-1.7976931348623158e+308", "1.7976931348623158e+308");
+
+		default:
+			return new TypeLimits("0", "0");
+		}
+	}
+	/*private IASTExpression makeTypeForBranchDistance(IASTExpression conditionExpression) {
+		IType chosenType = resolveComparisonType(conditionExpression);
+		String typeTag = mapToTypeTag(chosenType);
+
+		INodeFactory factory = conditionExpression.getTranslationUnit().getASTNodeFactory();
+		return factory.newLiteralExpression(
+				IASTLiteralExpression.lk_string_literal, "\"" + typeTag + "\"");
+	}
+	 */
+	/*private IType resolveComparisonType(IASTExpression expression) {
+		if (expression instanceof IASTBinaryExpression) {
+			IASTBinaryExpression binExpr = (IASTBinaryExpression) expression;
+
+			IType leftType = binExpr.getOperand1().getExpressionType();
+			IType rightType = binExpr.getOperand2().getExpressionType();
+			IType leftTypeAux=getType(leftType);
+			IType rightTypeAux=getType(rightType);
+			if(leftTypeAux instanceof IProblemType || rightTypeAux instanceof IProblemType) {
+				throw new IllegalArgumentException("Cannot resolve comparison type for expression: " + expression.getRawSignature());
+			}
+			IType type =CArithmeticConversion.convertCOperandTypes(IASTBinaryExpression.op_minus, leftTypeAux, rightTypeAux);
+			type = restoreTypedefs(type, leftType, rightType);
+			return type;
+		} else if (expression instanceof IASTUnaryExpression) {
+			return resolveComparisonType(((IASTUnaryExpression) expression).getOperand());
+		}
+		return expression.getExpressionType();
+	}
+	 */
+	/*
       //IASTExpression exp1 = binExpr.getOperand1();
 	        //IASTExpression exp2 = binExpr.getOperand2();
 
 		    //INodeFactory factory = expression.getTranslationUnit().getASTNodeFactory();
 	        //IASTBinaryExpression expSub = factory.newBinaryExpression(IASTBinaryExpression.op_minus, exp1, exp2);
-	        
+
 	        if (type1 == null) return type2;
 	        if (type2 == null) return type1;
 
@@ -1155,60 +1452,141 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 	            return rank1 >= rank2 ? type1 : type2;
 	        }
 	        return type1;*/
-	
 
-	// Rough ordering mirroring C's usual arithmetic conversions -- just enough
-	// to pick the "wider" of two operand types for a comparison.
-	private int rank(IBasicType type) {
-	    switch (type.getKind()) {
-	        case eBoolean: return 0;
-	        case eChar:
-	        case eChar16:
-	        case eChar32:
-	        case eWChar:   return 1;
-	        case eInt:
-	            if (type.isLongLong()) return 5;
-	            if (type.isLong())     return 4;
-	            if (type.isShort())    return 2;
-	            return 3; // plain int
-	        case eFloat:  return 6;
-	        case eDouble: return type.isLong() ? 8 : 7; // long double vs double
-	        default:      return 3;
-	    }
+	/*private String mapToTypeTag(IType type) {
+		if (type == null) return "unknown";
+		IType ultimate = SemanticUtil.getUltimateType(type, false);
+
+		if (ultimate instanceof IPointerType) {
+			// UINTPTR_MAX on 64-bit Linux (stdint.h, not limits.h, but the
+			// natural analogue for a pointer-sized max value).
+			// 
+			// so this value is the same there; only 'long' differs under LLP64.
+			return "18446744073709551615";
+		}
+		if (!(ultimate instanceof IBasicType)) return "unknown";
+
+		IBasicType basicType = (IBasicType) ultimate;
+		boolean unsigned = basicType.isUnsigned();
+
+		switch (basicType.getKind()) {
+		case eBoolean:
+			// _Bool max representable value is always 1 (C99 6.2.5p2).
+			return "1";
+
+		case eChar:
+			// CHAR_MAX / UCHAR_MAX (assumes plain char maps like signed/unsigned char here).
+			return unsigned ? "255"  : "127" ;
+
+		case eChar16:
+			// char16_t -> UINT_LEAST16_MAX equivalent, 16-bit on both Linux and Windows.
+			return unsigned ? "65535" : "32767";
+
+		case eChar32:
+			// char32_t -> UINT_LEAST32_MAX equivalent, 32-bit.
+			// TODO: Windows has no native 32-bit char32_t distinction issue here,
+			// this is consistent across platforms.
+			return unsigned ? "4294967295" : "2147483647";
+
+		case eWChar:
+			// wchar_t: 32-bit on Linux (WCHAR_MAX = 2147483647 signed / 4294967295 unsigned).
+			// TODO: on Windows, wchar_t is 16-bit (WCHAR_MAX = 65535, always unsigned) —
+			// use "65535" instead of the Linux value below when targeting Windows.
+			return unsigned ? "4294967295" : "2147483647";
+
+		case eInt:
+			if (basicType.isLongLong()) {
+				// LLONG_MAX / ULLONG_MAX — 64-bit on both Linux and Windows.
+				return unsigned ? "18446744073709551615" 
+						: "9223372036854775807"  ;
+			}
+			if (basicType.isLong()) {
+				// LONG_MAX / ULONG_MAX — 64-bit on Linux (LP64).
+				// TODO: on Windows (LLP64), 'long' is 32-bit:
+				//   LONG_MAX = 2147483647, ULONG_MAX = 4294967295.
+				return unsigned ? "18446744073709551615" 
+						: "9223372036854775807"  ;
+			}
+			if (basicType.isShort()) {
+				// SHRT_MAX / USHRT_MAX — 16-bit on both platforms.
+				return unsigned ? "65535" : "32767";
+			}
+			// plain int: INT_MAX / UINT_MAX — 32-bit on both Linux and Windows.
+			return unsigned ? "4294967295"  : "2147483647" ;
+
+		case eFloat:
+			// FLT_MAX (float.h), same value on Linux and Windows (IEEE 754 single).
+			return "3.402823466e+38F";
+
+		case eDouble:
+			if (basicType.isLong()) {
+				// long double: LDBL_MAX.
+				// On Linux x86_64 (80-bit extended precision, 16-byte storage):
+				// TODO: on Windows (MSVC), long double == double, so LDBL_MAX
+				// there is actually DBL_MAX = "1.7976931348623158e+308".
+				return "1.189731495357231765e+4932L";
+			}
+			// DBL_MAX (float.h), same value on Linux and Windows (IEEE 754 double).
+			return "1.7976931348623158e+308";
+
+		default:
+			return "unknown";
+		}
+	}*/
+	/*private String mapToTypeTag(IType type) {
+		if (type == null) return "unknown";
+		IType ultimate = SemanticUtil.getUltimateType(type, false);
+
+		if (ultimate instanceof IPointerType) return "pointer";
+		if (!(ultimate instanceof IBasicType)) return "unknown";
+
+		IBasicType basicType = (IBasicType) ultimate;
+		boolean unsigned = basicType.isUnsigned();
+
+		switch (basicType.getKind()) {
+		case eBoolean:
+			return "bool";
+		case eChar:
+		case eChar16:
+		case eChar32:
+		case eWChar:
+			return unsigned ? "uint8" : "int8";
+		case eInt:
+			if (basicType.isLongLong()) return unsigned ? "uint64" : "int64";
+			if (basicType.isLong())
+				// NOTE: 'long' is 32-bit on LLP64 (Windows) but 64-bit on
+				// LP64 (Linux/macOS). Pick the branch matching your target.
+				return unsigned ? "uint64" : "int64";
+			if (basicType.isShort()) return unsigned ? "uint16" : "int16";
+			return unsigned ? "uint32" : "int32"; // plain int
+		case eFloat:
+			return "float32";
+		case eDouble:
+			return basicType.isLong() ? "float128" : "float64"; // long double
+		default:
+			return "unknown";
+		}
+	}*/
+	// --- Simple container classes ---
+
+	private static class TypePair {
+		final IType leftType;
+		final IType rightType;
+
+		TypePair(IType leftType, IType rightType) {
+			this.leftType = leftType;
+			this.rightType = rightType;
+		}
 	}
 
-	private String mapToTypeTag(IType type) {
-	    if (type == null) return "unknown";
-	    IType ultimate = SemanticUtil.getUltimateType(type, false);
+	private static class TypeLimits {
+		final String min;
+		final String max;
 
-	    if (ultimate instanceof IPointerType) return "pointer";
-	    if (!(ultimate instanceof IBasicType)) return "unknown";
-
-	    IBasicType basicType = (IBasicType) ultimate;
-	    boolean unsigned = basicType.isUnsigned();
-
-	    switch (basicType.getKind()) {
-	        case eBoolean:
-	            return "bool";
-	        case eChar:
-	        case eChar16:
-	        case eChar32:
-	        case eWChar:
-	            return unsigned ? "uint8" : "int8";
-	        case eInt:
-	            if (basicType.isLongLong()) return unsigned ? "uint64" : "int64";
-	            if (basicType.isLong())
-	                // NOTE: 'long' is 32-bit on LLP64 (Windows) but 64-bit on
-	                // LP64 (Linux/macOS). Pick the branch matching your target.
-	                return unsigned ? "uint64" : "int64";
-	            if (basicType.isShort()) return unsigned ? "uint16" : "int16";
-	            return unsigned ? "uint32" : "int32"; // plain int
-	        case eFloat:
-	            return "float32";
-	        case eDouble:
-	            return basicType.isLong() ? "float128" : "float64"; // long double
-	        default:
-	            return "unknown";
-	    }
+		TypeLimits(String min, String max) {
+			this.min = min;
+			this.max = max;
+		}
 	}
 }
+

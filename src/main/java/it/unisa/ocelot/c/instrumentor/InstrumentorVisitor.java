@@ -1,5 +1,6 @@
 package it.unisa.ocelot.c.instrumentor;
 
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Stack;
@@ -558,7 +559,6 @@ public class InstrumentorVisitor extends ASTVisitor {
 	
 	public int visit(IASTStatement statement) {
 		this.functionCallsInExpressions.clear();
-		
 		if (statement instanceof IASTIfStatement)
 			this.visit((IASTIfStatement)statement);
 		else if (statement instanceof IASTSwitchStatement) {
@@ -645,11 +645,13 @@ public class InstrumentorVisitor extends ASTVisitor {
 		
 		IType op1Type = getType(operand1);
 		IType op2Type = getType(operand2);
-		
-		IASTExpression[] operationArgs = new IASTExpression[2];
+		//BranchDistanceTypeHelper helper = new BranchDistanceTypeHelper();
+		UnitComponentInstrumentorVisitor helper = new UnitComponentInstrumentorVisitor();
+		IASTExpression type = helper.makeTypeForBranchDistance(pExpression, op1Type, op2Type);
+		IASTExpression[] operationArgs = new IASTExpression[3];
 		operationArgs[0] = this.castToDouble(this.transformDistanceExpression(operand1, false, true));
 		operationArgs[1] = this.castToDouble(this.transformDistanceExpression(operand2, false, true));
-				
+		operationArgs[2] = type;
 		IASTFunctionCallExpression operationFunction;
 		if (op1Type instanceof IBasicType && op2Type instanceof IBasicType ||
 				op1Type instanceof IEnumeration && op2Type instanceof IEnumeration) {
