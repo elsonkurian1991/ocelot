@@ -19,13 +19,14 @@ int _f_ocelot_branch_out(char* functionName, int count, int result, double dista
 	FILE *fptr;
 
 	// Open a file in writing mode
-	fptr = fopen("BranchDistanceTracker.txt", "a");  
+	//fptr = fopen("BranchDistanceTracker.txt", "a");  
+	fptr = fopen("/tmp/evint-run/BranchDistanceTracker.txt", "a");
 
 	//The following if is for some sanity checks. It will print warnings that should be checked to see if the isntrumentation is correct.
 	if ((distanceTrue == distanceFalse) | (((distanceTrue==1.0)&(distanceFalse!=0.0)) | ((distanceFalse==1.0)&(distanceTrue!=0.0))) | (!((distanceTrue==0.0)|(distanceFalse==0.0)))) {
 		FILE *fptr2;
 		// Open a file in writing mode
-		fptr2 = fopen("fitnessErrors.txt", "a");
+		fptr2 = fopen("BranchDistanceInstrumentationErrors.txt", "a");
 		// Write some text to the file
 		fprintf(fptr2, functionName);
 		fprintf(fptr2, ";");
@@ -48,10 +49,10 @@ int _f_ocelot_branch_out(char* functionName, int count, int result, double dista
 	}  
 
 	//The following if is for some sanity checks on the fitness values range.
-	if (distanceTrue > 1.0 | distanceTrue < 0.0 | distanceFalse > 1.0 | distanceFalse < 0.0) {
+	if (distanceTrue > 1.01 | distanceTrue < 0.0 | distanceFalse > 1.01 | distanceFalse < 0.0) {
 		FILE *fptr3;
 		// Open a file in writing mode
-		fptr3 = fopen("fitnessErrors2.txt", "a");
+		fptr3 = fopen("BranchDistanceValueRangeErrors.txt", "a");
 		// Write some text to the file
 		fprintf(fptr3, functionName);
 		fprintf(fptr3, ";");
@@ -174,94 +175,289 @@ double _f_ocelot_get_fcall() {
 	}
 }
 
-//updated the following function for better result
-double _f_ocelot_eq_numeric(double op1, double op2) {
+//*****************************************************/
+//We updated the following functions for better results
+//*****************************************************/
+/* Design:
+ *   - Primary term (norm): identical monotonic shape to the
+ *     original v1.0 k/(1+k) formula. Guarantees exact 0.0 on
+ *     predicate satisfaction (coverage detection still works)
+ *     and preserves gradient direction for the search algorithm.
+ *   - Secondary term (bias): tiny, bounded, additive nudge that
+ *     rewards states where either operand sits near its own
+ *     type's boundary (min/max), to bias the search toward
+ *     values likely to trigger overflow in later arithmetic.
+ *     Weighted small enough it can never invert the ordering
+ *     established by the primary term.
+ */
+ 
+/* 0.0 when v sits exactly at either boundary of its own type range,
+   up to 0.5 when v is in the middle of its range */
+//version3
+static double _boundary_proximity(double v, double minV, double maxV) {
+    double range = maxV - minV;
+    if (range <= 0.0) return 1.0;
+    double d = fmin(v - minV, maxV - v);
+    if (d < 0.0) d = 0.0;
+    return d / range;
+}
+/* ------------------------------------------------------------
+ * op1 == op2
+ * ------------------------------------------------------------ */
+double _f_ocelot_eq_numeric(double op1, double op2,
+                             double min1, double max1,
+                             double min2, double max2) {
+    double k = fabs(op1 - op2);
+    double result;
+    if (k == 0.0) {
+        result = 0.0;
+    } else {
+        double norm  = k / (1.0 + k);
+        double biasX = _boundary_proximity(op1, min1, max1);
+        double biasY = _boundary_proximity(op2, min2, max2);
+        double bias  = fmin(biasX, biasY) * OCELOT_SECONDARY_WEIGHT;
+        result = norm + bias;
+    }
+    return result;
+}
+ 
+/* ------------------------------------------------------------
+ * op1 != op2
+ * ------------------------------------------------------------ */
+double _f_ocelot_neq_numeric(double op1, double op2,
+                             double min1, double max1,
+                             double min2, double max2) {
+    double k = fabs(op1 - op2);
+    double result;
+    if (k > 0.0) {
+        result = 0.0;
+    } else {
+        double biasX = _boundary_proximity(op1, min1, max1);
+        double biasY = _boundary_proximity(op2, min2, max2);
+        /* small floor keeps result > 0 so coverage isn't falsely
+           marked when op1 == op2 but predicate requires != */
+        result = fmin(biasX, biasY) * OCELOT_SECONDARY_WEIGHT + 1e-3;
+    }
+    return result;
+}
+ 
+/* ------------------------------------------------------------
+ * op1 > op2
+ * ------------------------------------------------------------ */
+double _f_ocelot_gt_numeric(double op1, double op2,
+                             double min1, double max1,
+                             double min2, double max2) {
+    double k = op2 - op1;   /* want op1 > op2, i.e. k < 0 */
+    double result;
+    if (k < 0.0) {
+        result = 0.0;
+    } else {
+        k = k + 0.001;      /* avoid exact 0 at the boundary */
+        double norm  = k / (1.0 + k);
+        double biasX = _boundary_proximity(op1, min1, max1);
+        double biasY = _boundary_proximity(op2, min2, max2);
+        double bias  = fmin(biasX, biasY) * OCELOT_SECONDARY_WEIGHT;
+        result = norm + bias;
+    }
+    return result;
+}
+ 
+/* ------------------------------------------------------------
+ * op1 >= op2
+ * ------------------------------------------------------------ */
+double _f_ocelot_ge_numeric(double op1, double op2,
+                             double min1, double max1,
+                             double min2, double max2) {
+    double k = op2 - op1;   /* want op1 >= op2, i.e. k <= 0 */
+    double result;
+    if (k <= 0.0) {
+        result = 0.0;
+    } else {
+        double norm  = k / (1.0 + k);
+        double biasX = _boundary_proximity(op1, min1, max1);
+        double biasY = _boundary_proximity(op2, min2, max2);
+        double bias  = fmin(biasX, biasY) * OCELOT_SECONDARY_WEIGHT;
+        result = norm + bias;
+    }
+    return result;
+}
+ 
+/* ------------------------------------------------------------
+ * op1 < op2
+ * ------------------------------------------------------------ */
+double _f_ocelot_lt_numeric(double op1, double op2,
+                             double min1, double max1,
+                             double min2, double max2) {
+    double k = op1 - op2;   /* want op1 < op2, i.e. k < 0 */
+    double result;
+    if (k < 0.0) {
+        result = 0.0;
+    } else {
+        k = k + 0.001;      /* avoid exact 0 at the boundary */
+        double norm  = k / (1.0 + k);
+        double biasX = _boundary_proximity(op1, min1, max1);
+        double biasY = _boundary_proximity(op2, min2, max2);
+        double bias  = fmin(biasX, biasY) * OCELOT_SECONDARY_WEIGHT;
+        result = norm + bias;
+    }
+    return result;
+}
+ 
+/* ------------------------------------------------------------
+ * op1 <= op2
+ * ------------------------------------------------------------ */
+double _f_ocelot_le_numeric(double op1, double op2,
+                             double min1, double max1,
+                             double min2, double max2) {
+    double k = op1 - op2;   /* want op1 <= op2, i.e. k <= 0 */
+    double result;
+    if (k <= 0.0) {
+        result = 0.0;
+    } else {
+        double norm  = k / (1.0 + k);
+        double biasX = _boundary_proximity(op1, min1, max1);
+        double biasY = _boundary_proximity(op2, min2, max2);
+        double bias  = fmin(biasX, biasY) * OCELOT_SECONDARY_WEIGHT;
+        result = norm + bias;
+    }
+    return result;
+}
+//version1
+/*double _f_ocelot_eq_numeric(double op1, double op2, double limit) {
+    double k = fabs((double)op1 - (double)op2);
+    double result;
+    if (k == 0.0) {
+        result = 0.0;
+    } else if (k <= limit) {
+        result = k * (limit - k);
+    } else {
+
+            result = OCELOT_K_FAKE;
+    }
+    return result;
+}
+double _f_ocelot_gt_numeric(double op1, double op2, double limit) {
+    double k = (double)op2 - (double)op1;
+    double result;
+    if (k < 0.0) {
+        result = 0.0;
+    } else if (k <= limit) {
+        k = (double)k+0.001; //due to 0; to avoid we add 0.001
+        result = k * (limit - k);
+    } else {
+            result = OCELOT_K_FAKE;
+    }
+
+    return result;
+}
+double _f_ocelot_ge_numeric(double op1, double op2, double limit) {
+    double k = (double)op2 - (double)op1;
+    double result;
+    if (k <= 0.0) {
+        result = 0.0;
+    } else if (k <= limit) { 
+        result = k * (limit - k);
+    } else {
+            result = OCELOT_K_FAKE;
+    }
+    return result;
+}
+//version2
+double _f_ocelot_eq_numeric(double op1, double op2, double limit) {
 	double k = fabs((double)op1 - (double)op2);
 	double result;
 	if (k == 0.0) {
 		result = 0.0;
 	} else {
-		result = (double)k/(1.0+(double)k);
+		double norm = k / (1.0 + k);
+		double bias = _extremity(op1, op2, limit) * OCELOT_MIN_K_FAKE;
+		result = norm + bias;
 	}
 	return result;
 }
 
-double _f_ocelot_gt_numeric(double op1, double op2) {
-			
+double _f_ocelot_gt_numeric(double op1, double op2, double limit) {
 	double k = (double)op2 - (double)op1;
-	double result;
-	if (k < 0.0) {
-		result = 0.0;
-	} else {
-		
-		k = (double)k+0.001; //due to 0; to avoid we add 0.001
-		//k=log(k); 
-		result = (double)k/(1.0+(double)k);
-	}
-	
-	return result;
+    double result;
+    if (k < 0.0) {
+        result = 0.0;   // keep exact zero: coverage still detected 
+    } else {
+        k = k + 0.001;
+        double norm = k / (1.0 + k);           // main gradient: [0,1) 
+        double bias = _extremity(op1, op2, limit) * OCELOT_MIN_K_FAKE;
+        result = norm + bias;                   // tiny nudge, doesn't reorder branches
+    }
+    return result;
 }
 
-double _f_ocelot_ge_numeric(double op1, double op2) {
+double _f_ocelot_ge_numeric(double op1, double op2, double limit) {
 	double k = (double)op2 - (double)op1;
 	double result;
 	if (k <= 0.0) {
 		result = 0.0;
-	} else { 
-		//k=log(k);
-		result = (double)k/(1.0+(double)k);
+	} else {
+		double norm = k / (1.0 + k);
+		double bias = _extremity(op1, op2, limit) * OCELOT_MIN_K_FAKE;
+		result = norm + bias;
 	}
 	return result;
 }
 
-double _f_ocelot_lt_numeric(double op1, double op2) {
-	return _f_ocelot_gt_numeric(op2, op1);
+double _f_ocelot_lt_numeric(double op1, double op2, double limit) {
+	return _f_ocelot_gt_numeric(op2, op1, limit);
 }
 
-double _f_ocelot_le_numeric(double op1, double op2) {
-	return _f_ocelot_ge_numeric(op2, op1);
+double _f_ocelot_le_numeric(double op1, double op2, double limit) {
+	return _f_ocelot_ge_numeric(op2, op1, limit);
 }
 
-double _f_ocelot_neq_numeric(double op1, double op2) {
+double _f_ocelot_neq_numeric(double op1, double op2, double limit) {
 	double k = (double)op2 - (double)op1;
 	double result;
 
-	if (k != 0.0)
+	if (k != 0.0) {
 		result = 0.0;
-	else
+	} else {
 		result = OCELOT_K_FAKE;
+	}
 
 	return result;
 }
-
-double _f_ocelot_eq_pointer(void* op1, void* op2) {
+*/
+double _f_ocelot_eq_pointer(void* op1, void* op2, double min1, double max1,
+                             double min2, double max2) {
 	int pos1 = _f_ocelot_pointertotab(op1);
 	int pos2 = _f_ocelot_pointertotab(op2);
-	return _f_ocelot_eq_numeric(pos1, pos2);
+	return _f_ocelot_eq_numeric(pos1, pos2, min1, max1, min2, max2);  
 }
-double _f_ocelot_gt_pointer(void* op1, void* op2) {
-	int pos1 = _f_ocelot_pointertotab(op1);
-	int pos2 = _f_ocelot_pointertotab(op2);
-
-	return _f_ocelot_gt_numeric(pos1, pos2);
-}
-double _f_ocelot_ge_pointer(void* op1, void* op2) {
+double _f_ocelot_gt_pointer(void* op1, void* op2, double min1, double max1,
+                             double min2, double max2) {
 	int pos1 = _f_ocelot_pointertotab(op1);
 	int pos2 = _f_ocelot_pointertotab(op2);
 
-	return _f_ocelot_ge_numeric(pos1, pos2);
+	return _f_ocelot_gt_numeric(pos1, pos2, min1, max1, min2, max2);
 }
-double _f_ocelot_lt_pointer(void* op1, void* op2) {
-	return _f_ocelot_ge_pointer(op2, op1);
-}
-double _f_ocelot_le_pointer(void* op1, void* op2) {
-	return _f_ocelot_gt_pointer(op2, op1);
-}
-double _f_ocelot_neq_pointer(void* op1, void* op2) {
+double _f_ocelot_ge_pointer(void* op1, void* op2, double min1, double max1,
+                             double min2, double max2) {
 	int pos1 = _f_ocelot_pointertotab(op1);
 	int pos2 = _f_ocelot_pointertotab(op2);
 
-	return _f_ocelot_neq_numeric(pos1, pos2);
+	return _f_ocelot_ge_numeric(pos1, pos2, min1, max1, min2, max2);
+}
+double _f_ocelot_lt_pointer(void* op1, void* op2, double min1, double max1,
+                             double min2, double max2) {
+	return _f_ocelot_ge_pointer(op2, op1, min2, max2, min1, max1);
+}
+double _f_ocelot_le_pointer(void* op1, void* op2, double min1, double max1,
+                             double min2, double max2) {
+	return _f_ocelot_gt_pointer(op2, op1, min2, max2, min1, max1);
+}
+double _f_ocelot_neq_pointer(void* op1, void* op2, double min1, double max1,
+                             double min2, double max2) {
+	int pos1 = _f_ocelot_pointertotab(op1);
+	int pos2 = _f_ocelot_pointertotab(op2);
+
+	return _f_ocelot_neq_numeric(pos1, pos2, min1, max1, min2, max2);
 }
 
 double _f_ocelot_and(double op1, double op2) {

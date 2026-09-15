@@ -20,7 +20,7 @@ extern "C" {
 #define OCELOT_K 0.5
 #define OCELOT_KIND_STDEV 1
 #define OCELOT_KIND_CASEV 2
-
+#define OCELOT_SECONDARY_WEIGHT 1e-6
 #define OCELOD_DEREF(type, variable) ((type)*((double*)variable))
 
 typedef struct {
@@ -64,23 +64,23 @@ double _f_ocelot_get_fcall();
 
 int _f_ocelot_pointertotab(void*);
 
-double _f_ocelot_eq_numeric(double,double);
-double _f_ocelot_eq_pointer(void*, void*);
+double _f_ocelot_eq_numeric(double,double,double,double,double,double);
+double _f_ocelot_eq_pointer(void*, void*,double,double,double,double);
 
-double _f_ocelot_gt_numeric(double,double);
-double _f_ocelot_gt_pointer(void*, void*);
+double _f_ocelot_gt_numeric(double,double,double,double,double,double);
+double _f_ocelot_gt_pointer(void*, void*,double,double,double,double);
 
-double _f_ocelot_ge_numeric(double,double);
-double _f_ocelot_ge_pointer(void*, void*);
+double _f_ocelot_ge_numeric(double,double,double,double,double,double);
+double _f_ocelot_ge_pointer(void*, void*,double,double,double,double);
 
-double _f_ocelot_lt_numeric(double,double);
-double _f_ocelot_lt_pointer(void*, void*);
+double _f_ocelot_lt_numeric(double,double,double,double,double,double);
+double _f_ocelot_lt_pointer(void*, void*,double,double,double,double);
 
-double _f_ocelot_le_numeric(double,double);
-double _f_ocelot_le_pointer(void*, void*);
+double _f_ocelot_le_numeric(double,double,double,double,double,double);
+double _f_ocelot_le_pointer(void*, void*,double,double,double,double);
 
-double _f_ocelot_neq_numeric(double,double);
-double _f_ocelot_neq_pointer(void*, void*);
+double _f_ocelot_neq_numeric(double,double,double,double,double,double);
+double _f_ocelot_neq_pointer(void*, void*,double,double,double,double);
 
 double _f_ocelot_and(double, double);
 double _f_ocelot_or(double, double);
