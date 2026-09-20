@@ -3,8 +3,10 @@ package it.unisa.ocelot.runnable;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -13,9 +15,12 @@ import java.nio.file.StandardOpenOption;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.Scanner;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.codec.digest.DigestUtils;
@@ -45,7 +50,7 @@ public class Run {
 
 	public static final String HASH_FILENAME = ".lastbuild.cks";
 	/*
-	 * config_lmc_cdg
+	 * config_lmc
 	 * config_emdm_cdg
 	 * config_toyseven_cdg
 	 * config_toysix_cdg
@@ -58,8 +63,17 @@ public class Run {
 	 * config_toyninesmalltwo
 	 * config_twelve.properties
 	 * config_five.properties
+	 * 
+	 * config_one.properties
+	 * config_two.properties
+	 * config_ten.properties
+	 * 
+	 * config_lmc.properties
+	 * config_vbcdm.properties
+	 * config_btm.properties
+	 * config_nv.properties
 	 */
-	private static final String CONFIG_FILENAME = "config_five.properties";
+	private static final String CONFIG_FILENAME = "config_ten.properties";
 	public static final String LOCALUSER_DIR=System.getProperty("user.dir"); 
 
 	private static final int RUNNER_ILLEGAL = -1;
@@ -82,10 +96,25 @@ public class Run {
 		TimeUnit.SECONDS.sleep(1);
 		// Friendly Configuration Reminder
 		System.out.println("\n[!] REMINDER: Please ensure your config file is updated.");
-		System.out.println("[✓] Assuming valid configuration... Launching EvInT!\n");
+		System.out.println("[✓] Assuming valid configuration...");
 		TimeUnit.SECONDS.sleep(1);
+		String[] spinner = {"|", "/", "-", "\\"};
+		String message = "Launching EvInT";
+		long duration = 3000; // 3 seconds
+		long start = System.currentTimeMillis();
+		int i = 0;
+		if(System.console() != null) {
+			while (System.currentTimeMillis() - start < duration) {
+				String dots = ".".repeat((i % 4));
+				System.out.printf("\r%s %s%-3s", spinner[i % spinner.length], message, dots);
+				Thread.sleep(150);
+				i++;
+			}
+		}
+		System.out.printf("\r✔ %s... Done!%n", message);
 		System.out.println("--------------------------------------------------");
-
+		System.out.println("[INFO] Setting up configuration file: " + CONFIG_FILENAME);
+		ConfigManager.setFilename(CONFIG_FILENAME);
 		System.out.println("[INFO] Cleaning target workspace...");
 		System.out.println("[>] Deleting old build files...");
 		// deleting the old build files.
@@ -93,7 +122,9 @@ public class Run {
 		deleteFileIfExists(filePathToDelete1);
 		String filePathToDelete2 = LOCALUSER_DIR+"/libTest.so";
 		deleteFileIfExists(filePathToDelete2);
-		String filePathToDelete3 = LOCALUSER_DIR+"/BranchDistanceTracker.txt"; //do 
+		Path dir = Paths.get("/tmp/evint-run");//temp folder to keep the branch distance tracker txt file
+		Files.createDirectories(dir); 
+		String filePathToDelete3 = "/tmp/evint-run/BranchDistanceTracker.txt"; //do 
 		deleteFileIfExists(filePathToDelete3);
 		String filePathToDelete4 = LOCALUSER_DIR+"/testObjectives.to"; //do 
 		deleteFileIfExists(filePathToDelete4);
@@ -101,10 +132,16 @@ public class Run {
 		deleteFileIfExists(filePathToDelete5);
 		String filePathToDelete6 = LOCALUSER_DIR+"/cdg_output.txt"; //do 
 		deleteFileIfExists(filePathToDelete6);
-
-		System.out.println("[✓] Old build files successfully removed.");
+		String filePathToDelete7 = LOCALUSER_DIR+"/BranchDistanceValueRangeErrors.txt"; //do 
+		deleteFileIfExists(filePathToDelete7);
+		String filePathToDelete8 = LOCALUSER_DIR+"/BranchDistanceInstrumentationErrors.txt"; //do 
+		deleteFileIfExists(filePathToDelete8);
+		//delete previous experiment unwanted files from JNI folder
+		deleteUnwantedFilesFromJNIFolder(LOCALUSER_DIR);
+		ConfigManager getConfInfo = ConfigManager.getInstance();
+		deleteUnwantedFilesFromJNIFolder(getConfInfo.getTestBasedir());
+		System.out.println("[INFO] Old build files successfully removed.");
 		System.out.println("--------------------------------------------------\n");
-
 		long startTime =System.currentTimeMillis();
 
 		//Main execution part start
@@ -114,7 +151,7 @@ public class Run {
 		runner.saveHash();
 		runner.run();
 		//Main execution part end
-		
+
 		long endTime = System.currentTimeMillis();
 		long time = endTime - startTime;
 		long hours = TimeUnit.MILLISECONDS.toHours(time);
@@ -128,6 +165,43 @@ public class Run {
 		createLogFile(logWriter);
 
 		deleteTargetSourceFilesFromJni();
+	}
+	private static void deleteUnwantedFilesFromJNIFolder(String jniDir) throws IOException {
+		//this.configFilename = CONFIG_FILENAME;
+		System.out.println("[INFO] Cleaning "+ jniDir +" JNI folder...");
+
+		String tragetSourceFolder = jniDir;
+		File jniFolder = new File(tragetSourceFolder, "jni");
+
+		// Check if the directory exists and is valid
+		if (!jniFolder.exists() || !jniFolder.isDirectory()) {
+			System.err.println("JNI folder does not exist or is not a directory: " + jniFolder.getAbsolutePath());
+			return;
+		}
+
+		// String containing allowed files separated by spaces or newline characters
+		String allowedFilesStr = "CBridge.c EN_CBridge.c lists.h nativelists.h ocelot.h CBridge.h lists.c nativelists.c ocelot.c";
+
+		// Split by whitespace and store in a HashSet for O(1) lookup
+		Set<String> allowedFiles = new HashSet<>(Arrays.asList(allowedFilesStr.trim().split("\\s+")));
+
+		// Get all files in the directory
+		File[] filesInDir = jniFolder.listFiles();
+
+		if (filesInDir != null) {
+			for (File file : filesInDir) {
+				// Only process actual files (skip directories) that are not in the allowed set
+				if (file.isFile() && !allowedFiles.contains(file.getName())) {
+					boolean isDeleted = file.delete();
+					if (isDeleted) {
+						System.out.println("[✓] Deleted unwanted file: " + file.getName());
+					} else {
+						System.err.println("[i] Failed to delete file: " + file.getName());
+					}
+				}
+			}
+		}
+
 	}
 	private static void deleteTargetSourceFilesFromJni() throws IOException {
 		ConfigManager getConfInfo=ConfigManager.getInstance();		
@@ -186,7 +260,7 @@ public class Run {
 		}
 
 	}
-	
+
 	public static void deleteFileIfExists(String filePath) {
 		Path path = Paths.get(filePath);
 
@@ -203,23 +277,23 @@ public class Run {
 			System.err.println("[X] Error deleting file (" + filePath + "): " + e.getMessage());
 		}
 	}
-	
+
 	public static void resetFileQuietly(String filePathString) {
-        Path path = Paths.get(filePathString);
-        
-        // 1. Check if the file exists at the location
-        if (Files.exists(path) && Files.isRegularFile(path)) {
-            try {
-                // 2. If yes, empty the content instantly
-                Files.newByteChannel(path, StandardOpenOption.WRITE, StandardOpenOption.TRUNCATE_EXISTING).close();
-                //System.out.println("Success: File content has been reset / emptied.");
-            } catch (IOException e) {
-                // This only runs if there is a system permission or locking issue
-                System.err.println("Could not empty the file: " + e.getMessage());
-            }
-        }
-        // 3. If no, it exits silently. No worries, no warning messages printed.
-    }
+		Path path = Paths.get(filePathString);
+
+		// 1. Check if the file exists at the location
+		if (Files.exists(path) && Files.isRegularFile(path)) {
+			try {
+				// 2. If yes, empty the content instantly
+				Files.newByteChannel(path, StandardOpenOption.WRITE, StandardOpenOption.TRUNCATE_EXISTING).close();
+				//System.out.println("Success: File content has been reset / emptied.");
+			} catch (IOException e) {
+				// This only runs if there is a system permission or locking issue
+				System.err.println("Could not empty the file: " + e.getMessage());
+			}
+		}
+		// 3. If no, it exits silently. No worries, no warning messages printed.
+	}
 
 	public Run(String[] args) throws IOException {
 		this.runnerType = RUNNER_WRITE;
