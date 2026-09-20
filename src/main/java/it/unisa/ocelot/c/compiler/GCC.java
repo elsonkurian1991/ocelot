@@ -30,7 +30,7 @@ public class GCC implements Compiler {
 	public String preprocess(File pInput) {
 		return commandLine(new String[] {"bash",  "-c", "gcc -E \"" + pInput.getAbsolutePath() + "\" | sed '/^\\#/d'"});
 	}
-	
+
 	public String preprocess(File pInput, File pOutput) {
 		return commandLine(new String[] {"gcc",  "-E", pInput.getPath()});
 	}
@@ -39,14 +39,14 @@ public class GCC implements Compiler {
 		try {
 			Runtime rt = Runtime.getRuntime();
 			Process pr = rt.exec(pCommand);
-			
+
 			return IOUtils.toString(pr.getInputStream());
 		} catch (IOException e) {
 			System.err.println("Unknown error. Could not execute \"" + pCommand + "\"");
 			return "";
 		}
 	}
-	
+
 	public static IASTTranslationUnit getTranslationUnit(String pSourceFilename, String[] pIncludePaths)
 			throws IOException, CoreException {
 		String codeString = Utils.readFile(pSourceFilename);
@@ -54,15 +54,15 @@ public class GCC implements Compiler {
 		Map<String, String> macroDefinitions = new HashMap<String, String>();
 		IScannerInfo scannerInfo = new ScannerInfo(macroDefinitions, pIncludePaths);
 		IncludeFileContentProvider includeContentProvider = FileCodeReaderFactory.getInstance();
-		
+
 		IIndex index = null;
 		int options = ILanguage.OPTION_IS_SOURCE_UNIT;
 		IParserLogService log = new DefaultLogService();
-		
+
 		return GCCLanguage.getDefault().getASTTranslationUnit(
 				fileContent, scannerInfo, includeContentProvider, index, options, log);
 	}
-	
+
 	public static IASTTranslationUnit getTranslationUnit(String pSourceFilename)
 			throws IOException, CoreException {		
 		return getTranslationUnit(pSourceFilename, new String[0]);
