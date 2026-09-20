@@ -23,6 +23,9 @@ import it.unisa.ocelot.genetic.solutions.GenericSolution;
  * This class is used by the EvInT (Evolutionary Integration Testing) tool.
  */
 public class BranchChainManager {
+	
+	public static final String BRANCH_DIST_TRACK_FILE = "/tmp/evint-run/BranchDistanceTracker.txt";
+
 	// Default filename for CDG output. The actual path is resolved lazily using test.basedir from ConfigManager.
 	private static final String DEFAULT_CDG_FILENAME = "cdg_output.txt";
 	// Filename for CFG+CDG human-readable dump (same directory as DEFAULT_CDG_FILENAME)
@@ -545,7 +548,8 @@ public class BranchChainManager {
 		HashMap<String, Double> fitnessMap = new HashMap<>();
 
 		// Fills fitnessMap with the data from the BranchDistanceTracker.txt file
-		try (BufferedReader f_Val_File = new BufferedReader(new FileReader("./BranchDistanceTracker.txt"))) {
+		try (BufferedReader f_Val_File = new BufferedReader(new FileReader(BRANCH_DIST_TRACK_FILE))) {
+		//try (BufferedReader f_Val_File = new BufferedReader(new FileReader("./BranchDistanceTracker.txt"))) {
 			String lineBr = f_Val_File.readLine();
 			while (lineBr != null) {
 				FunBranchNameAndFitness infoFromLinebr = readInfoFromLine(lineBr);
@@ -557,7 +561,7 @@ public class BranchChainManager {
 				lineBr = f_Val_File.readLine();
 			}
 		} catch (IOException e) {
-			System.err.println("Error reading BranchDistanceTracker.txt file: " + e.getMessage());
+			System.err.println("Error reading "+BRANCH_DIST_TRACK_FILE+": " + e.getMessage());
 		}
 
 		// updates the solution

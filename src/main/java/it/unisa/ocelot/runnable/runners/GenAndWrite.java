@@ -70,10 +70,6 @@ import it.unisa.ocelot.suites.SerendipitousCoverageChecker;
  * getter) which do not affect existing behaviour when not called.
  */
 public class GenAndWrite {
-	// Budget: maximum number of generation iterations across all loops.
-	// Adjust this constant (or load it from ConfigManager) as needed.
-	private static final int MAX_ITERATIONS = 4;
-
 	// One-time-per-JVM guard: delete old fitness mapping output file on first call
 	// to getOutputFile()
 	private static volatile boolean OUTPUT_FITNESS_FILE_CLEANED = false;
@@ -129,7 +125,7 @@ public class GenAndWrite {
 			// Start with all objectives uncovered
 			List<GenericObjective> uncoveredObjectives = new ArrayList<>(allObjectives);
 
-			System.out.println("Starting MAB-guided iterative generation. " + "Max iterations: " + MAX_ITERATIONS
+			System.out.println("Starting MAB-guided iterative generation. " + "Max iterations: " + config.getMaxIterForMosa()
 					+ ", subset size: " + subsetLoader.getSubsetSize());
 			StringBuilder objCovEachIter = new StringBuilder();
 			// Tracks and persists fitness snapshots to CSV for post-run analysis.
@@ -139,9 +135,9 @@ public class GenAndWrite {
 			openFitnessProgressFile(config,fitnessTracker);
 			
 			// Main iterative generation loop
-			for (int iteration = 1; iteration <= MAX_ITERATIONS; iteration++) {
+			for (int iteration = 1; iteration <= config.getMaxIterForMosa(); iteration++) {
 				
-				System.out.println("\n=== Iteration " + iteration + "/" + MAX_ITERATIONS + " ===");
+				System.out.println("\n=== Iteration " + iteration + "/" + config.getMaxIterForMosa() + " ===");
 				System.out.println("Uncovered objectives remaining: " + uncoveredObjectives.size());
 
 				// Exit early if nothing left to cover
@@ -201,7 +197,7 @@ public class GenAndWrite {
 				}
 				//delete the old distance from the file 
 				System.out.println("Resetting BranchDistanceTracker.txt for next iteration...");
-				Run.resetFileQuietly(Run.LOCALUSER_DIR+"/BranchDistanceTracker.txt");
+				Run.resetFileQuietly(BranchChainManager.BRANCH_DIST_TRACK_FILE);
 				
 				// Accumulate test cases from this iteration into global suite
 				suite.addAll(iterationSuite);
@@ -247,12 +243,12 @@ public class GenAndWrite {
 				long chainPairCount = uncoveredObjectives.stream()
 					    .filter(o -> o instanceof BranchChainPairObjective)
 					    .count();
-				String lineChainPairCount = "\n" + iteration + "/" + MAX_ITERATIONS + " -> " + "Uncovered BranchChainPairObjectives: "
+				String lineChainPairCount = "\n" + iteration + "/" + config.getMaxIterForMosa() + " -> " + "Uncovered BranchChainPairObjectives: "
 						+ "" + chainPairCount + " / " + uncoveredObjectives.size();
 				objCovEachIter.append(lineChainPairCount);
 					System.out.println("Uncovered BranchChainPairObjectives: " + chainPairCount + " / " + uncoveredObjectives.size());
 				int newlyCovered = uncoveredBefore - uncoveredObjectives.size();
-				String line = "\n" + iteration + "/" + MAX_ITERATIONS + " -> " + iterationSuite.size()
+				String line = "\n" + iteration + "/" + config.getMaxIterForMosa() + " -> " + iterationSuite.size()
 				        + " test cases, " + newlyCovered + " objectives newly covered";
 				//System.out.println("Uncovered after iteration " + iteration + ": " + uncoveredObjectives.size());
 				// MAB step 3 — record result and update UCB statistics.
@@ -279,7 +275,7 @@ public class GenAndWrite {
 
 			// Final coverage report
 			if (!verifier.isFullyCovered(allObjectives)) {
-				System.out.println("\nBudget exhausted after " + MAX_ITERATIONS + " iteration(s). "
+				System.out.println("\nBudget exhausted after " + config.getMaxIterForMosa() + " iteration(s). "
 						+ verifier.summarise(allObjectives));
 			}
 
@@ -305,7 +301,7 @@ public class GenAndWrite {
 			System.out.println("-------------------------------------------------------");
 			System.out.println("Uncovered objectives: " + uncoveredObjectives.size());
 			
-			 for (GenericObjective objective : uncoveredObjectives) { 
+			/* for (GenericObjective objective : uncoveredObjectives) { 
 				 if (!objective.isCovered()) { System.out.println(objective.toString()); } }
 			 System.out.println("-------------------------------------------------------");
 			 
