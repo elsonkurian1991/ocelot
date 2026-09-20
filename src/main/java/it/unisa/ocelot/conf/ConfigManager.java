@@ -83,6 +83,14 @@ public class ConfigManager {
 
 		this.myFilename = pFilename;
 	}
+	/**
+	 * Returns the Budget: maximum number of generation iterations across all loops. (5 if not specified)
+	 * @return
+	 */
+	public int getMaxIterForMosa() {
+		return Integer.parseInt(this.properties.getProperty("iteration.max", "5"));
+	}
+
 
 	/**
 	 * Returns the population size for the genetic algorithm (100 if not specified)
@@ -487,4 +495,5 @@ public class ConfigManager {
 	public boolean isSplitBooleans() {
 		return this.properties.getProperty("experiment.splitbooleans", "false").equalsIgnoreCase("true");
 	}
+	 
 }
