@@ -118,6 +118,7 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 		this.nodeBranchMap = new HashMap<IASTNode, List<String>>();
 		this.branchChainsMap = new HashMap<IASTExpression, Integer>();
 		this.syntheticBranches = new ArrayList<String>();
+		this.resolvedTypeOverrides = new IdentityHashMap<>();
 	}
 	public UnitComponentInstrumentorVisitor() {
 		
@@ -596,7 +597,7 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 				distanceCalculation = new CASTBinaryExpression(CASTBinaryExpression.op_equals,
 						this.cloneExpression(switchExpression), this.cloneExpression(realCase.getExpression()));
 				distanceCalculation.setParent(statement.getParent());
-				INodeFactory  factory = statement.getTranslationUnit().getASTNodeFactory();
+				//INodeFactory  factory = statement.getTranslationUnit().getASTNodeFactory();
 				//distanceCalculation = new Factory();
 				/*if (getType(((IASTCastExpression) distanceCalculation).getOperand()) instanceof ProblemType
 				        || getType(((IASTBinaryExpression) distanceCalculation).getOperand2()) instanceof ProblemType) {
@@ -609,6 +610,8 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 				IType caseExprType = getType(realCase.getExpression());
 				resolvedTypeOverrides.put(((IASTBinaryExpression) distanceCalculation).getOperand1(), switchExprType);
 				resolvedTypeOverrides.put(((IASTBinaryExpression) distanceCalculation).getOperand2(), caseExprType);
+				
+
 				//System.out.println(distanceCalculation.getExpressionType());
 				// Creates an AND on with the != on the left and a "true"
 				CASTBinaryExpression defaultExpressionSubtree = new CASTBinaryExpression(
@@ -626,7 +629,8 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 				arguments[1] = new CASTLiteralExpression(CASTLiteralExpression.lk_integer_constant,
 						branchNumber.toString().toCharArray());
 				arguments[2] = new CASTLiteralExpression(CASTLiteralExpression.lk_integer_constant,
-						String.valueOf(CaseEdge.retrieveUniqueId(label)).toCharArray());
+						(label).toCharArray());
+				System.out.println("label - "+label+" is "+arguments[2].toString());
 				if (aCase.getChildren().length == 0) {
 					arguments[3] = distanceCalculation.copy(); // 1 return
 					arguments[4] = distanceCalculation.copy(); // 0 return
