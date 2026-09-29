@@ -9,6 +9,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.Stack;
 
+import org.aspectj.org.eclipse.jdt.core.IField;
 import org.eclipse.cdt.core.dom.ast.ASTVisitor;
 import org.eclipse.cdt.core.dom.ast.IASTArraySubscriptExpression;
 import org.eclipse.cdt.core.dom.ast.IASTBinaryExpression;
@@ -16,6 +17,7 @@ import org.eclipse.cdt.core.dom.ast.IASTCaseStatement;
 import org.eclipse.cdt.core.dom.ast.IASTCastExpression;
 import org.eclipse.cdt.core.dom.ast.IASTCompoundStatement;
 import org.eclipse.cdt.core.dom.ast.IASTConditionalExpression;
+import org.eclipse.cdt.core.dom.ast.IASTDeclSpecifier;
 import org.eclipse.cdt.core.dom.ast.IASTDeclaration;
 import org.eclipse.cdt.core.dom.ast.IASTDeclarator;
 import org.eclipse.cdt.core.dom.ast.IASTDefaultStatement;
@@ -30,8 +32,10 @@ import org.eclipse.cdt.core.dom.ast.IASTIdExpression;
 import org.eclipse.cdt.core.dom.ast.IASTIfStatement;
 import org.eclipse.cdt.core.dom.ast.IASTLiteralExpression;
 import org.eclipse.cdt.core.dom.ast.IASTName;
+import org.eclipse.cdt.core.dom.ast.IASTNamedTypeSpecifier;
 import org.eclipse.cdt.core.dom.ast.IASTNode;
 import org.eclipse.cdt.core.dom.ast.IASTNode.CopyStyle;
+import org.eclipse.cdt.core.dom.ast.IASTProblem;
 import org.eclipse.cdt.core.dom.ast.IASTSimpleDeclaration;
 import org.eclipse.cdt.core.dom.ast.IASTStatement;
 import org.eclipse.cdt.core.dom.ast.IASTSwitchStatement;
@@ -42,11 +46,15 @@ import org.eclipse.cdt.core.dom.ast.IASTWhileStatement;
 import org.eclipse.cdt.core.dom.ast.IBasicType;
 import org.eclipse.cdt.core.dom.ast.IBinding;
 import org.eclipse.cdt.core.dom.ast.IEnumeration;
+import org.eclipse.cdt.core.dom.ast.IEnumerator;
 import org.eclipse.cdt.core.dom.ast.INodeFactory;
 import org.eclipse.cdt.core.dom.ast.IPointerType;
 import org.eclipse.cdt.core.dom.ast.IProblemBinding;
 import org.eclipse.cdt.core.dom.ast.IProblemType;
+import org.eclipse.cdt.core.dom.ast.IQualifierType;
 import org.eclipse.cdt.core.dom.ast.IType;
+import org.eclipse.cdt.core.dom.ast.ITypedef;
+import org.eclipse.cdt.core.dom.ast.IValue;
 import org.eclipse.cdt.core.dom.ast.IVariable;
 import org.eclipse.cdt.core.dom.ast.c.ICPointerType;
 import org.eclipse.cdt.internal.core.dom.parser.ProblemType;
@@ -94,6 +102,7 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 	public Set<IASTNode> trackSynthetics = new HashSet<>();	
 	public Set<IASTNode> foundSynthetics = new HashSet<>();
 	private Map<IASTExpression, IType> resolvedTypeOverrides = new IdentityHashMap<>();
+	private Map<String, IType> typeBySignature = new HashMap<>();
 	private INodeFactory nodeFactory;
 	public UnitComponentInstrumentorVisitor(String pInstrumentFunction, ArrayList<String> testObjectives,
 			List<String> functionNames, Set<IASTNode> trackSynthetics) {
@@ -119,6 +128,7 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 		this.branchChainsMap = new HashMap<IASTExpression, Integer>();
 		this.syntheticBranches = new ArrayList<String>();
 		this.resolvedTypeOverrides = new IdentityHashMap<>();
+		this.typeBySignature = new HashMap<>();
 	}
 	public UnitComponentInstrumentorVisitor() {
 		
@@ -134,6 +144,7 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 		 * unique ids. The resulting CFG will never be used. TODO define a lightweight
 		 * visitor able to initialize the "case" unique ids only correctly.
 		 */
+		
 		tu.accept(new CFGVisitor(new CFG(), this.functionName));
 
 		return super.visit(tu);
@@ -562,8 +573,7 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 				cTrue.copy(), cTrue.copy());
 
 		IASTExpression switchExpression = statement.getControllerExpression();
-
-		if (switchExpression instanceof IASTFunctionCallExpression) {
+			if (switchExpression instanceof IASTFunctionCallExpression) {
 			int countTotalRegisters = 0;
 
 			for (IASTStatement aCase : caseStatements) {
@@ -585,6 +595,24 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 		CASTBinaryExpression currentDefaultExpression = defaultExpression;
 
 		boolean defaultWritten = false;
+		IType switchType = getType(switchExpression);
+		if (switchType == null || switchType instanceof IProblemType) {
+		    IEnumeration en = findEnumFromCases(statement);
+		    //System.out.println("enum from cases: " + en);   // confirm it's non-null!
+		    if (en != null) switchType = en;
+		}
+		if (switchType != null && !(switchType instanceof IProblemType))
+		    typeBySignature.put(sig(switchExpression), switchType);
+
+		// case labels (A, B) are enumerators, so also register them
+		for (IASTStatement s : caseStatements) {
+		    if (s instanceof IASTCaseStatement && !(s instanceof IASTDefaultStatement)) {
+		        IASTExpression ce = ((IASTCaseStatement) s).getExpression();
+		        IType ct = getType(ce);
+		        if (!(ct instanceof IProblemType))
+		            typeBySignature.put(sig(ce), ct);
+		    }
+		}
 		for (IASTStatement aCase : caseStatements) {
 			IASTExpression distanceCalculation;
 			String label;
@@ -606,10 +634,60 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 				}*/
 				// Resolve types from the ORIGINAL (unclonned) nodes, and attach them to the
 				// clones so downstream getType() calls don't need to re-resolve broken bindings.
-				IType switchExprType = getType(switchExpression);
-				IType caseExprType = getType(realCase.getExpression());
-				resolvedTypeOverrides.put(((IASTBinaryExpression) distanceCalculation).getOperand1(), switchExprType);
-				resolvedTypeOverrides.put(((IASTBinaryExpression) distanceCalculation).getOperand2(), caseExprType);
+/*				IASTExpression e = statement.getControllerExpression();
+				System.out.println("expr class: " + e.getClass().getSimpleName());
+
+				if (e instanceof IASTFieldReference) {
+				    IASTFieldReference fr = (IASTFieldReference) e;
+
+				    IBinding fieldB = fr.getFieldName().resolveBinding();
+				    System.out.println("field binding: " + fieldB.getClass().getSimpleName());
+				    if (fieldB instanceof IProblemBinding) {
+				        IProblemBinding pb = (IProblemBinding) fieldB;
+				        System.out.println("problem id=" + pb.getID() + " msg=" + pb.getMessage());
+				    }
+
+				    IASTExpression owner = fr.getFieldOwner();
+				    IType ownerType = owner.getExpressionType();
+				    System.out.println("owner type: " + ownerType + " / " + ownerType.getClass());
+				}
+
+				System.out.println("parent chain ok? " + (statement.getParent() != null));
+				System.out.println("TU: " + e.getTranslationUnit());          // null => detached/copied node
+				System.out.println("frozen: " + e.isFrozen());
+				System.out.println("AST problems: " + e.getTranslationUnit().getPreprocessorProblems().length);
+				
+				IType direct = switchExpression.getExpressionType();
+				System.out.println("direct: " + direct + " / " + direct.getClass().getSimpleName());
+
+				IBinding b = ((IASTFieldReference) switchExpression).getFieldName().resolveBinding();
+				IType ft = ((org.eclipse.cdt.core.dom.ast.IVariable) b).getType();
+				System.out.println("field type: " + ft + " / " + ft.getClass().getSimpleName());
+
+				// walk the typedef chain manually
+				IType cur = ft;
+				while (cur instanceof ITypedef) {
+				    System.out.println("  typedef " + ((ITypedef) cur).getName() + " -> " + ((ITypedef) cur).getType());
+				    cur = ((ITypedef) cur).getType();
+				}
+				System.out.println("final: " + cur + " / " + cur.getClass().getSimpleName());
+
+				System.out.println("Ocelot getType: " + getType(switchExpression));
+				
+				
+				
+				IType t = getType(switchExpression);
+				if (t == null || t instanceof IProblemType) {
+				    IEnumeration en = findEnumFromCases(statement);
+				    if (en != null) t = en;          // min/max = 0..2 from the enumerators
+				    //else t = 0;
+				}
+				
+				*/
+				//IType switchExprType = getType(switchExpression);
+				//IType caseExprType = getType(realCase.getExpression());
+				//resolvedTypeOverrides.put(((IASTBinaryExpression) distanceCalculation).getOperand1(), switchExprType);
+				//resolvedTypeOverrides.put(((IASTBinaryExpression) distanceCalculation).getOperand2(), caseExprType);
 				
 
 				//System.out.println(distanceCalculation.getExpressionType());
@@ -630,7 +708,7 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 						branchNumber.toString().toCharArray());
 				arguments[2] = new CASTLiteralExpression(CASTLiteralExpression.lk_integer_constant,
 						(label).toCharArray());
-				System.out.println("label - "+label+" is "+arguments[2].toString());
+				//System.out.println("label - "+label+" is "+arguments[2].toString());
 				if (aCase.getChildren().length == 0) {
 					arguments[3] = distanceCalculation.copy(); // 1 return
 					arguments[4] = distanceCalculation.copy(); // 0 return
@@ -1135,8 +1213,65 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 
 		return pExpression;
 	}
-
 	private IType getType(IASTExpression expression) {
+	    IType override = resolvedTypeOverrides.get(expression);
+	    
+	    if (override == null) override = typeBySignature.get(sig(expression));
+	    if (override != null) return getType(override);
+	    return getType(expression.getExpressionType());
+	   
+
+	    /*IType t = expression.getExpressionType();
+
+	    // fallback via the binding if the expression type is a problem
+	    if (t == null || t instanceof IProblemType) {
+	        IBinding b = null;
+	        if (expression instanceof IASTFieldReference)
+	            b = ((IASTFieldReference) expression).getFieldName().resolveBinding();
+	        else if (expression instanceof IASTIdExpression)
+	            b = ((IASTIdExpression) expression).getName().resolveBinding();
+
+	        if (b instanceof org.eclipse.cdt.core.dom.ast.IVariable)
+	            t = ((org.eclipse.cdt.core.dom.ast.IVariable) b).getType();
+	    }
+	    return getType(t);*/
+	}
+
+	private IType getType(IType type) {
+	    while (type instanceof ITypedef || type instanceof IQualifierType) {
+	        type = (type instanceof ITypedef)
+	                ? ((ITypedef) type).getType()
+	                : ((IQualifierType) type).getType();
+	    }
+	    //if (type instanceof IProblemType) new Exception("ProblemType reached getType").printStackTrace(System.out);
+	    return type;
+	}
+	private IEnumeration findEnumFromCases(IASTSwitchStatement sw) {
+	    final IEnumeration[] found = new IEnumeration[1];
+	    sw.getBody().accept(new ASTVisitor() {
+	        { shouldVisitStatements = true; }
+	        @Override public int visit(IASTStatement s) {
+	            if (found[0] == null && s instanceof IASTCaseStatement) {
+	                IASTExpression ce = ((IASTCaseStatement) s).getExpression();
+	                if (ce instanceof IASTIdExpression) {
+	                    IBinding b = ((IASTIdExpression) ce).getName().resolveBinding();
+	                    if (b instanceof IEnumerator) {
+	                        IType t = ((IEnumerator) b).getType();
+	                        if (t instanceof IEnumeration) found[0] = (IEnumeration) t;
+	                    }
+	                }
+	            }
+	            return PROCESS_CONTINUE;
+	        }
+	    });
+	    return found[0];
+	}
+	
+	private String sig(IASTExpression e) {
+	    return new ASTWriter().write(e);      // works on copies, unlike getRawSignature()
+	}
+
+	/*private IType getType(IASTExpression expression) {
 		IType override = resolvedTypeOverrides.get(expression);
 		if (override != null) {
 			return getType(override);
@@ -1153,7 +1288,7 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 
 		return type;
 	}
-
+*/
 	private void addTestObjectives(int branch) {
 
 		testObjectives.add(this.functionName + ":" + "branch" + branch + "-true");
@@ -1230,10 +1365,12 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 		if (expression instanceof IASTBinaryExpression) {
 			IASTBinaryExpression binExpr = (IASTBinaryExpression) expression;
 
-			IType leftType = binExpr.getOperand1().getExpressionType();
-			IType rightType = binExpr.getOperand2().getExpressionType();
-
-			return new TypePair(op1Type, op2Type);
+			//IType leftType = binExpr.getOperand1().getExpressionType();
+			IType leftType = getType(binExpr.getOperand1());
+			//IType rightType = binExpr.getOperand2().getExpressionType();
+			IType rightType = getType(binExpr.getOperand2());
+			return new TypePair(leftType, rightType);
+			//return new TypePair(op1Type, op2Type);
 
 		} else if (expression instanceof IASTUnaryExpression) {
 			return resolveComparisonType(((IASTUnaryExpression) expression).getOperand(), op2Type, op2Type);
@@ -1329,9 +1466,34 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 		return idExpr.getExpressionType(); // last resort
 	}*/
 	public TypeLimits mapToTypeTag(IType type) {
-		if (type == null) return new TypeLimits("0", "0");
-		IType ultimate = SemanticUtil.getUltimateType(type, false);
+		//System.out.println("Inside mapToTypeTag:"+type);
+		// null check FIRST: the original called type.toString() before it, which throws an NPE
+	    if (type == null) return new TypeLimits("-2147483648", "2147483647");
 
+	    // Strip typedefs and const/volatile, but not pointers, so the enum check sees the enum itself
+	    IType stripped = SemanticUtil.getNestedType(type, SemanticUtil.TDEF | SemanticUtil.CVTYPE);
+
+	    // ---- enum handling ----
+	    if (stripped instanceof IEnumeration) {
+	        TypeLimits enumLimits = enumLimits((IEnumeration) stripped);
+	        if (enumLimits != null) return enumLimits;
+	        // enumerators unusable: fall back to plain int
+	        return new TypeLimits("-2147483648", "2147483647");
+	    }
+
+	    // ---- unresolved type: use the int range rather than 0..0 ----
+	    if (stripped instanceof IProblemType) {
+	        return new TypeLimits("-2147483648", "2147483647");
+	    }
+
+	    IType ultimate = SemanticUtil.getUltimateType(type, false);
+
+	    // an enum can also sit behind a pointer/array/typedef, so check again
+	    if (ultimate instanceof IEnumeration) {
+	        TypeLimits enumLimits = enumLimits((IEnumeration) ultimate);
+	        return enumLimits != null ? enumLimits
+	                                  : new TypeLimits("-2147483648", "2147483647");
+	    }
 		if (ultimate instanceof IPointerType) {
 			// UINTPTR range on 64-bit Linux.
 			// TODO: same range applies on 64-bit Windows (LLP64 pointers are also 64-bit).
@@ -1400,6 +1562,25 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 		default:
 			return new TypeLimits("0", "0");
 		}
+	}
+	private TypeLimits enumLimits(IEnumeration en) {
+	    long min = Long.MAX_VALUE, max = Long.MIN_VALUE;
+	    IEnumerator[] enumerators = en.getEnumerators();
+	    for (IEnumerator e : enumerators) {
+	        IValue val = e.getValue();
+	        Long n = (val == null) ? null : val.numericalValue();   // was numberValue()
+	        if (n != null) {
+	            min = Math.min(min, n.longValue());
+	            max = Math.max(max, n.longValue());
+	        }
+	    }
+	    if (min > max) {
+	        // no value could be evaluated: assume implicit values 0..count-1
+	        if (enumerators.length == 0) return null;
+	        min = 0;
+	        max = enumerators.length - 1;
+	    }
+	    return new TypeLimits(Long.toString(min), Long.toString(max));
 	}
 	/*private IASTExpression makeTypeForBranchDistance(IASTExpression conditionExpression) {
 		IType chosenType = resolveComparisonType(conditionExpression);
