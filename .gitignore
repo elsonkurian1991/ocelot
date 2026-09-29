@@ -70,6 +70,7 @@ testobject/
 *.efl
 *.kl
 BranchDistanceTracker.txt
+BranchDistanceInstrumentationErrors.txt
 fitnessValues.txt
 testObjectives.to
 unitLevelComponents.txt
