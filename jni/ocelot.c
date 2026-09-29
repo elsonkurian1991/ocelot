@@ -1,12 +1,49 @@
 #include "ocelot.h"
 #include <math.h>
-
+#include <stdint.h>
 extern _t_ocelot_array *_v_ocelot_pointers;
 
 _T_ocelot_list *_v_ocelot_events;
 _T_ocelot_list *_v_ocelot_fcalls;
 
+/* Code for new representation of storing and reading the function name map and branch distance fitness tracker files */
+#define MAX_FUNCTIONS 4096
+
+static char *funcNames[MAX_FUNCTIONS];
+static int funcCount = 0;
+static FILE *nameMapFptr = NULL;
+static FILE *binFptr = NULL;
+
+#pragma pack(push, 1)
+typedef struct {
+    uint16_t funcId;
+    uint16_t branchId;
+    double   distanceTrue;
+    double   distanceFalse;
+} BranchRecord;
+#pragma pack(pop)
+
+static uint16_t getFunctionId(const char* functionName) {
+    for (int i = 0; i < funcCount; i++) {
+        if (strcmp(funcNames[i], functionName) == 0) return (uint16_t) i;
+    }
+    funcNames[funcCount] = strdup(functionName);
+    uint16_t newId = (uint16_t) funcCount;
+    funcCount++;
+
+    if (nameMapFptr == NULL) {
+        nameMapFptr = fopen("/tmp/evint-run/FunctionNameMap.txt", "a");
+    }
+    fprintf(nameMapFptr, "%d;%s\n", newId, functionName);
+    fflush(nameMapFptr); // cheap - only happens once per new function
+
+    return newId;
+}
+
 int _f_ocelot_branch_out(char* functionName, int count, int result, double distanceTrue, double distanceFalse) {
+	if (binFptr == NULL) {
+        	binFptr = fopen("/tmp/evint-run/BranchDistanceTracker.bin", "ab");
+    	}
 	if(distanceTrue == OCELOT_K_FAKE)
 	{
 		distanceTrue = OCELOT_K;
@@ -16,12 +53,8 @@ int _f_ocelot_branch_out(char* functionName, int count, int result, double dista
 		distanceFalse = OCELOT_K;
 	} 
 	
-	FILE *fptr;
 
-	// Open a file in writing mode
-	//fptr = fopen("BranchDistanceTracker.txt", "a");  
-	fptr = fopen("/tmp/evint-run/BranchDistanceTracker.txt", "a");
-
+	
 	//The following if is for some sanity checks. It will print warnings that should be checked to see if the isntrumentation is correct.
 	if ((distanceTrue == distanceFalse) | (((distanceTrue==1.0)&(distanceFalse!=0.0)) | ((distanceFalse==1.0)&(distanceTrue!=0.0))) | (!((distanceTrue==0.0)|(distanceFalse==0.0)))) {
 		FILE *fptr2;
@@ -83,32 +116,22 @@ int _f_ocelot_branch_out(char* functionName, int count, int result, double dista
 	   distanceTrue=1.0;
 	}
 	
-	// Write some text to the file
-	fprintf(fptr, functionName);
-	fprintf(fptr, ";");
-	fprintf(fptr, "branch%d", count);
-	fprintf(fptr, "-");
-	fprintf(fptr, "true");
-	fprintf(fptr, ";");
-	fprintf(fptr, "%.17f", distanceTrue);
-	fprintf(fptr, "\n");
-
-	fprintf(fptr, functionName);
-	fprintf(fptr, ";");
-	fprintf(fptr, "branch%d", count);
-	fprintf(fptr, "-");
-	fprintf(fptr, "false");
-	fprintf(fptr, ";");
-	fprintf(fptr, "%.17f", distanceFalse);
-	fprintf(fptr, "\n");
-
-	//fflush(fptr);
-	// Close the file
-	fclose(fptr);
-
+	BranchRecord rec;
+    	rec.funcId        = getFunctionId(functionName);
+    	rec.branchId      = (uint16_t) count;
+    	rec.distanceTrue  = distanceTrue;
+    	rec.distanceFalse = distanceFalse;
+	fwrite(&rec, sizeof(BranchRecord), 1, binFptr);
+	fflush(binFptr);
 	return result;
 }
-
+// MUST be called (via JNI) before Java reads the file, to flush the C stdio buffer to disk.
+void closeTracker() {
+    if (binFptr != NULL) {
+        fclose(binFptr);
+        binFptr = NULL;
+    }
+}
 void _f_ocelot_init() {
 	_v_ocelot_events = OCLIST_ALLOC(_T_ocelot_event);
 	_v_ocelot_fcalls = OCLIST_ALLOC(double);
