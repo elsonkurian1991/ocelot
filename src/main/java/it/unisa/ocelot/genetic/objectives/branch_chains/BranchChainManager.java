@@ -6,6 +6,10 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.nio.channels.FileChannel;
+import java.nio.file.Paths;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -24,8 +28,8 @@ import it.unisa.ocelot.genetic.solutions.GenericSolution;
  */
 public class BranchChainManager {
 	
-	public static final String BRANCH_DIST_TRACK_FILE = "/tmp/evint-run/BranchDistanceTracker.txt";
-
+	public static final String BRANCH_DIST_TRACK_FILE = "/tmp/evint-run/BranchDistanceTracker.bin";
+	private static Map<Integer, String> funcIdToName = new HashMap<>();
 	// Default filename for CDG output. The actual path is resolved lazily using test.basedir from ConfigManager.
 	private static final String DEFAULT_CDG_FILENAME = "cdg_output.txt";
 	// Filename for CFG+CDG human-readable dump (same directory as DEFAULT_CDG_FILENAME)
@@ -543,31 +547,71 @@ public class BranchChainManager {
 
 		return pairs;
 	}
-
+	// native declaration - must be bound via JNI to C's closeTracker()
+	public static native void closeTracker();//TODO
+	
+	private static void loadFunctionNameMap(String path) throws IOException {
+	    try (BufferedReader br = new BufferedReader(new FileReader(path))) {
+	        String line;
+	        while ((line = br.readLine()) != null) {
+	        	if (line.trim().isEmpty()) continue; // skip blank lines
+	            int sep = line.indexOf(';');
+	            if (sep != -1) {
+	            	funcIdToName.put(Integer.parseInt(line.substring(0, sep)), line.substring(sep + 1));
+	            }
+	            
+	        }
+	    }
+	}
+	
 	public static void cacheFitnessValues(GenericSolution solution) {
-		HashMap<String, Double> fitnessMap = new HashMap<>();
 
-		// Fills fitnessMap with the data from the BranchDistanceTracker.txt file
-		try (BufferedReader f_Val_File = new BufferedReader(new FileReader(BRANCH_DIST_TRACK_FILE))) {
-		//try (BufferedReader f_Val_File = new BufferedReader(new FileReader("./BranchDistanceTracker.txt"))) {
-			String lineBr = f_Val_File.readLine();
-			while (lineBr != null) {
-				FunBranchNameAndFitness infoFromLinebr = readInfoFromLine(lineBr);
-				if (fitnessMap.containsKey(infoFromLinebr.getFunBranchName()) && fitnessMap.get(infoFromLinebr.getFunBranchName()) < infoFromLinebr.getCurrFitnessVal()) {
-					// Do nothing
-				} else {
-					fitnessMap.put(infoFromLinebr.getFunBranchName(), infoFromLinebr.getCurrFitnessVal());
-				}
-				lineBr = f_Val_File.readLine();
-			}
+		//closeTracker(); // flush C's buffered writes to disk before reading
+	    try {
+			loadFunctionNameMap("/tmp/evint-run/FunctionNameMap.txt");
 		} catch (IOException e) {
-			System.err.println("Error reading "+BRANCH_DIST_TRACK_FILE+": " + e.getMessage());
+			// TODO Auto-generated catch block
+			e.printStackTrace();
 		}
+	    
+		HashMap<String, Double> fitnessMap = new HashMap<>();
+		// Fills fitnessMap with the data from the BranchDistanceTracker.txt file
+		try (FileChannel ch = FileChannel.open(Paths.get(BRANCH_DIST_TRACK_FILE))) {
+	        ByteBuffer bb = ByteBuffer.allocate((int) ch.size());
+	        ch.read(bb);
+	        bb.flip();
+	        bb.order(ByteOrder.LITTLE_ENDIAN); // matches C's native byte order (x86/ARM)
 
-		// updates the solution
-		solution.update(fitnessMap);
+	        while (bb.remaining() >= 20) {
+	            int funcId   = bb.getShort() & 0xFFFF; // unsigned
+	            int branchId = bb.getShort() & 0xFFFF; // unsigned
+	            double distTrue  = bb.getDouble();
+	            double distFalse = bb.getDouble();
+
+	            String funcName = funcIdToName.get(funcId);
+	         // Construct keys using COLON (:) matching readInfoFromLine's exact format
+	            // Check if branchId needs "branch" prefix or if MOSA uses just the number (e.g. "0-true")
+	            String keyTrue  = funcName + ":branch" + branchId + "-true";  // or funcName + ":branch" + branchId + "-true"
+	            String keyFalse = funcName + ":branch" + branchId + "-false"; // or funcName + ":branch" + branchId + "-false"
+
+	            updateFitness(fitnessMap, keyTrue, distTrue);
+	            updateFitness(fitnessMap, keyFalse, distFalse);
+	        }
+	    } catch (IOException e) {
+	        System.err.println("Error reading " + BRANCH_DIST_TRACK_FILE + ": " + e.getMessage());
+	    }
+
+	    solution.update(fitnessMap);
 	}
 
+	private static void updateFitness(Map<String, Double> map, String key, double val) {
+	    if (map.containsKey(key) && map.get(key) < val) {
+	        // Do nothing — preserves original min-keeping aggregation logic exactly
+	    } else {
+	        map.put(key, val);
+	    }
+	}
+	
 	private static FunBranchNameAndFitness readInfoFromLine(String lineBr) {
 		String listOfItems[] = lineBr.split(";");
 		String fName = listOfItems[0];

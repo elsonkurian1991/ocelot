@@ -72,8 +72,9 @@ public class Run {
 	 * config_vbcdm.properties
 	 * config_btm.properties
 	 * config_nv.properties
+	 * config_emdm.properties
 	 */
-	private static final String CONFIG_FILENAME = "config_ten.properties";
+	private static final String CONFIG_FILENAME = "config_lmc.properties";
 	public static final String LOCALUSER_DIR=System.getProperty("user.dir"); 
 
 	private static final int RUNNER_ILLEGAL = -1;
@@ -124,7 +125,7 @@ public class Run {
 		deleteFileIfExists(filePathToDelete2);
 		Path dir = Paths.get("/tmp/evint-run");//temp folder to keep the branch distance tracker txt file
 		Files.createDirectories(dir); 
-		String filePathToDelete3 = "/tmp/evint-run/BranchDistanceTracker.txt"; //do 
+		String filePathToDelete3 = "/tmp/evint-run/BranchDistanceTracker.bin"; //do 
 		deleteFileIfExists(filePathToDelete3);
 		String filePathToDelete4 = LOCALUSER_DIR+"/testObjectives.to"; //do 
 		deleteFileIfExists(filePathToDelete4);
@@ -136,6 +137,8 @@ public class Run {
 		deleteFileIfExists(filePathToDelete7);
 		String filePathToDelete8 = LOCALUSER_DIR+"/BranchDistanceInstrumentationErrors.txt"; //do 
 		deleteFileIfExists(filePathToDelete8);
+		String filePathToDelete9 = "/tmp/evint-run/FunctionNameMap.txt"; //do 
+		deleteFileIfExists(filePathToDelete9);
 		//delete previous experiment unwanted files from JNI folder
 		deleteUnwantedFilesFromJNIFolder(LOCALUSER_DIR);
 		ConfigManager getConfInfo = ConfigManager.getInstance();
