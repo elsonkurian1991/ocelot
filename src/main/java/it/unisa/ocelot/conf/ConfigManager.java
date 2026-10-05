@@ -24,7 +24,6 @@ public class ConfigManager {
 	private static String content;
 	
 	private String myFilename;
-	
 	private Properties properties;
 	
 	static {
@@ -32,57 +31,67 @@ public class ConfigManager {
 	}
 	
 	/**
-	 * Sets the filename of the configuration file. To be called before <code>getInstance</code>.
-	 * @return
+	 * Sets the filename of the configuration file. 
+	 * To be called before {@code getInstance}.
+	 * 
+	 * @param pFilename a {@link String}.
 	 */
 	public static void setFilename(String pFilename) {
 		filename = pFilename;
 		content = null;
 	}
 	
+	/**
+	 * Sets the content of the configuration file. 
+	 * To be called before {@code getInstance}.
+	 * 
+	 * @param pContent a {@link String}.
+	 */
 	public static void setDirectContent(String pContent) {
-		content = pContent;
 		filename = STATIC_CONTENT + UUID.randomUUID();
+		content = pContent;
 	}
 	
 	/**
-	 * Returns an instance of the configuration manager. Call <code>setFilename</code> before this method.
-	 * @return Instance of the manager
-	 * @throws IOException If there is an error opening the file
+	 * Returns an instance of the configuration manager. 
+	 * Call {@link #setFilename} or {@link #setDirectContent} 
+	 * before this method.
+	 * 
+	 * @return a {@link ConfigManager}.
+	 * @throws IOException if there is an error opening the file.
 	 */
 	public static ConfigManager getInstance() throws IOException {
 		if (instance == null || !instance.myFilename.equals(filename)) {
-			if (!filename.startsWith(STATIC_CONTENT))
-				instance = new ConfigManager(filename);
-			else {
+			if (filename.startsWith(STATIC_CONTENT)) {
 				instance = new ConfigManager();
 				instance.directLoadContent(filename, content);
+			} else {
+				instance = new ConfigManager(filename);
 			}
 		}
-		
 		return instance;
 	}
 	
-	private ConfigManager(String filename) throws IOException {
+	private ConfigManager() {
+		this.myFilename = null;
+		this.properties = null;
+	}
+	
+	private ConfigManager(String pFilename) throws IOException {
+		this.myFilename = pFilename;
 		this.properties = new Properties();
-		this.properties.load(new FileInputStream(filename));
-		
-		this.myFilename = filename;
+		this.properties.load(new FileInputStream(pFilename));
 	}
 	
-	public ConfigManager() {
-		this.myFilename = "";
-	}
-	
-	public void directLoadContent(String pFilename, String pContent) throws IOException {
+	private void directLoadContent(String pFilename, String pContent) throws IOException {
+		this.myFilename = pFilename;
 		this.properties = new Properties();
 		this.properties.load(new StringReader(pContent));
-		
-		this.myFilename = pFilename;
 	}
 	
 	/**
-	 * Returns the population size for the genetic algorithm (100 if not specified)
+	 * Returns the population size for the genetic algorithm (100 if not specified).
+	 * 
 	 * @return
 	 */
 	public int getPopulationSize() {
@@ -90,7 +99,8 @@ public class ConfigManager {
 	}
 	
 	/**
-	 * Returns the maximum number of evaluations for the genetic algorithm (2500 if not specified)
+	 * Returns the maximum number of evaluations for the genetic algorithm (2500 if not specified).
+	 * 
 	 * @return
 	 */
 	public int getMaxEvaluations() {
@@ -98,7 +108,8 @@ public class ConfigManager {
 	}
 	
 	/**
-	 * Returns the amount of time in seconds the genetic algorithm will run (uses evaluation if not specified)
+	 * Returns the amount of time in seconds the genetic algorithm will run (uses evaluation if not specified).
+	 * 
 	 * @return
 	 */
 	public int getExecutionTime() {
@@ -182,6 +193,7 @@ public class ConfigManager {
 	/**
 	 * Returns the target node specified in the configuration file.  
 	 * Will not be used in future.
+	 * 
 	 * @param pCfg Control Flow Graph
 	 * @return Target node to be reached by the genetic algorithm
 	 */
@@ -193,6 +205,7 @@ public class ConfigManager {
 	/**
 	 * Returns the target path specified in the configuration file.  
 	 * Will not be used in future.
+	 * 
 	 * @param pCfg Control Flow Graph
 	 * @return Target path to be reached by the genetic algorithm
 	 */
@@ -202,43 +215,24 @@ public class ConfigManager {
 	}
 	
 	/**
-	 * Return the types of the parameters of the function to be tested.
-	 * @return
-	 */
-	@SuppressWarnings("rawtypes")
-	@Deprecated
-	public Class[] getTestParameters() {
-		String parametersString = this.properties.getProperty("test.parameters.types", "");
-		
-		String[] types = StringUtils.split(parametersString, ",");
-        Class[] parameterTypes = new Class[types.length];
-        for (int i = 0; i < parameterTypes.length; i++) {
-        	if (types[i].startsWith("int"))
-        		parameterTypes[i] = Integer.class;
-        	else
-        		parameterTypes[i] = Double.class;
-        }
-        
-        return parameterTypes;
-	}
-	
-	/**
 	 * Returns the ranges for the parameters of the function to be tested. Each range should be in the form "N:M" and
-	 * the ranges should be separated by a space " ".
+	 * the ranges should be separated by a space.
+	 * 
 	 * @return
 	 */
 	public Range<Double>[] getTestRanges() {
 		String rangesString = this.properties.getProperty("test.parameters.ranges", "");
-		if (rangesString == "")
+		if (rangesString.isEmpty()) {
 			return null;
+		}
 		
-		String[] ranges = StringUtils.split(rangesString, " ");
+		String[] ranges = StringUtils.split(rangesString, ' ');
 		@SuppressWarnings("unchecked")
 		Range<Double>[] result = new Range[ranges.length];
 		
 		for (int i = 0; i < ranges.length; i++) {
 			String rangeString = ranges[i];
-			String[] rangeParts = StringUtils.split(rangeString, ":");
+			String[] rangeParts = StringUtils.split(rangeString, ':');
 			double from = Double.parseDouble(rangeParts[0]);
 			double to = Double.parseDouble(rangeParts[1]);
 			result[i] = Range.between(from, to);
@@ -250,25 +244,26 @@ public class ConfigManager {
 	/**
 	 * Returns the array of paths in which the include headers will be searched.
 	 * In new version, we use this to get the list of unit level components
+	 * 
 	 * @return
 	 */
 	public String[] getTestIncludePaths() {
 		String includeStrings = this.properties.getProperty("test.includes", "");
-		String[] includes = StringUtils.split(includeStrings, ",");
+		String[] includes = StringUtils.split(includeStrings, ',');
 		String basedir = this.getTestBasedir();
 		//System.out.println("List of Unit-level components used are as follows: ");
 		for (int i = 0; i < includes.length; i++) {
-			if (!includes[i].startsWith("/"))
+			if (!includes[i].startsWith("/")) {
 				includes[i] = basedir + includes[i];
+			}
 			//System.out.println(includes[i]);
 		}
-		
 		return includes;
-		
 	}
 	
 	/**
 	 * Returns the output folder.
+	 * 
 	 * @return
 	 */
 	public String getOutputFolder() {
@@ -276,23 +271,28 @@ public class ConfigManager {
 	}
 	
 	/**
-	 * Returns the list of test arguments for a simple test
+	 * Returns the list of test arguments for a simple test.
+	 * Requires to specify the list of parameters types.
+	 * 
 	 * @return
 	 */
 	public Object[] getTestArguments() {
+		String property = this.properties.getProperty("test.parameters.types", "");
+		String[] types = StringUtils.split(property, ',');
 		String argsString = this.properties.getProperty("test.simple");
-		String[] args = StringUtils.split(argsString, " ");
+		String[] args = StringUtils.split(argsString, ' ');
+		if (types.length != args.length) {
+    		throw new RuntimeException("Lists of parameter types and arguments do not have same length");
+		}
 		
-		@SuppressWarnings("rawtypes")
-		Class[] types = this.getTestParameters();
 		Object[] arguments = new Object[types.length];
-		
 		for (int i = 0; i < types.length; i++) {
-			Double dValue = new Double(Double.parseDouble(args[i]));
-			if (types[i] == Integer.class) {
-				arguments[i] = new Integer(dValue.intValue());
-			} else if (types[i] == Double.class) {
-				arguments[i] = dValue;
+			if (types[i].startsWith("int")) {
+				arguments[i] = Integer.parseInt(args[i]);
+			} else if (types[i].startsWith("double")) {
+				arguments[i] = Double.parseDouble(args[i]);
+			} else {
+        		throw new RuntimeException("Unexpected parameter type " + types[i]);
 			}
 		}
 		
@@ -301,18 +301,16 @@ public class ConfigManager {
 	
 	/**
 	 * Returns if configuration file allows printing the solution on the standard output
+	 * 
 	 * @return
 	 */
 	public boolean getPrintResults() {
-		String print = this.properties.getProperty("experiment.results.print", "false");
-		if (print.equalsIgnoreCase("true"))
-			return true;
-		else
-			return false;
+		return this.properties.getProperty("experiment.results.print", "false").equalsIgnoreCase("true");
 	}
 	
 	/**
 	 * Returns the folder that will contain the results of the genetic algorithm calculations
+	 * 
 	 * @return
 	 */
 	public String getResultsFolder() {
@@ -320,7 +318,9 @@ public class ConfigManager {
 	}
 	
 	/**
-	 * Returns the number of indipendent runs of the experiment (genetic algorithm) (1 if not specified).
+	 * Returns the number of independent runs of the experiment (genetic algorithm) 
+	 * (1 if not specified).
+	 * 
 	 * @return
 	 */
 	public int getExperimentRuns() {
@@ -329,23 +329,31 @@ public class ConfigManager {
 	
 	/**
 	 * Returns the base directory from which all the filenames in the config file will start.
+	 * 
 	 * @return
 	 */
 	public String getTestBasedir() {
 		String basedir = properties.getProperty("test.basedir", "./");
-		if (!basedir.endsWith("/"))
+		if (!basedir.endsWith("/")) {
 			basedir += "/";
+		}
 		return basedir;
 	}
 
 	/**
 	 * Returns <code>true</code> if debug is active, false otherwise.
+	 * 
 	 * @return
 	 */
 	public boolean getDebug() {
 		return this.properties.getProperty("test.debug", "false").equalsIgnoreCase("true");
 	}
 	
+	/**
+	 * Returns <code>true</code> if UI is active, false otherwise.
+	 * 
+	 * @return
+	 */
 	public boolean getUI() {
 		return this.properties.getProperty("test.ui", "false").equalsIgnoreCase("true");
 	}
@@ -405,11 +413,10 @@ public class ConfigManager {
 	public List<String> getCascadeGenerators() {
 		String cascade = this.properties.getProperty("suite.generator.cascade", "");
 		String[] array = cascade.split("\\,");
-		
 		List<String> list = new ArrayList<>();
-		for (String generator : array)
+		for (String generator : array) {
 			list.add(generator);
-		
+		}
 		return list;
 	}
 	
@@ -423,10 +430,11 @@ public class ConfigManager {
 	
 	public String[] getTestLink() {
 		String link = this.properties.getProperty("test.link", "");
-		if (link.equals(""))
+		if (link.isEmpty()) {
 			return new String[0];
-		else
+		} else {
 			return link.split("\\,");
+		}
 	}
 	
 	public boolean isDMCSeed() {
@@ -458,18 +466,20 @@ public class ConfigManager {
 	
 	public String[] getGlib2Paths() {
 		String paths = this.properties.getProperty("config.glib2Paths", "");
-		if (paths.equals(""))
+		if (paths.isEmpty()) {
 			return new String[0];
-		else
+		} else {
 			return paths.split("\\,");
+		}
 	}
 	
 	public String[] getJavaPaths() {
 		String paths = this.properties.getProperty("config.javaPaths", "");
-		if (paths.equals(""))
+		if (paths.isEmpty()) {
 			return new String[0];
-		else
+		} else {
 			return paths.split("\\,");
+		}
 	}
 	
 	public String getCFlags() {
@@ -507,7 +517,4 @@ public class ConfigManager {
 	public boolean isSplitBooleans() {
 		return this.properties.getProperty("experiment.splitbooleans", "false").equalsIgnoreCase("true");
 	}
-	
-	
-	
 }

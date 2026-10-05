@@ -19,13 +19,12 @@ import org.eclipse.cdt.internal.core.dom.rewrite.commenthandler.NodeCommentMap;
 /**
  * 
  * ASTWriter main class. Generates source code from <code>IASTNode</code>. Uses a
- * <codeC>hangeGeneratorWriterVisitor</code> to generate the code for the given
+ * <code>ChangeGeneratorWriterVisitor</code> to generate the code for the given
  * nodes.
  * 
  * @see ChangeGeneratorWriterVisitor
  * 
  * @author Emanuel Graf
- * 
  */
 public class ASTWriter {
 	
@@ -56,7 +55,7 @@ public class ASTWriter {
 
 	/**
 	 * 
-	 * Genereates the source code representing this node.
+	 * Generates the source code representing this node.
 	 * 
 	 * @param rootNode Node to write.
 	 * @return A <code>String</code> representing the source code for the node.

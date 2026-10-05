@@ -54,23 +54,21 @@ import it.unisa.ocelot.c.cfg.CFGVisitor;
 import it.unisa.ocelot.c.cfg.edges.CaseEdge;
 
 public class UnitComponentInstrumentorVisitor extends ASTVisitor {
-	private Stack<List<IASTStatement>> switchExpressions;
 	private String functionName;
+	private ArrayList<String> testObjectives;
+	private Stack<List<IASTStatement>> switchExpressions;
 	private List<IASTNode> typedefs;
 	private List<IASTExpression> functionCallsInExpressions;
-	private ArrayList<String> testObjectives;
-	// Map a function to all the branches that can be taken to reach that function
+	private Integer branchNumber;
+	// Maps a function to the branches that can be taken to reach that function
 	public Map<String, List<String>> functionBranchPairMap;
-	// Map a node in the AST to the branches taken to reach that node
+	private HashSet<String> targetFunctions;
+	// Maps a IASTNode to the branches taken to reach that node
 	private HashMap<IASTNode, List<String>> nodeBranchMap;
+	// For synthetic generated ifs from boolean variables, see BooleanAssignmentTransformer
+	public ArrayList<String> syntheticBranches;
 	// A list of all the branches present in this function
 	// public List<String> functionBranches;
-
-	private Integer branchNumber;
-	private HashSet<String> targetFunctions;
-	
-	// For synthetic generated ifs from boolean variables, see BooleanAssignmentTransformer
-	public ArrayList<String> SyntheticBranches;
 
 	public UnitComponentInstrumentorVisitor(String pInstrumentFunction, ArrayList<String> testObjectives,
 			List<String> functionNames) {
@@ -82,24 +80,16 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 		this.shouldVisitDeclSpecifiers = true;
 		this.shouldVisitPointerOperators = true;
 
-		// Function that i'm executing
 		this.functionName = pInstrumentFunction;
-
-		this.switchExpressions = new Stack<List<IASTStatement>>();
-		this.typedefs = new ArrayList<IASTNode>();
-		this.functionCallsInExpressions = new ArrayList<>();
-
-		this.branchNumber = 0;
 		this.testObjectives = testObjectives;
-
-		// Stores the names of the functions we are interested in for integration
-		// testing
+		this.switchExpressions = new Stack<>();
+		this.typedefs = new ArrayList<>();
+		this.functionCallsInExpressions = new ArrayList<>();
+		this.branchNumber = 0;
 		this.functionBranchPairMap = new HashMap<>();
-		this.targetFunctions = new HashSet<String>(functionNames);
-		this.nodeBranchMap = new HashMap<IASTNode, List<String>>();
-		
-		this.SyntheticBranches = new ArrayList<String>();
-
+		this.targetFunctions = new HashSet<>(functionNames);
+		this.nodeBranchMap = new HashMap<>();		
+		this.syntheticBranches = new ArrayList<>();
 	}
 
 	public List<IASTNode> getTypedefs() {
@@ -114,7 +104,6 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 		 * visitor able to initialize the "case" unique ids only correctly.
 		 */
 		tu.accept(new CFGVisitor(new CFG(), this.functionName));
-
 		return super.visit(tu);
 	}
 
@@ -122,12 +111,13 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 		super.visit(name);
 		if (name instanceof CASTFunctionDefinition) {
 			IASTFunctionDefinition function = (CASTFunctionDefinition) name;
-
-			if (!function.getDeclarator().getName().getRawSignature().equals(this.functionName))
+			if (!function.getDeclarator().getName().getRawSignature().equals(this.functionName)) {
 				return PROCESS_SKIP;
+			}
 		} else if (name instanceof IASTSimpleDeclaration) {
-			if (name.getRawSignature().startsWith("typedef "))
+			if (name.getRawSignature().startsWith("typedef ")) {
 				this.typedefs.add(name);
+			}
 			if (((IASTSimpleDeclaration) name).getDeclSpecifier() instanceof CASTCompositeTypeSpecifier) {
 				name.setParent(null);
 			}
@@ -139,10 +129,11 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 
 	public IASTExpression transformEquals(IASTBinaryExpression pExpression, boolean pNegation,
 			boolean pTransPerformed) {
-		if (!pNegation)
-			return this.transformComparisonExpression(pExpression, "eq", IASTBinaryExpression.op_equals);
-		else
+		if (pNegation) {
 			return this.transformNotEquals(pExpression, false, pTransPerformed);
+		} else {
+			return this.transformComparisonExpression(pExpression, "eq", IASTBinaryExpression.op_equals);
+		}
 	}
 
 	public IASTExpression transformGreaterThan(IASTBinaryExpression pExpression, boolean pNegation,
@@ -313,13 +304,13 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 				}
 
 				IASTExpression distanceExpression;
-				if (operator != -1)
+				if (operator != -1) {
 					distanceExpression = new CASTBinaryExpression(operator,
 							this.cloneExpression(realExpression.getOperand1()),
 							this.cloneExpression(realExpression.getOperand2()));
-				else
+				} else {
 					distanceExpression = this.cloneExpression(realExpression.getOperand1());
-
+				}
 				return this.transformDistanceExpression(distanceExpression, pNegation, pTransPerformed);
 			} else {
 				IASTExpression[] arguments = new IASTExpression[1];
@@ -331,10 +322,11 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 				realExpression.setOperand1(this.transformDistanceExpression(operand1, pNegation, pTransPerformed));
 				realExpression.setOperand2(this.transformDistanceExpression(operand2, pNegation, pTransPerformed));
 
-				if (!pTransPerformed)
+				if (!pTransPerformed) {
 					return makeFunctionCall("_f_ocelot_istrue", arguments);
-				else
+				} else {
 					return realExpression;
+				}
 			}
 
 		} else if (expression instanceof IASTUnaryExpression) {
@@ -349,10 +341,11 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 
 					IASTExpression result;
 
-					if (!pNegation)
+					if (!pNegation) {
 						result = makeFunctionCall("_f_ocelot_istrue", arguments);
-					else
+					} else {
 						result = makeFunctionCall("_f_ocelot_isfalse", arguments);
+					}
 					// System.out.println(result.getRawSignature().toString());
 					return result;
 				} else {
@@ -527,8 +520,8 @@ public class UnitComponentInstrumentorVisitor extends ASTVisitor {
 		
 		// For synthetic generated ifs from boolean variables, see BooleanAssignmentTransformer
 		if (statement.getPropertyInParent() != null && statement.getPropertyInParent().getName().equals("GENERATED")) {
-			SyntheticBranches.add(functionName + ":" + "branch" + branchNumber + "-" + "true"); 
-			SyntheticBranches.add(functionName + ":" + "branch" + branchNumber + "-" + "false");
+			syntheticBranches.add(functionName + ":" + "branch" + branchNumber + "-" + "true"); 
+			syntheticBranches.add(functionName + ":" + "branch" + branchNumber + "-" + "false");
 			}
 		addTestObjectives(branchNumber);
 		branchNumber++;

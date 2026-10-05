@@ -43,40 +43,41 @@ import it.unisa.ocelot.runnable.runners.GenAndWrite;
 import it.unisa.ocelot.util.Debugger;
 import it.unisa.ocelot.util.Utils;
 
-@SuppressWarnings({ "unused", "deprecation", "restriction" })
+@SuppressWarnings({ "unused", "deprecation" })
 public class Run {
 	public static final String VERSION = "1.0";
+	public static final boolean isExpWithEvalFun = true; // this will treat as our version of OCELOT
 
-	public static final String HASH_FILENAME = ".lastbuild.cks";
-	private static final String CONFIG_FILENAME = "config.properties";
-
+	private static final String localOcelotDir = System.getProperty("user.dir"); 
+	private static final StringBuilder logWriter = new StringBuilder();
+	private static final String HASH_FILENAME = ".lastbuild.cks";
+	private static final String CONFIG_FILENAME = "config_one.properties";
 	private static final int RUNNER_ILLEGAL = -1;
 	private static final int RUNNER_SIMPLE_EXECUTE = 0;
 	private static final int RUNNER_EXPERIMENT = 1;
 	private static final int RUNNER_WRITE = 2;
 
+	private static int population_size;
+	private static int evaluations_max;
+	
 	private int runnerType;
 	private String[] experimentGenerators;
 	private boolean forceBuild;
 	private String configFilename;
-
 	private boolean forceNoBuild;
-	public static final String localOcelotDir=System.getProperty("user.dir"); 
-	public static final boolean isExpWithEvalFun=true;// this will treat as our version of OCELOT
-	public static StringBuilder logWriter = new StringBuilder();
-	public static int population_size;
-	public static int evaluations_max;
 	
 	//List of generated objectives
 	public static List<GenericObjective> generatedObjectives;
 	public static List<GenericObjective> branchObjective;
-	enum State{
+	
+	enum State {
 		zeroCover,
 		oneCover,
 		twoCover
 	}
+	
 	public static void main(String[] args) throws Exception {
-		if(isExpWithEvalFun) {
+		if (isExpWithEvalFun) {
 			welcome();
 		}
 
@@ -257,7 +258,8 @@ public class Run {
 		System.out.println("Forward pairs covered:" + (forwardLevel1covered + forwardLevel2covered));
 		System.out.println("Forward pairs size:" + totalPairCombination);
 		logWriter.append((forwardLevel1covered + forwardLevel2covered)+" out of "+totalPairCombination+" pair combination  covered in the generated test suite ");
-		logWriter.append("\n");logWriter.append("\n");
+		logWriter.append("\n");
+		logWriter.append("\n");
 		//System.out.println("The covered pair combinations are: ");
 
 	}
@@ -416,7 +418,13 @@ public class Run {
 	}
 
 	public void run() throws Exception {
-		System.load(localOcelotDir+"/libTest.so");
+		File libFile;
+		libFile = new File(localOcelotDir+"/libTest.so");
+		if (!libFile.exists())
+			libFile = new File(localOcelotDir+"/Test.dll");
+		if (!libFile.exists())
+			libFile = new File(localOcelotDir+"/libTest.jnilib");
+		System.load(libFile.getPath());
 		switch (this.runnerType) {
 		case RUNNER_SIMPLE_EXECUTE:
 			System.out.println("Running simple coverage test");

@@ -5,18 +5,14 @@ import it.unisa.ocelot.util.Utils;
 import java.io.File;
 import java.io.IOException;
 import java.util.HashMap;
-import java.util.Map;
 
 import org.apache.commons.io.IOUtils;
 import org.eclipse.cdt.core.dom.ast.IASTTranslationUnit;
 import org.eclipse.cdt.core.dom.ast.gnu.c.GCCLanguage;
-import org.eclipse.cdt.core.index.IIndex;
 import org.eclipse.cdt.core.model.ILanguage;
 import org.eclipse.cdt.core.parser.DefaultLogService;
 import org.eclipse.cdt.core.parser.FileContent;
-import org.eclipse.cdt.core.parser.IParserLogService;
 import org.eclipse.cdt.core.parser.IScannerInfo;
-import org.eclipse.cdt.core.parser.IncludeFileContentProvider;
 import org.eclipse.cdt.core.parser.ScannerInfo;
 import org.eclipse.cdt.core.parser.tests.scanner.FileCodeReaderFactory;
 import org.eclipse.core.runtime.CoreException;
@@ -28,6 +24,7 @@ public class GCC implements Compiler {
 		return commandLine(new String[] {"bash",  "-c", "gcc -E \"" + pInput.getAbsolutePath() + "\" | sed '/^\\#/d'"});
 	}
 	
+	@Override
 	public String preprocess(File pInput, File pOutput) {
 		return commandLine(new String[] {"gcc",  "-E", pInput.getPath()});
 	}
@@ -49,25 +46,42 @@ public class GCC implements Compiler {
 		}
 	}
 	
-	public static IASTTranslationUnit getTranslationUnit(String pSourceFilename, String[] pIncludePaths)
-			throws IOException, CoreException {
-		String codeString = Utils.readFile(pSourceFilename);
-		FileContent fileContent = FileContent.create(pSourceFilename, codeString.toCharArray());
-		Map<String, String> macroDefinitions = new HashMap<String, String>();
-		IScannerInfo scannerInfo = new ScannerInfo(macroDefinitions, pIncludePaths);
-		IncludeFileContentProvider includeContentProvider = FileCodeReaderFactory.getInstance();
-		
-		IIndex index = null;
-		int options = ILanguage.OPTION_IS_SOURCE_UNIT;
-		IParserLogService log = new DefaultLogService();
+	/**
+	 * Gets the {@link IASTTranslationUnit} object for a given
+	 * source file.
+	 * 
+	 * @param pSourceFilename a {@link String}, the name of the file.
+	 * @param pIncludePaths a {@link String}{@code ...}, a list of
+	 *        paths where the header files to be included must be
+	 *        searched.
+	 * @return a {@link IASTTranslationUnit}.
+	 * @throws IOException
+	 * @throws CoreException
+	 */
+	public static IASTTranslationUnit getTranslationUnit(String pSourceFilename, String... pIncludePaths)
+	throws IOException, CoreException {
+		String sourceCode = Utils.readFile(pSourceFilename);
+		FileContent sourceFileContent = FileContent.create(pSourceFilename, sourceCode.toCharArray());
+		IScannerInfo scannerInfo = new ScannerInfo(new HashMap<>(), pIncludePaths);
 		
 		return GCCLanguage.getDefault().getASTTranslationUnit(
-				fileContent, scannerInfo, includeContentProvider, index, options, log);
+				sourceFileContent, scannerInfo, 
+				FileCodeReaderFactory.getInstance(), null, 
+				ILanguage.OPTION_IS_SOURCE_UNIT, 
+				new DefaultLogService());
 	}
 
-	
+	/**
+	 * Gets the {@link IASTTranslationUnit} object for a given
+	 * source file (no path for #include files).
+	 * 
+	 * @param pSourceFilename a {@link String}, the name of the file.
+	 * @return a {@link IASTTranslationUnit}.
+	 * @throws IOException
+	 * @throws CoreException
+	 */
 	public static IASTTranslationUnit getTranslationUnit(String pSourceFilename)
-			throws IOException, CoreException {		
+	throws IOException, CoreException {		
 		return getTranslationUnit(pSourceFilename, new String[0]);
 	}
 }

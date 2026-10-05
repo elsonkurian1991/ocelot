@@ -5,24 +5,19 @@ import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
-import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.stream.Collectors;
 
 import org.apache.commons.io.IOUtils;
 import org.eclipse.cdt.core.dom.ast.IASTNode;
@@ -32,76 +27,65 @@ import org.eclipse.cdt.core.dom.ast.IASTTranslationUnit;
 import org.eclipse.cdt.core.dom.rewrite.ASTRewrite;
 
 import it.unisa.ocelot.c.compiler.GCC;
+import it.unisa.ocelot.c.compiler.writer.ASTWriter;
 import it.unisa.ocelot.c.instrumentor.BooleanAssignmentTransformer;
 import it.unisa.ocelot.c.instrumentor.ExternalReferencesVisitor;
 import it.unisa.ocelot.c.instrumentor.InstrumenterVisitForIfMethodCalls;
 import it.unisa.ocelot.c.instrumentor.InstrumentorVisitor;
+import it.unisa.ocelot.c.instrumentor.InstrumentorVisitorToAddBranch;
 import it.unisa.ocelot.c.instrumentor.MacroDefinerVisitor;
-import it.unisa.ocelot.c.instrumentor.StatementTreePrinter;
 import it.unisa.ocelot.c.instrumentor.UnitComponentInstrumentorVisitor;
 import it.unisa.ocelot.conf.ConfigManager;
 import it.unisa.ocelot.util.Utils;
 import it.unisa.ocelot.genetic.edges.TestObjStateMachine;
 
 public class StandardBuilder extends Builder {
+	private ConfigManager config;
 	private String testFilename;
 	private String testFunction;
 	private String[] testIncludes;
 	private List<String> unitLevelComponents;
+	private HashMap<String, ArrayList<String>> componentsTestObjectives;
+	// Maps the caller function to an hashmap, that maps the called function 
+	// to the branches required to take that function
+	private Map<String, Map<String, List<String>>> nodeBranchMap;
+	private ArrayList<String> syntheticBranches;
 
 	private String callMacro;
 	private String externDeclarations;
-
-	private ConfigManager config;
-	private HashMap<String, ArrayList<String>> componentsTestObjectives;
-	
-	// Maps the caller function to an hashmap, that maps the called function 
-	// to the braches required to take that function
-	private Map<String, Map<String, List<String>>> nodeBranchMap;
-	
-	private ArrayList<String> SyntheticBranches;
 
 	public StandardBuilder(String pTestFilename, String pTestFunction, String[] pTestIncludes) {
 		super();
 		setOutput(System.out);
 
-		
+		try {
+			this.config = ConfigManager.getInstance();
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}
 		this.testFilename = pTestFilename;
 		this.testFunction = pTestFunction;
 		this.testIncludes = pTestIncludes;
-		this.unitLevelComponents = readUnitLevelComponents();
-		this.componentsTestObjectives = new HashMap<String, ArrayList<String>>();
-		this.nodeBranchMap = new HashMap<String, Map<String, List<String>>>();
-		
-		this.SyntheticBranches = new ArrayList<String>();
-	}
-
-	private List<String> readUnitLevelComponents() {
-		List<String> unitLevelComponents = new ArrayList<String>();
-		try {
-			this.config = ConfigManager.getInstance();
-			//unitLevelComponents = Files.readAllLines(Paths.get("unitLevelComponents.txt"));
-			unitLevelComponents = config.getUnitLevelComponents();
-			//System.out.println(unitLevelComponents);
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		return unitLevelComponents;
+		this.unitLevelComponents = this.config.getUnitLevelComponents();
+		this.componentsTestObjectives = new HashMap<>();
+		this.nodeBranchMap = new HashMap<>();
+		this.syntheticBranches = new ArrayList<>();
 	}
 
 	@Override
 	public void build() throws IOException, BuildingException {
-		
-		if (this.makefileGenerator == null)
+		if (this.makefileGenerator == null) {
 			throw new BuildingException("No makefile generator specified");
-		if (this.stream == null)
-			throw new BuildingException("No output stream specified" + "");
-		// Insturments the code and copies it in main.c
+		}
+		if (this.stream == null) {
+			throw new BuildingException("No output stream specified");
+		}
+
+		// Instruments the code and copies it in main.c
 		try {
-			this.stream.print("Instrumenting Unit-Level Components: C file... \n");
+			this.stream.println("Instrumenting Unit-Level Components: C file...");
 			instrumentUnitComponents();
-			this.stream.print("Instrumenting Target C file... \n");
+			this.stream.println("Instrumenting Target C file...");
 			instrument();
 			this.stream.println("Done!");
 		} catch (Exception e) {
@@ -109,7 +93,8 @@ public class StandardBuilder extends Builder {
 			throw new BuildingException(e.getMessage());
 		}
 
-		// Adds extra macros in CBridge.c
+		// Generates EN_CBridge.c (from CBridge.c)
+		// and pointers.h
 		this.stream.print("Defining test function call... ");
 		enrichJNICall();
 		this.stream.println("Done!");
@@ -117,50 +102,35 @@ public class StandardBuilder extends Builder {
 		// Builds the library
 		this.stream.print("Building library... ");
 		this.makefileGenerator.generate();
-		this.stream.print("........... ");
+		this.stream.print("...........");
 		Process proc = this.makefileGenerator.runCompiler();
-		
-		//this.stream.println(IOUtils.toString(proc.getInputStream()));
-		
-		//following code is add for output all the complier error from gcc. 
+
+		//emits the compiler output/error text 
 		ExecutorService executor = Executors.newFixedThreadPool(2);
-	
+		Future<String> stdoutFuture = executor.submit(() -> IOUtils.toString(proc.getInputStream(), StandardCharsets.UTF_8));
+		Future<String> stderrFuture = executor.submit(() -> IOUtils.toString(proc.getErrorStream(), StandardCharsets.UTF_8));
+		executor.shutdown();
 
-		Future<String> stdoutFuture = (Future<String>) executor.submit(() -> IOUtils.toString(proc.getInputStream(), StandardCharsets.UTF_8));
-		Future<String> stderrFuture = (Future<String>) executor.submit(() -> IOUtils.toString(proc.getErrorStream(), StandardCharsets.UTF_8));
-
-		String stdout = null;
+		String stdout = null, stderr = null;
 		try {
 			stdout = stdoutFuture.get();
-		} catch (InterruptedException e) {
-			e.printStackTrace();
-		} catch (ExecutionException e) {
-			e.printStackTrace();
-		}
-		String stderr = null;
-		try {
 			stderr = stderrFuture.get();
-		} catch (InterruptedException e) {
-			e.printStackTrace();
-		} catch (ExecutionException e) {
+		} catch (InterruptedException | ExecutionException e) {
 			e.printStackTrace();
 		}
-		
 		this.stream.println(stdout);
-
 		if (!stderr.isEmpty()) {
-		    this.stream.println("Compiler errors:");
-		    this.stream.println(stderr);
+			this.stream.println("Compiler errors:");
+			this.stream.println(stderr);
 		}
-		executor.shutdown();
 
 		try {
 			int result;
-			if ((result = proc.waitFor()) == 0)
+			if ((result = proc.waitFor()) == 0) {
 				this.stream.println("Done!");
-			else {
+			} else {
 				this.stream.println("ABORTED. An error occurred: " + result);
-				throw new BuildingException(IOUtils.toString(proc.getErrorStream()));
+				throw new BuildingException(IOUtils.toString(proc.getErrorStream(), StandardCharsets.UTF_8));
 			}
 		} catch (InterruptedException e) {
 			throw new BuildingException("Interrupted");
@@ -170,265 +140,150 @@ public class StandardBuilder extends Builder {
 	}
 
 	private void instrumentUnitComponents() throws Exception {
-		//int arr=0;
-		String[] testIncludesTemp= new String[1];
-		
-		
-		FileWriter cfgWriter = new FileWriter("callgraph.txt");
+		try (FileWriter cfgWriter = new FileWriter("callgraph.txt")) {
+			for (String testInclude : this.testIncludes) {
+				int lastIndex = testInclude.lastIndexOf('/');
+				String testFunName = testInclude.substring(lastIndex + 1);
+				//System.out.println(testFunName);
+				String unitComponent = testFunName.substring(0, testFunName.length() - 2);
+				//System.out.println(unitComponent);
+				if (this.unitLevelComponents.contains(unitComponent)) {
+					String nameOfComponent = "jni/" + testInclude.substring(lastIndex + 1);
+					//System.out.println(nameofComponent);
+					IASTTranslationUnit translationUnit = GCC.getTranslationUnit(testInclude, testInclude).copy();
 
-		
-		for(String unitComponent:this.testIncludes) {
-			int lastIndex=unitComponent.lastIndexOf('/');
-			String testFunName=unitComponent.substring(lastIndex+1);
-			//System.out.println(testFunName);
-			String tempUnitComponent=testFunName.substring(0, testFunName.length()-2);
-			//System.out.println(tempUnitComponent);
-			if(unitLevelComponents.contains(tempUnitComponent)) {
-				String nameofComponent="jni/"+unitComponent.substring(lastIndex+1);
-				//System.out.println(nameofComponent);
+					if (this.config.isSplitBooleans()) {
+						BooleanAssignmentTransformer at = new BooleanAssignmentTransformer();
+						at.transform(translationUnit);
+					}
 
-				testIncludesTemp[0]=unitComponent;
-				IASTTranslationUnit translationUnit = GCC.getTranslationUnit(unitComponent, testIncludesTemp).copy();
-				
-				/*System.out.println(translationUnit);
-				Field[] fields = translationUnit.getClass().getDeclaredFields();
-				for (Field field: fields) {
-					System.out.println(field);
-				}*/
-				
-				/*IASTPreprocessorStatement[] macros = translationUnit.getAllPreprocessorStatements();
+					//Here we add a instrumentation visitor for method call in the if condition.
+					ASTRewrite rewriter = ASTRewrite.create(translationUnit);
+					InstrumenterVisitForIfMethodCalls instrumentor_if_method_call = new InstrumenterVisitForIfMethodCalls(unitComponent, rewriter);
+					translationUnit.accept(instrumentor_if_method_call);
 
-				ExternalReferencesVisitor referencesVisitor = new ExternalReferencesVisitor(testFunName);
-				translationUnit.accept(referencesVisitor);
+					//instrumentor
+					ArrayList<String> testObjectives = new ArrayList<>();
+					UnitComponentInstrumentorVisitor instrumentor1 = new UnitComponentInstrumentorVisitor(unitComponent,
+							testObjectives, this.unitLevelComponents);
+					translationUnit.accept(instrumentor1);//old ours
 
-				InstrumentorVisitor instrumentor = new InstrumentorVisitor(testFunName);
-				MacroDefinerVisitor macroDefiner = new MacroDefinerVisitor(testFunName,
-						referencesVisitor.getExternalReferences());
+					if(testObjectives.isEmpty()) {
+						// not using the isSpclFunWObranch instrumentation now!!!!!!!!!!!!!!!!!!!!!!!!!
+						testObjectives.add(unitComponent + ":" + "branch0-true");
+						ASTRewrite rewriterBranch = ASTRewrite.create(translationUnit);
+						InstrumentorVisitorToAddBranch InstAddBranch = new InstrumentorVisitorToAddBranch(unitComponent,rewriterBranch);
+						translationUnit.accept(InstAddBranch);
+						System.out.println("File modified with temp branch:"+unitComponent);
 
-				// NOTE: macroDefine MUST preceed instrumentor in visit
-				translationUnit.accept(macroDefiner);
-				translationUnit.accept(instrumentor);
-				 */
-				if(config.isSplitBooleans()) {
-					BooleanAssignmentTransformer at = new BooleanAssignmentTransformer(translationUnit);
-					translationUnit.accept(at);
-				}
-				
+					}
 
-				// Instruments unit-level components
-				//for (String component : unitLevelComponents) {
-				ExternalReferencesVisitor referencesVisitor1 = new ExternalReferencesVisitor(tempUnitComponent);
-				translationUnit.accept(referencesVisitor1);
+					this.componentsTestObjectives.put(unitComponent, testObjectives);
+					// Need to store this one outside the loop to generate the branch pairs
+					this.nodeBranchMap.put(unitComponent, instrumentor1.functionBranchPairMap);
+					this.syntheticBranches.addAll(instrumentor1.syntheticBranches);
 
-				ArrayList<String> testObjectives = new ArrayList<String>();
-
-				
-				//if(testObjectives.isEmpty()) continue;
-				
-				MacroDefinerVisitor macroDefiner1 = new MacroDefinerVisitor(tempUnitComponent,
-						referencesVisitor1.getExternalReferences());
-
-				// NOTE: macroDefine MUST preceed instrumentor in visit
-				translationUnit.accept(macroDefiner1);
-				
-			
-				// Used to print the structure of the AST for debugging
-				//StatementTreePrinter printer = new StatementTreePrinter();
-				//translationUnit.accept(printer);
-				//Utils.writeFile(tempUnitComponent+"printer.txt", printer.result.toString());
-				//Here we add a instrumention visitor for method call in the if condition.
-				ASTRewrite rewriter = ASTRewrite.create(translationUnit);
-				InstrumenterVisitForIfMethodCalls instrumentor_if_method_call = new InstrumenterVisitForIfMethodCalls(tempUnitComponent,rewriter);
-				translationUnit.accept(instrumentor_if_method_call);
-				//till here...
-				UnitComponentInstrumentorVisitor instrumentor1 = new UnitComponentInstrumentorVisitor(tempUnitComponent,
-						testObjectives, unitLevelComponents);
-				translationUnit.accept(instrumentor1);//old ours
-				componentsTestObjectives.put(tempUnitComponent, testObjectives);
-				// Need to store this one outside the loop to generate the branch pairs
-				nodeBranchMap.put(tempUnitComponent, instrumentor1.functionBranchPairMap);
-				
-				SyntheticBranches.addAll(instrumentor1.SyntheticBranches);
-				
-				// Write down information for callgraph/CFG rapresentation
-				try {
-					  cfgWriter.append("Functions called by the component " + tempUnitComponent + "\n");
-				      cfgWriter.append(tempUnitComponent + "::" + instrumentor1.functionBranchPairMap.keySet());
-					  cfgWriter.append("\n");
-					  cfgWriter.append("Branches taken to call the functions\n");
-					  cfgWriter.append(instrumentor1.functionBranchPairMap.toString());
-					  cfgWriter.append("\n");
-					  cfgWriter.append("All branches in the component\n");
-					  cfgWriter.append(tempUnitComponent + "::" + testObjectives);
-					  cfgWriter.append("\n");
-					  
-				    } catch (IOException e) {
-				      System.out.println("Unable to generate file callgraph.txt");
-				      e.printStackTrace();
-				      }
-				    
-				
-				//}
-				
-
-				it.unisa.ocelot.c.compiler.writer.ASTWriter writer = new it.unisa.ocelot.c.compiler.writer.ASTWriter();
-
-				String outputCode = writer.write(translationUnit);
-				
-				StringBuilder result = new StringBuilder();
-				/*for (IASTPreprocessorStatement macro : macros) {
-					if (macro instanceof IASTPreprocessorIncludeStatement) {
-						IASTPreprocessorIncludeStatement include = (IASTPreprocessorIncludeStatement) macro;
-						if (include.isSystemInclude())
-							result.append(macro.getRawSignature()).append("\n");
-					} else
-						result.append(macro.getRawSignature()).append("\n");
-				}*/
-				result.append("#include \"ocelot.h\"\n");
-				result.append(outputCode);
-				//Utils.writeFile(code, outputCode);
-				//FileWriter writer = new FileWriter(filePath)
-
-				Utils.writeFile(nameofComponent, result.toString());
-
-				StringBuilder mainHeader = new StringBuilder();
-				mainHeader.append("#include \"ocelot.h\"\n");
-				mainHeader.append("#include <stdio.h>\n");
-				mainHeader.append("#include <math.h>\n");
-				/*for (IASTNode typedef : instrumentor.getTypedefs()) {
-					mainHeader.append(writer.write(typedef));
-					mainHeader.append("\n");
-				}*/
-
-				mainHeader.append("#define OCELOT_TESTFUNCTION ").append(testFunName).append("\n");
-
-				Utils.writeFile("jni/main.h", mainHeader.toString());
-				//TODO here we consider only true branch. need a false branch also!!
-				if (componentsTestObjectives.containsKey(tempUnitComponent) && componentsTestObjectives.get(tempUnitComponent) != null && componentsTestObjectives.get(tempUnitComponent).isEmpty()) {
-					// add a temp branch because there is no branch in the function. 
-					//System.out.println(tempUnitComponent);
-					
-					ArrayList<String> tempTestObj= new ArrayList<String>();
-					tempTestObj.add(tempUnitComponent + ":" + "branch0-true");
-					componentsTestObjectives.replace(tempUnitComponent, tempTestObj);
-					String tempBranchInfo="if(_f_ocelot_branch_out(\""+tempUnitComponent+"\",0,true,0,1)){"
-							+ "\n}\n";
-					try {// Read that C file, and temp branch
-						String filePath="jni/"+tempUnitComponent+".c";
-						//System.out.println(filePath);
-						String content = new String(Files.readAllBytes(Paths.get(filePath)));
-						// Find the position of the last '}'
-						int lastBraceIndex = content.lastIndexOf('}');
-						if (lastBraceIndex != -1) {
-							// Insert the string before the last '}'
-							String modifiedContent = content.substring(0, lastBraceIndex) + tempBranchInfo + content.substring(lastBraceIndex);
-							Files.write(Paths.get(filePath), modifiedContent.getBytes());
-							System.out.println(tempUnitComponent+" File is modified successfully with temp branch.");
-						} 
+					// Write down information for callgraph/CFG representation
+					try {
+						cfgWriter.append("Functions called by the component " + unitComponent + "\n");
+						cfgWriter.append(unitComponent + "::" + instrumentor1.functionBranchPairMap.keySet());
+						cfgWriter.append('\n');
+						cfgWriter.append("Branches taken to call the functions\n");
+						cfgWriter.append(instrumentor1.functionBranchPairMap.toString());
+						cfgWriter.append('\n');
+						cfgWriter.append("All branches in the component\n");
+						cfgWriter.append(unitComponent + "::" + testObjectives);
+						cfgWriter.append('\n');
 					} catch (IOException e) {
+						System.out.println("Unable to generate file callgraph.txt");
 						e.printStackTrace();
 					}
-				}
-				reportComponentsTestObjectives(componentsTestObjectives);
-				//this.callMacro = macroDefiner.getCallMacro();
-				//this.externDeclarations = referencesVisitor.getExternalDeclarations();
-			}
-			else {
-				//here, just copy the other supported files to jni folder, eg kcg_types, database etc.
-				File sourceFile = new File(unitComponent);
-				File jniDir = new File("jni");
-				 if (!sourceFile.exists()) {
-				 System.out.println("Source file does not exist: " + unitComponent);
-				 return;
-				 }
-				 File destFile = new File(jniDir, sourceFile.getName());
-				 try {
-					 Files.copy(sourceFile.toPath(), destFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
-					 System.out.println("File copied to: " + destFile.getAbsolutePath());
-					 } catch (IOException e) {
-					  System.out.println("Error copying file: " + e.getMessage());
-					  }
 
+					ASTWriter writer = new ASTWriter();
+					String outputCode = writer.write(translationUnit);
+
+					StringBuilder result = new StringBuilder();
+					result.append("#include \"ocelot.h\"\n");
+					result.append(outputCode);
+					Utils.writeFile(nameOfComponent, result.toString());
+
+					reportComponentsTestObjectives(this.componentsTestObjectives);
+				} else {
+					//here, just copy the other supported files to jni folder, eg kcg_types, database etc.
+					File sourceFile = new File(testInclude);
+					File jniDir = new File("jni");
+					if (!sourceFile.exists()) {
+						System.out.println("Source file does not exist: " + testInclude);
+						return;
+					}
+					File destFile = new File(jniDir, sourceFile.getName());
+					try {
+						Files.copy(sourceFile.toPath(), destFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+						System.out.println("File copied to: " + destFile.getAbsolutePath());
+					} catch (IOException e) {
+						System.out.println("Error copying file: " + e.getMessage());
+					}
+				}
+			} //end for loop
+
+
+			// This code generates the pairs - we don't care, we are using this tool only for branch coverage!
+			//generatePairs();
+
+			// Synthetic branches
+			try { 
+				FileOutputStream fos = new FileOutputStream("SyntheticBranches"); 
+				ObjectOutputStream oos = new ObjectOutputStream(fos); 
+				oos.writeObject(this.syntheticBranches); 
+				oos.close(); 
+				fos.close(); 
+			} catch (IOException ioe) { 
+				ioe.printStackTrace(); 
 			}
-			
-			
+
+			// This code generates branchObjectives.txt used to compare
+			// MOSA with branches optimization with MOSA with pairs optimization
+			StringBuilder branchObjList = new StringBuilder();
+			for (ArrayList<String> component : this.componentsTestObjectives.values()) {
+				for (String branch : component) {
+					branchObjList.append(branch);
+					branchObjList.append(',');
+				}
+			}
+			Utils.writeFile("branchObjectives.txt", branchObjList.toString());
 		}
-		
-		cfgWriter.close();
-		
-		
-		
-		//Synthetic Branches
-		try { 
-            FileOutputStream fos = new FileOutputStream("SyntheticBranches"); 
-            ObjectOutputStream oos = new ObjectOutputStream(fos); 
-            oos.writeObject(SyntheticBranches); 
-            oos.close(); 
-            fos.close(); 
-        } 
-        catch (IOException ioe) { 
-            ioe.printStackTrace(); 
-        }
-		
-		// Martino
-		// This code generates the pairs
-		generatePairs();
-		
-		// This code generates BranchObjectives used to compare
-		// DynaMOSA with branches optimization with DynaMOSA with pairs obtimization
-		StringBuilder branchObjList = new StringBuilder();
-		for (ArrayList<String> component : componentsTestObjectives.values()) {
-			for ( String branch : component) {
-				branchObjList.append(branch);
-				branchObjList.append(",");
-			}
-		}
-		Utils.writeFile("branchObjectives.txt", branchObjList.toString());
-		/**
-		direct
-		for (String func : nodeBranchMap.keySet()) {
-			Map<String, List<String>> functionBranchPairMap = nodeBranchMap.get(func);
-			for (String calledFunc : functionBranchPairMap.keySet()) {
-				// have to multiply some of the starting function branches with all of the arriving function branches
-				cartesianProduct(functionBranchPairMap.get(calledFunc), 
-			}
-		}**/
-		
 	}
-	
+
 	private void generatePairs() {
 		int indirectionLevel = 2;
-		List<List<TestObjStateMachine>> indirectPairs = new ArrayList<List<TestObjStateMachine>>();
+		List<List<TestObjStateMachine>> indirectPairs = new ArrayList<>();
 		for (int j = 0; j < indirectionLevel; j++) {
-			indirectPairs.add(j, new ArrayList<TestObjStateMachine>());
+			indirectPairs.add(j, new ArrayList<>());
 		}
-		for(String unitComponent:this.testIncludes) {
-			int lastIndex=unitComponent.lastIndexOf('/');
-			String testFunName=unitComponent.substring(lastIndex+1);
-
-			String tempUnitComponent=testFunName.substring(0, testFunName.length()-2);
-			
-
-			if(unitLevelComponents.contains(tempUnitComponent)) {
-				List<List<TestObjStateMachine>>  localIndirectPairs = generatePairforFunction(tempUnitComponent, indirectionLevel);
+		for (String testInclude : this.testIncludes) {
+			int lastIndex = testInclude.lastIndexOf('/');
+			String testFunName = testInclude.substring(lastIndex + 1);
+			String unitComponent = testFunName.substring(0, testFunName.length() - 2);
+			if (this.unitLevelComponents.contains(unitComponent)) {
+				List<List<TestObjStateMachine>> localIndirectPairs = generatePairForFunction(unitComponent, indirectionLevel);
 				for (int j = 0; j < indirectionLevel; j++) {
 					indirectPairs.get(j).addAll(localIndirectPairs.get(j));
 				}
-				}
 			}
+		}
 		try { 
-            FileOutputStream fos = new FileOutputStream("PairsData"); 
-            ObjectOutputStream oos = new ObjectOutputStream(fos); 
-            oos.writeObject(indirectPairs); 
-            oos.close(); 
-            fos.close(); 
-        } 
-        catch (IOException ioe) { 
-            ioe.printStackTrace(); 
-        } 
+			FileOutputStream fos = new FileOutputStream("PairsData"); 
+			ObjectOutputStream oos = new ObjectOutputStream(fos); 
+			oos.writeObject(indirectPairs); 
+			oos.close(); 
+			fos.close(); 
+		} 
+		catch (IOException ioe) { 
+			ioe.printStackTrace(); 
+		} 
 	}
-	
-	private List<List<TestObjStateMachine>> generatePairforFunction(String functionName, int indirectionLevel) {
+
+	private List<List<TestObjStateMachine>> generatePairForFunction(String functionName, int indirectionLevel) {
 		Map<String, List<String>> functionToBranchesMap = nodeBranchMap.get(functionName);
 		List<List<TestObjStateMachine>> indirectPairs = new ArrayList<List<TestObjStateMachine>>();
 		for (int j = 0; j < indirectionLevel; j++) {
@@ -440,18 +295,18 @@ public class StandardBuilder extends Builder {
 			List<String> usedBranches = functionToBranchesMap.get(calledFunc);
 			List<List<String>> indirectBraches = generateIndirectPairs(calledFunc, indirectionLevel, functionName);
 			List<List<TestObjStateMachine>>  localIndirectPairs  = cartesianProduct(usedBranches, indirectBraches);
-			
+
 			for (int j = 0; j < indirectionLevel; j++) {
 				indirectPairs.get(j).addAll(localIndirectPairs.get(j));
 			}
 
-			
+
 		}
 		return indirectPairs;
 	}
-	
+
 	private List<List<String>> generateIndirectPairs(String calledFunction, int indirectionLevel, String startingFunctionName) {
-		List<List<String>> overallIndirectBraches = new ArrayList<List<String>>();
+		List<List<String>> overallIndirectBranches = new ArrayList<List<String>>();
 		//List<String> levelIndirectBranches = new ArrayList<String>();
 		/*for(String indirectFunction : nodeBranchMap.get(functionName).keySet()) {
 			if (indirectFunction != startingFunctionName) {
@@ -459,155 +314,140 @@ public class StandardBuilder extends Builder {
 				levelIndirectBranches.addAll(branchesToAdd);
 			}
 		}*/
-		ArrayList<String> DirectBranchesToAdd = componentsTestObjectives.get(calledFunction);
-		overallIndirectBraches.add(DirectBranchesToAdd);
+		ArrayList<String> directBranchesToAdd = this.componentsTestObjectives.get(calledFunction);
+		overallIndirectBranches.add(directBranchesToAdd);
 		if (indirectionLevel > 1) {
-			List<List<List<String>>> localOverallIndirectBraches = new ArrayList<List<List<String>>>(); // for and aggregate generate pairs
-			for(String indirectFunction: nodeBranchMap.get(calledFunction).keySet()) {
+			List<List<List<String>>> localOverallIndirectBranches = new ArrayList<>(); // for and aggregate generate pairs
+			for (String indirectFunction : this.nodeBranchMap.get(calledFunction).keySet()) {
 				if (indirectFunction != startingFunctionName) {
-					localOverallIndirectBraches.add(generateIndirectPairs(indirectFunction, indirectionLevel - 1, startingFunctionName));
+					localOverallIndirectBranches.add(generateIndirectPairs(indirectFunction, indirectionLevel - 1, startingFunctionName));
 				}
 			}
-			if (localOverallIndirectBraches.isEmpty()) {
+			if (localOverallIndirectBranches.isEmpty()) {
 				for (int i = 0; i < indirectionLevel - 1; i++) {
-					overallIndirectBraches.add(new ArrayList<String>());
+					overallIndirectBranches.add(new ArrayList<>());
 				}
+			} else {
+				overallIndirectBranches.addAll(aggregatePairsByIndirectionLevel(localOverallIndirectBranches));
 			}
-			else {
-				overallIndirectBraches.addAll(aggregatePairsByIndirectionLevel(localOverallIndirectBraches));
-				}
-			}
-		return overallIndirectBraches;
-
-	}
-	
-	private List<List<String>> aggregatePairsByIndirectionLevel(List<List<List<String>>> localOverallIndirectBraches){
-		List<List<String>> overallIndirectBraches = new ArrayList<List<String>>();
-		try {
-		for (int i = 0; i < localOverallIndirectBraches.get(0).size(); i++) {
-			List<String> aggregator = new ArrayList<String>();
-			for(List<List<String>> indirectTreeBranches: localOverallIndirectBraches) {
-				aggregator.addAll(indirectTreeBranches.get(i)); 
-			}
-			overallIndirectBraches.add(aggregator);
 		}
-    } 
-    catch (Exception ioe) { 
-        ioe.printStackTrace(); 
-    } 
-		
-		
+		return overallIndirectBranches;
+	}
+
+	private List<List<String>> aggregatePairsByIndirectionLevel(List<List<List<String>>> localOverallIndirectBranches) {
+		List<List<String>> overallIndirectBraches = new ArrayList<>();
+		try {
+			for (int i = 0; i < localOverallIndirectBranches.get(0).size(); i++) {
+				List<String> aggregator = new ArrayList<>();
+				for (List<List<String>> indirectTreeBranches : localOverallIndirectBranches) {
+					aggregator.addAll(indirectTreeBranches.get(i)); 
+				}
+				overallIndirectBraches.add(aggregator);
+			}
+		} catch (Exception ioe) { 
+			ioe.printStackTrace(); 
+		} 
 		return overallIndirectBraches;
 	}
-	
-	private List<List<TestObjStateMachine>> cartesianProduct(List<String> setA, List<List<String>> indirectBraches) {
-	    List<List<TestObjStateMachine>> cartesianSet = new ArrayList<List<TestObjStateMachine>>();
 
-	    for (int j = 0; j < indirectBraches.size(); j++) {
-	    	cartesianSet.add(j, new ArrayList<TestObjStateMachine>());
-	    }
-	    
-	    for (String i: setA) {
-	    	for (int j = 0; j < indirectBraches.size(); j++) {
-	        	for (String k: indirectBraches.get(j)) {
-	                String testObjOne=i;
-					String testObjTwo=k;
+	private List<List<TestObjStateMachine>> cartesianProduct(List<String> setA, List<List<String>> indirectBranches) {
+		List<List<TestObjStateMachine>> cartesianSet = new ArrayList<>();
+
+		for (int j = 0; j < indirectBranches.size(); j++) {
+			cartesianSet.add(j, new ArrayList<>());
+		}
+
+		for (String i: setA) {
+			for (int j = 0; j < indirectBranches.size(); j++) {
+				for (String k: indirectBranches.get(j)) {
+					String testObjOne = i;
+					String testObjTwo = k;
 					TestObjStateMachine testobjSM = new TestObjStateMachine(testObjOne,testObjTwo); ; 
 					cartesianSet.get(j).add(testobjSM);
 				}
-	        }
-	    }
-	    return cartesianSet;
+			}
+		}
+		return cartesianSet;
 	}
 
 	private void instrument() throws Exception {
-		String code = Utils.readFile(this.testFilename);
-
 		IASTTranslationUnit translationUnit = GCC.getTranslationUnit(this.testFilename, this.testIncludes).copy();
 
-		IASTPreprocessorStatement[] macros = translationUnit.getAllPreprocessorStatements();
+		//gets all the preprocessor statements (#includes, #defines...)
+		//in the translation unit
+		IASTPreprocessorStatement[] preprocessorStatements = translationUnit.getAllPreprocessorStatements();
 
+		//gets the "extern..." declarations to be added to
+		//CBridge.c
 		ExternalReferencesVisitor referencesVisitor = new ExternalReferencesVisitor(this.testFunction);
-		translationUnit.accept(referencesVisitor);
-
-		InstrumentorVisitor instrumentor = new InstrumentorVisitor(this.testFunction);
-		MacroDefinerVisitor macroDefiner = new MacroDefinerVisitor(this.testFunction,
-				referencesVisitor.getExternalReferences());
-
-		// NOTE: macroDefine MUST preceed instrumentor in visit
-		translationUnit.accept(macroDefiner);
-		translationUnit.accept(instrumentor);
-
-		/*HashMap<String, ArrayList<String>> componentsTestObjectives = new HashMap<String, ArrayList<String>>();
-
-		// Instruments unit-level components
-		for (String component : unitLevelComponents) {
-			ExternalReferencesVisitor referencesVisitor1 = new ExternalReferencesVisitor(component);
-			translationUnit.accept(referencesVisitor1);
-
-			ArrayList<String> testObjectives = new ArrayList<String>();
-			UnitComponentInstrumentorVisitor instrumentor1 = new UnitComponentInstrumentorVisitor(component,
-					testObjectives);
-			componentsTestObjectives.put(component, testObjectives);
-			MacroDefinerVisitor macroDefiner1 = new MacroDefinerVisitor(component,
-					referencesVisitor1.getExternalReferences());
-
-			// NOTE: macroDefine MUST preceed instrumentor in visit
-			translationUnit.accept(macroDefiner1);
-			translationUnit.accept(instrumentor1);
-			
-		}
-		System.out.println(componentsTestObjectives.toString());
-		reportComponentsTestObjectives(componentsTestObjectives);
-		*/
-		it.unisa.ocelot.c.compiler.writer.ASTWriter writer = new it.unisa.ocelot.c.compiler.writer.ASTWriter();
-
-		String outputCode = writer.write(translationUnit);
-
-		StringBuilder result = new StringBuilder();
-		for (IASTPreprocessorStatement macro : macros) {
-			if (macro instanceof IASTPreprocessorIncludeStatement) {
-				IASTPreprocessorIncludeStatement include = (IASTPreprocessorIncludeStatement) macro;
-				if (include.isSystemInclude())
-					result.append(macro.getRawSignature()).append("\n");
-			} else
-				result.append(macro.getRawSignature()).append("\n");
-		}
-		result.append("#include \"ocelot.h\"\n");
-		result.append(outputCode);
-
-		Utils.writeFile("jni/main.c", result.toString());
-
-		StringBuilder mainHeader = new StringBuilder();
-		mainHeader.append("#include \"ocelot.h\"\n");
-		mainHeader.append("#include <stdio.h>\n");
-		mainHeader.append("#include <math.h>\n");
-		for (IASTNode typedef : instrumentor.getTypedefs()) {
-			mainHeader.append(writer.write(typedef));
-			mainHeader.append("\n");
-		}
-
-		mainHeader.append("#define OCELOT_TESTFUNCTION ").append(this.testFunction).append("\n");
-		//TODO mainHeader.append("int main(/*list of all parameter's data types*/);\n"
-		Utils.writeFile("jni/main.h", mainHeader.toString());
-
-		this.callMacro = macroDefiner.getCallMacro();
+		referencesVisitor.calculate(translationUnit);
 		this.externDeclarations = referencesVisitor.getExternalDeclarations();
+
+		//gets the macros definitions to be added to
+		//CBridge.c
+		MacroDefinerVisitor macroDefiner = 
+				new MacroDefinerVisitor(this.testFunction, referencesVisitor.getExternalReferences());
+		macroDefiner.calculate(translationUnit);
+		this.callMacro = macroDefiner.getCallMacro();
+
+		//instruments the test function for branch distances
+		InstrumentorVisitor instrumentor = new InstrumentorVisitor(this.testFunction);
+		instrumentor.transform(translationUnit);
+
+		ASTWriter writer = new ASTWriter();
+
+		//generates main.c
+		StringBuilder mainC = new StringBuilder();
+		mainC.append("/** DO NOT EDIT. THIS FILE IS AUTOMATICALLY GENERATED BY THE BUILDER **/\n");
+		for (IASTPreprocessorStatement preprocessorStatement : preprocessorStatements) {
+			if (preprocessorStatement instanceof IASTPreprocessorIncludeStatement) {
+				IASTPreprocessorIncludeStatement include = (IASTPreprocessorIncludeStatement) preprocessorStatement;
+				if (include.isSystemInclude()) {
+					mainC.append(preprocessorStatement.getRawSignature()).append('\n');
+				}
+			} else {
+				mainC.append(preprocessorStatement.getRawSignature()).append('\n');
+			}
+		}
+		mainC.append("#include \"ocelot.h\"\n");
+		mainC.append(writer.write(translationUnit));
+		Utils.writeFile("jni/main.c", mainC.toString());
+
+		//generates main.h
+		StringBuilder mainH = new StringBuilder();
+		mainH.append("/** DO NOT EDIT. THIS FILE IS AUTOMATICALLY GENERATED BY THE BUILDER **/\n");
+		mainH.append("#include \"ocelot.h\"\n");
+		mainH.append("#include <stdio.h>\n");
+		mainH.append("#include <math.h>\n");
+		for (IASTNode typedef : instrumentor.getTypedefs()) {
+			mainH.append(writer.write(typedef));
+			mainH.append("\n");
+		}
+		mainH.append("#define OCELOT_TESTFUNCTION ");
+		mainH.append(this.testFunction);
+		mainH.append('\n');
+		mainH.append(writer.write(referencesVisitor.getFunctionDefinition().getDeclSpecifier()));
+		mainH.append(' ');
+		mainH.append(writer.write(referencesVisitor.getFunctionDefinition().getDeclarator()));
+		mainH.append(";\n");
+		Utils.writeFile("jni/main.h", mainH.toString());
 	}
 
 	private void enrichJNICall() throws IOException {
+		//generates EN_CBridge.c
 		String metaJNI = Utils.readFile("jni/CBridge.c");
+		metaJNI = "/** DO NOT EDIT. THIS FILE IS AUTOMATICALLY GENERATED BY THE BUILDER **/\n" + 
+				this.callMacro + "\n\n" + 
+				this.externDeclarations + "\n\n" + 
+				metaJNI;
+		Utils.writeFile("jni/EN_CBridge.c", metaJNI);
 
-		metaJNI = callMacro + "\n\n" + externDeclarations + "\n\n" + metaJNI;
-
+		//generates pointers.h
 		String pointersH = "/** DO NOT EDIT. THIS FILE IS AUTOMATICALLY GENERATED BY THE BUILDER **/\n";
 		pointersH += "#ifndef _Included_OcelotPointers\n" + "#define _Included_OcelotPointers\n"
 				+ "#define OCELOT_ARRAYS_SIZE " + this.config.getTestArraysSize() + "\n"
 				+ "typedef double _t_ocelot_array[OCELOT_ARRAYS_SIZE];\n" + "#endif\n";
-
 		Utils.writeFile("jni/pointers.h", pointersH);
-
-		Utils.writeFile("jni/EN_CBridge.c", metaJNI);
 	}
 
 	private void reportComponentsTestObjectives(HashMap<String, ArrayList<String>> componentsTestObjectives) {

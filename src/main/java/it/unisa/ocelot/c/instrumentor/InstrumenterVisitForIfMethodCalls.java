@@ -1,16 +1,9 @@
 package it.unisa.ocelot.c.instrumentor;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-
-import org.aspectj.org.eclipse.jdt.core.dom.rewrite.ListRewrite;
 import org.eclipse.cdt.core.dom.ast.ASTVisitor;
-import org.eclipse.cdt.core.dom.ast.IASTCaseStatement;
 import org.eclipse.cdt.core.dom.ast.IASTCompoundStatement;
 import org.eclipse.cdt.core.dom.ast.IASTDeclarationStatement;
 import org.eclipse.cdt.core.dom.ast.IASTDeclarator;
-import org.eclipse.cdt.core.dom.ast.IASTDefaultStatement;
 import org.eclipse.cdt.core.dom.ast.IASTDoStatement;
 import org.eclipse.cdt.core.dom.ast.IASTEqualsInitializer;
 import org.eclipse.cdt.core.dom.ast.IASTExpression;
@@ -31,21 +24,15 @@ import org.eclipse.cdt.core.dom.ast.IASTWhileStatement;
 import org.eclipse.cdt.core.dom.ast.INodeFactory;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPASTFunctionCallExpression;
 import org.eclipse.cdt.core.dom.rewrite.ASTRewrite;
-import org.eclipse.cdt.internal.core.dom.parser.cpp.CPPASTCompoundStatement;
-import org.eclipse.cdt.internal.core.dom.rewrite.ASTModification;
-import org.eclipse.cdt.internal.core.dom.rewrite.ASTModificationStore;
-import org.eclipse.text.edits.TextEditGroup;
 
 import it.unisa.ocelot.c.cfg.CFG;
 import it.unisa.ocelot.c.cfg.CFGVisitor;
 
-public class InstrumenterVisitForIfMethodCalls extends ASTVisitor{
+public class InstrumenterVisitForIfMethodCalls extends ASTVisitor {
 	private final String functionName;
-	private final ASTRewrite rewriter;
-	private int booleanVariableCounter = 0;
+	private int booleanVariableCounter;
 
-
-	public InstrumenterVisitForIfMethodCalls(String pInstrumentFunction,ASTRewrite rewriter) {
+	public InstrumenterVisitForIfMethodCalls(String pInstrumentFunction, ASTRewrite rewriter) {
 		this.shouldVisitExpressions = true;
 		this.shouldVisitStatements = true;
 		this.shouldVisitDeclarations = true;
@@ -53,20 +40,22 @@ public class InstrumenterVisitForIfMethodCalls extends ASTVisitor{
 		this.shouldVisitTranslationUnit = true;
 		this.shouldVisitDeclSpecifiers = true;
 		this.shouldVisitPointerOperators = true;
+		
 		this.functionName = pInstrumentFunction;
-		this.rewriter = rewriter;
+		this.booleanVariableCounter = 0;
 	}
+	
 	@Override
 	public int visit(IASTTranslationUnit tu) {
 		/*
 		 * Simulates the generation of a CFG in order to correctly retrieve the "case"
-		 * unique ids. The resulting CFG will never be used. TODO define a lightweight
-		 * visitor able to initialize the "case" unique ids only correctly.
+		 * unique ids. The resulting CFG will never be used. 
+		 * TODO define a lightweight visitor able to initialize the "case" unique ids only correctly.
 		 */
 		tu.accept(new CFGVisitor(new CFG(), this.functionName));
-
 		return super.visit(tu);
 	}
+	
 	private boolean containsMethodCall(IASTExpression expression) {
 		if (expression == null) {
 			return false;
@@ -74,7 +63,7 @@ public class InstrumenterVisitForIfMethodCalls extends ASTVisitor{
 
 		// Direct method call check
 		if (expression instanceof ICPPASTFunctionCallExpression || 
-				expression instanceof IASTFunctionCallExpression) {
+			expression instanceof IASTFunctionCallExpression) {
 			return true;
 		}
 
@@ -87,9 +76,11 @@ public class InstrumenterVisitForIfMethodCalls extends ASTVisitor{
 
 		return false;
 	}
+	
 	private String generateBooleanVariableName() {
-		return "conditionResult_" + (++booleanVariableCounter);
+		return "conditionResult_" + (++this.booleanVariableCounter);
 	}
+	
 	private IASTDeclarationStatement createBooleanDeclaration(String varName, IASTExpression initExpression, 
 			IASTTranslationUnit translationUnit) {
 		INodeFactory factory = translationUnit.getASTNodeFactory();
@@ -110,6 +101,7 @@ public class InstrumenterVisitForIfMethodCalls extends ASTVisitor{
 		// Wrap in declaration statement
 		return factory.newDeclarationStatement(simpleDecl);
 	}
+	
 	private void instrumentIfCondition(IASTIfStatement ifStatement, IASTExpression originalCondition) {
 		try {
 			// Generate a unique boolean variable name
@@ -128,15 +120,11 @@ public class InstrumenterVisitForIfMethodCalls extends ASTVisitor{
 			IASTNode parent = ifStatement.getParent();
 			if (parent instanceof IASTCompoundStatement) {
 				IASTCompoundStatement compound = (IASTCompoundStatement) parent;
-
-				
-
 				// Replace the if-condition with the boolean variable reference
 				ifStatement.setConditionExpression(newCondition);
 				// Insert the boolean declaration before the if-statement
 				insertDeclarationBefore(compound, ifStatement, boolDeclaration);
 			}
-
 		} catch (Exception e) {
 			System.err.println("Error instrumenting if-condition: " + e.getMessage());
 		}
@@ -206,6 +194,7 @@ public class InstrumenterVisitForIfMethodCalls extends ASTVisitor{
 	        throw new UnsupportedOperationException("Unsupported parent type: " + parent.getClass().getSimpleName());
 	    }
 	}
+	
 	/*private void insertDeclarationBefore(IASTCompoundStatement compound, IASTStatement target, 
 			IASTDeclarationStatement declaration) {
 		// Build new Compound statements
@@ -218,8 +207,6 @@ public class InstrumenterVisitForIfMethodCalls extends ASTVisitor{
 		IASTCompoundStatement block = (IASTCompoundStatement)compound.getParent();
 
 		// Replace the original with the new ones
-
-
 
 		ASTRewrite rewriter = ASTRewrite.create(compound.getTranslationUnit());
 
@@ -263,7 +250,6 @@ public class InstrumenterVisitForIfMethodCalls extends ASTVisitor{
 
 
 /*
-
 		IASTStatement[] statements = compound.getStatements();
 		int idx=0;
 		// Find the index of the target statement
@@ -309,10 +295,12 @@ public class InstrumenterVisitForIfMethodCalls extends ASTVisitor{
 		System.err.println(compound.getRawSignature());
 
 	}*/
+	
 	private IASTCompoundStatement makeCompoundStatement(String string) {
 		// TODO Auto-generated method stub
 		return null;
 	}
+	
 	public void visit(IASTIfStatement statement) {
 		IASTExpression condition = statement.getConditionExpression();
 
@@ -325,9 +313,9 @@ public class InstrumenterVisitForIfMethodCalls extends ASTVisitor{
 	public int visit(IASTStatement statement) {
 		try {
 			//System.out.println(statement.getRawSignature());
-			if (statement instanceof IASTIfStatement)
+			if (statement instanceof IASTIfStatement) {
 				this.visit((IASTIfStatement) statement);
-
+			}
 		} catch (Exception e) {
 			e.printStackTrace();
 		}

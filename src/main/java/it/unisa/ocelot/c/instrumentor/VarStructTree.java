@@ -13,6 +13,7 @@ import org.eclipse.cdt.internal.core.dom.parser.c.CTypedef;
 
 public class VarStructTree {
 	private StructNode root;
+	
 	public VarStructTree(String pVarName, CStructure pStructure) {
 		this.root = new StructNode(pVarName, pStructure);
 		this.root.parent = null;
@@ -23,18 +24,18 @@ public class VarStructTree {
 	}
 	
 	public List<StructNode> getBasicVariables() {
+		List<StructNode> leaves = new ArrayList<>();
+		
 		Queue<StructNode> queue = new LinkedList<>();
-		List<StructNode> leaves = new ArrayList<StructNode>();
-		
-		queue.add(this.root);
-		
+		queue.add(this.root);		
 		while (!queue.isEmpty()) {
 			StructNode node = queue.poll();
 			
-			if (!node.isLeaf())
-				queue.addAll(node.children);
-			else
+			if (node.isLeaf()) {
 				leaves.add(node);
+			} else {
+				queue.addAll(node.children);
+			}
 		}
 		
 		return leaves;
@@ -58,28 +59,26 @@ class StructNode {
 	
 	private void build() {
 		if (this.type instanceof CStructure) {
-			CStructure struct = (CStructure)this.type;
+			CStructure struct = (CStructure) this.type;
 			IField[] fields = struct.getFields();
-			this.children = new ArrayList<StructNode>();
 			
+			this.children = new ArrayList<>();
 			for (IField field : fields) {
 				StructNode node = new StructNode(field.getName(), field.getType());
 				node.parent = this;
 				this.children.add(node);
 			}
 		} else {
-			this.children = null;
+			this.children = null; //not a struct
 		}
 	}
 	
 	private IType resolveType(IType pType) {
-		while (pType instanceof CTypedef) {
-			CTypedef tdef = (CTypedef)pType;
-			
-			pType = tdef.getType();
+		IType retVal = pType;
+		while (retVal instanceof CTypedef) {
+			retVal = ((CTypedef) retVal).getType();
 		}
-		
-		return pType;
+		return retVal;
 	}
 	
 	public boolean isLeaf() {
@@ -91,27 +90,10 @@ class StructNode {
 	}
 	
 	public String getCompleteNameWithPointers() {
-		if (this.parent == null)
-			return this.name;
-		
-		String name = this.parent.getCompleteName();
-		if (this.parent.isPointer()) {
-			name += "->" + this.name;
-		} else {
-			name += "." + this.name;
-		}
-		
-		return name;
+		return (this.parent == null ? "" : (this.parent.getCompleteName() + (this.parent.isPointer() ? "->" : "."))) + this.name;
 	}
 	
 	public String getCompleteName() {
-		if (this.parent == null)
-			return this.name;
-		
-		String name = this.parent.getCompleteName();
-
-		name += "." + this.name;
-		
-		return name;
+		return (this.parent == null ? "" : (this.parent.getCompleteName() + ".")) + this.name;
 	}
 }
