@@ -101,13 +101,32 @@ public class ConfigManager {
 	}
 
 	/**
-	 * Returns the maximum number of evaluations for the genetic algorithm (2500 if not specified)
+	 * Returns the maximum number of evaluations for the genetic algorithm (25000 if not specified)
 	 * @return
 	 */
 	public int getMaxEvaluations() {
 		return Integer.parseInt(this.properties.getProperty("evaluations.max", "25000"));
 	}
-
+	/**
+	 * Returns the maximum amount of time in seconds the genetic algorithm
+	 * is allowed to run, where 0 means no limit (no limit if not specified).
+	 *
+	 * @return an {@code int}, the maximum time in seconds.
+	 */
+	public int getAlgorithmTime() {
+		return Integer.parseInt(this.properties.getProperty("algorithm.time”, “0"));
+	}
+	
+	/**
+	 * Returns the maximum number of generations (meaning, the number of
+	 * times the population generates a new population) the genetic
+	 * algorithm is allowed to perform.
+	 *
+	 * @return an {@code int}, the maximum number of generations.
+	 */
+	public int getAlgorithmGenerations() {
+		return Integer.parseInt(this.properties.getProperty("algorithm.generations”, “0"));
+	}
 	/**
 	 * Returns the amount of time in seconds the genetic algorithm will run (uses evaluations.max if its value is zero)
 	 * @return
@@ -308,7 +327,7 @@ public class ConfigManager {
 	}
 
 	/**
-	 * Returns the number of indipendent runs of the experiment (genetic algorithm) (1 if not specified).
+	 * Returns the number of independent runs of the experiment (genetic algorithm) (1 if not specified).
 	 * @return
 	 */
 	public int getExperimentRuns() {
