@@ -15,7 +15,8 @@ public class MOSASettingsGeneric extends GenericGASettings {
 	private double maxCoverage = 1.0d;
 	// EvInT additional MOSA parameters
 	private boolean isRandomRun = false;
-	private int experimentTime = 0;
+	private int algorithmTime = 0;
+	private int maxGenerations = 0;
 	
 	public MOSASettingsGeneric(Problem pProblem) {
 		super(pProblem);
@@ -34,7 +35,10 @@ public class MOSASettingsGeneric extends GenericGASettings {
 		} catch (NumberFormatException e) {}
 		
 		try {
-			this.experimentTime = pConfig.getExperimentTime();
+			this.algorithmTime = pConfig.getAlgorithmTime();
+		} catch (NumberFormatException e) {}
+		try {
+			this.maxGenerations = pConfig.getAlgorithmGenerations();
 		} catch (NumberFormatException e) {}
 	}
 	
@@ -42,8 +46,9 @@ public class MOSASettingsGeneric extends GenericGASettings {
 	public Algorithm configure(Algorithm algorithm) throws JMException {
 		super.configure(algorithm);
 		algorithm.setInputParameter("maxCoverage", this.maxCoverage);
+		algorithm.setInputParameter("algorithmTime", this.algorithmTime);
 		algorithm.setInputParameter("isRandomRun", this.isRandomRun);
-		algorithm.setInputParameter("experimentTime", this.experimentTime);
+		algorithm.setInputParameter("maxGenerations", this.maxGenerations);
 		return algorithm;
 	}
 	

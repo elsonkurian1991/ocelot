@@ -70,6 +70,12 @@ public class MOSA_Generic extends OcelotAlgorithm {
 	// EvInT additional MOSA parameters
 	
 	/**
+	 * The maximum number of generations this algorithm is 
+	 * allowed to perform.
+	 */
+	private int maxGenerations;
+
+	/**
 	 * Whether we want to do a random run. A random run replaces
 	 * offspring creation by crossover/mutation with randomly
 	 * generated "offsprings".
@@ -80,7 +86,7 @@ public class MOSA_Generic extends OcelotAlgorithm {
 	 * The total time this algorithm (and thus the whole
 	 * experiment) is allowed to run, in seconds.
 	 */
-	private int experimentTime;
+	private int algorithmTime;
 	
 	//More EvInT calculated data (from parameters)
 	/**
@@ -108,14 +114,6 @@ public class MOSA_Generic extends OcelotAlgorithm {
 	 */
 	private SolutionSet population;
 	
-	/**
-	 * Counts the number of completed generations inside the MOSA while loop.
-	 * Incremented once per generation (after each offspring creation + archive
-	 * update cycle). Used as the x-axis unit in fitness snapshots so the plot
-	 * shows convergence per generation rather than per evaluation.
-	 */
-	private int generationCounter;
-
 	/**
 	 * Constructor
 	 * 
@@ -186,12 +184,12 @@ public class MOSA_Generic extends OcelotAlgorithm {
 		else
 			maxCoverage = 1.0d;
 		// EvInT additional MOSA parameters
+		maxGenerations = ((Integer) getInputParameter("maxGenerations")).intValue();
 		isRandomRun = ((Boolean) getInputParameter("isRandomRun")).booleanValue();
-		experimentTime = ((Integer) getInputParameter("experimentTime")).intValue();
+		algorithmTime = ((Integer) getInputParameter("algorithmTime")).intValue();
 		
 		// Additional EvInT calculated field
 		addRandom = (isRandomRun ? 1.0 : 0.1);
-
 		//SolutionSet population;
 		SolutionSet offspringPopulation;
 		SolutionSet union;
@@ -204,7 +202,6 @@ public class MOSA_Generic extends OcelotAlgorithm {
 		// Initialize the variables
 		population = new SolutionSet(populationSize);
 		evaluations = 0;
-		generationCounter = 0; // reset at the start of each MOSA run
 		
 		// Read the operators
 		mutationOperator = operators_.get("mutation");
@@ -242,13 +239,22 @@ public class MOSA_Generic extends OcelotAlgorithm {
 		// archive
 		this.updateArchive(population, evaluations);
 
-		long startTime = System.nanoTime();
-		while (keepRunning(evaluations, startTime) && calculateCoverage() < maxCoverage) {
-			generationCounter++;
+		/**
+		 * Counts the number of completed generations inside the MOSA while loop.
+		 * Incremented once per generation (after each offspring creation + archive
+		 * update cycle). Used as the x-axis unit in fitness snapshots so the plot
+		 * shows convergence per generation rather than per evaluation.
+		 */
 
+		int generations = 0;
+		long startTime = System.nanoTime();
+		//keepRunning(int evaluations, int maxEvaluations, int generations, int maxGenerations, long startTime)
+		while (keepRunning(evaluations, maxEvaluations, generations, maxGenerations, startTime) && calculateCoverage() < maxCoverage) {
+			generations++; //next generation
+			
 			// feedback: print the current global fitness (i.e., the sum of the best fitnesses of
 			// the uncovered objectives)
-			//if (generationCounter % 10 == 0) {
+			//if (generations % 10 == 0) {
 				double globalFitness = 0;
 				for (GenericObjective obj : allTargets) {
 					if (obj.isCovered()) {
@@ -257,7 +263,7 @@ public class MOSA_Generic extends OcelotAlgorithm {
 					double objFitness = obj.getBestFitness();
 					globalFitness += objFitness;
 				}
-				System.out.println("[MOSA] Cycle: " + generationCounter + ", current global fitness: " + globalFitness);
+				System.out.println("[MOSA] Generation: " + generations + ", current global fitness: " + globalFitness);
 			//}
 			
 			// Record a fitness snapshot for every objective at the end of each
@@ -273,7 +279,7 @@ public class MOSA_Generic extends OcelotAlgorithm {
 					snapshotFitness = 1.0;
 				}
 				// recordSnapshot stores [generation, evaluations, fitness]
-				target.recordSnapshot(generationCounter, evaluations, snapshotFitness);
+				target.recordSnapshot(generations, evaluations, snapshotFitness);
 			}
 			
 			// creates the offspring population
@@ -355,8 +361,7 @@ public class MOSA_Generic extends OcelotAlgorithm {
 			} // If not random run
 
 
-			this.updateArchive(population, evaluations);
-			evaluations++;
+			updateArchive(population, evaluations);
 
 		}// while
 		
@@ -374,21 +379,27 @@ public class MOSA_Generic extends OcelotAlgorithm {
 		return this.archive;
 	}
 
-	private boolean keepRunning(int evaluations, long startTime) {
-		long endTime = System.nanoTime();
-		if (experimentTime > 0) {
-			if (TimeUnit.NANOSECONDS.toSeconds(endTime - startTime) < experimentTime) {
-				return true;
+	private boolean keepRunning(int evaluations, int maxEvaluations, int generations, int maxGenerations, long startTime) {
+		if (this.algorithmTime > 0) {
+			long endTime = System.nanoTime();
+			if (TimeUnit.NANOSECONDS.toSeconds(endTime - startTime) >= this.algorithmTime) {
+				return false;
 			}
-		} else if (maxEvaluations > 0 && evaluations < maxEvaluations) {
-			return true;
+		}
+		if (maxEvaluations > 0) {
+			if (evaluations >= maxEvaluations) {
+				return false;
+			}
+		}
+		if (maxGenerations > 0) {
+			if (generations >= maxGenerations) {
+				return false;
+			}
 		}
 
-		System.out.println("This is while loop keepRunning: " + TimeUnit.NANOSECONDS.toSeconds(endTime - startTime) );
-		return false;
-
+		return true;
 	}
-
+	
 	/**
 	 * Stores every test case that covers previous uncovered branches in the
 	 * archive variable as a candidate test case to form the final test suite
