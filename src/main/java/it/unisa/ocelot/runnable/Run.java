@@ -7,6 +7,7 @@ import java.io.FileNotFoundException;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -127,12 +128,6 @@ public class Run {
 		Files.createDirectories(dir); 
 		String filePathToDelete3 = "/tmp/evint-run/BranchDistanceTracker.bin"; //do 
 		deleteFileIfExists(filePathToDelete3);
-		String filePathToDelete4 = LOCALUSER_DIR+"/testObjectives.to"; //do 
-		deleteFileIfExists(filePathToDelete4);
-		String filePathToDelete5 = LOCALUSER_DIR+"/fitnessValues.bin"; //do 
-		deleteFileIfExists(filePathToDelete5);
-		String filePathToDelete6 = LOCALUSER_DIR+"/cdg_output.txt"; //do 
-		deleteFileIfExists(filePathToDelete6);
 		String filePathToDelete7 = LOCALUSER_DIR+"/BranchDistanceValueRangeErrors.txt"; //do 
 		deleteFileIfExists(filePathToDelete7);
 		String filePathToDelete8 = LOCALUSER_DIR+"/BranchDistanceInstrumentationErrors.txt"; //do 
@@ -161,141 +156,14 @@ public class Run {
 		long minutes = TimeUnit.MILLISECONDS.toMinutes(time) % 60;
 		long seconds = TimeUnit.MILLISECONDS.toSeconds(time) % 60;
 
-		System.out.println("Execution time: " + hours + " hours, " + minutes + " minutes, " + seconds + " seconds");
-		logWriter.append("Execution time: " + hours + " hours, " + minutes + " minutes, " + seconds + " seconds");
-		logWriter.append("\n");
-
-		createLogFile(logWriter);
-
+		System.out.println("Total execution time: " + hours + " hours, " + minutes + " minutes, " + seconds + " seconds");
+		System.out.println("-------------------------------------------------------");
+		checkErrorLogFile(filePathToDelete7);
+		checkErrorLogFile(filePathToDelete8);
 		deleteTargetSourceFilesFromJni();
-	}
-	private static void deleteUnwantedFilesFromJNIFolder(String jniDir) throws IOException {
-		//this.configFilename = CONFIG_FILENAME;
-		System.out.println("[INFO] Cleaning "+ jniDir +" JNI folder...");
-
-		String tragetSourceFolder = jniDir;
-		File jniFolder = new File(tragetSourceFolder, "jni");
-
-		// Check if the directory exists and is valid
-		if (!jniFolder.exists() || !jniFolder.isDirectory()) {
-			System.err.println("JNI folder does not exist or is not a directory: " + jniFolder.getAbsolutePath());
-			return;
-		}
-
-		// String containing allowed files separated by spaces or newline characters
-		String allowedFilesStr = "CBridge.c EN_CBridge.c lists.h nativelists.h ocelot.h CBridge.h lists.c nativelists.c ocelot.c";
-
-		// Split by whitespace and store in a HashSet for O(1) lookup
-		Set<String> allowedFiles = new HashSet<>(Arrays.asList(allowedFilesStr.trim().split("\\s+")));
-
-		// Get all files in the directory
-		File[] filesInDir = jniFolder.listFiles();
-
-		if (filesInDir != null) {
-			for (File file : filesInDir) {
-				// Only process actual files (skip directories) that are not in the allowed set
-				if (file.isFile() && !allowedFiles.contains(file.getName())) {
-					boolean isDeleted = file.delete();
-					if (isDeleted) {
-						System.out.println("[✓] Deleted unwanted file: " + file.getName());
-					} else {
-						System.err.println("[i] Failed to delete file: " + file.getName());
-					}
-				}
-			}
-		}
-
-	}
-	private static void deleteTargetSourceFilesFromJni() throws IOException {
-		ConfigManager getConfInfo=ConfigManager.getInstance();		
-		String[] listFiles= getConfInfo.getTestIncludePaths();
-		String tragetSourceFolder=getConfInfo.getTestBasedir();
-		File outputJniFolder = new File(tragetSourceFolder, "jni");
-		// Create the 'jni' subfolder if it doesn't exist
-		if (!outputJniFolder.exists()) {
-			boolean created = outputJniFolder.mkdirs();
-			if (!created) {
-				System.out.println("Failed to create output JNI folder: " + outputJniFolder.getAbsolutePath());
-				return;
-			}
-		}
-		for(int i=0;i<listFiles.length;i++) {
-			//System.out.println(supportFiles[i]);
-			int lastIndex=listFiles[i].lastIndexOf('/');
-			File sourceFile = new File("jni/", listFiles[i].substring(lastIndex+1));
-			File destinationFile = new File(outputJniFolder, listFiles[i].substring(lastIndex+1));
-
-			if (sourceFile.exists()) {
-				try {
-					Files.move(sourceFile.toPath(), destinationFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
-				} catch (IOException e) {
-					System.out.println("Failed to move: " + sourceFile.getAbsolutePath());
-					e.printStackTrace();
-				}
-			} else {
-				System.out.println("File not found: " + sourceFile.getAbsolutePath());
-			}
-			//delete the unwanted header files
-			String headerFileName=listFiles[i].substring(lastIndex+1);
-			headerFileName=headerFileName.replace(".c", ".h");
-			File headerFile = new File("jni/",headerFileName);
-			if(headerFile.exists()) {
-				headerFile.delete();
-			}
-
-		}
-		//spcl case
-		File kcg_imported_functions = new File("jni/","kcg_imported_functions.h");
-		if(kcg_imported_functions.exists()) {
-			kcg_imported_functions.delete();
-		}
-		System.out.println("Files moved to "+outputJniFolder+"/ for backup.");
-
-	}
-	public static void createLogFile(StringBuilder logWriter) throws IOException {
-		LocalDateTime now = LocalDateTime.now();
-		DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss");
-		String formatedDateTime = now.format(formatter);
-		String fileName= "Log_"+formatedDateTime+".txt";
-		String dir_FileName =LOCALUSER_DIR+"/ocelot_logs/"+fileName;
-		try (BufferedWriter writer = new BufferedWriter(new FileWriter(dir_FileName))){
-			writer.write(logWriter.toString());
-		}
-
-	}
-
-	public static void deleteFileIfExists(String filePath) {
-		Path path = Paths.get(filePath);
-
-		try {
-			// Atomic check-and-delete provided by NIO2
-			boolean deleted = Files.deleteIfExists(path);
-
-			if (deleted) {
-				System.out.println("[✓] Deleted old build file: " + filePath);
-			} else {
-				System.out.println("[i] File not found (skipping): " + filePath);
-			}
-		} catch (IOException e) {
-			System.err.println("[X] Error deleting file (" + filePath + "): " + e.getMessage());
-		}
-	}
-
-	public static void resetFileQuietly(String filePathString) {
-		Path path = Paths.get(filePathString);
-
-		// 1. Check if the file exists at the location
-		if (Files.exists(path) && Files.isRegularFile(path)) {
-			try {
-				// 2. If yes, empty the content instantly
-				Files.newByteChannel(path, StandardOpenOption.WRITE, StandardOpenOption.TRUNCATE_EXISTING).close();
-				//System.out.println("Success: File content has been reset / emptied.");
-			} catch (IOException e) {
-				// This only runs if there is a system permission or locking issue
-				System.err.println("Could not empty the file: " + e.getMessage());
-			}
-		}
-		// 3. If no, it exits silently. No worries, no warning messages printed.
+		System.out.println("==================================================");
+		System.out.println("              EvInT FINISHED SUCCESSFULLY         ");
+		System.out.println("==================================================");
 	}
 
 	public Run(String[] args) throws IOException {
@@ -495,6 +363,148 @@ public class Run {
 			} catch (IOException e) {
 				throw new RuntimeException("Error: unable to open configuration file. " + e.getMessage());
 			}
+		}
+	}
+	private static void deleteUnwantedFilesFromJNIFolder(String jniDir) throws IOException {
+		//this.configFilename = CONFIG_FILENAME;
+		System.out.println("[INFO] Cleaning "+ jniDir +"JNI/ folder...");
+
+		String tragetSourceFolder = jniDir;
+		File jniFolder = new File(tragetSourceFolder, "jni");
+
+		// Check if the directory exists and is valid
+		if (!jniFolder.exists() || !jniFolder.isDirectory()) {
+			System.err.println("JNI folder does not exist or is not a directory: " + jniFolder.getAbsolutePath());
+			return;
+		}
+
+		// String containing allowed files separated by spaces or newline characters
+		String allowedFilesStr = "CBridge.c EN_CBridge.c lists.h nativelists.h ocelot.h CBridge.h lists.c nativelists.c ocelot.c";
+
+		// Split by whitespace and store in a HashSet for O(1) lookup
+		Set<String> allowedFiles = new HashSet<>(Arrays.asList(allowedFilesStr.trim().split("\\s+")));
+
+		// Get all files in the directory
+		File[] filesInDir = jniFolder.listFiles();
+
+		if (filesInDir != null) {
+			for (File file : filesInDir) {
+				// Only process actual files (skip directories) that are not in the allowed set
+				if (file.isFile() && !allowedFiles.contains(file.getName())) {
+					boolean isDeleted = file.delete();
+					if (isDeleted) {
+						System.out.println("[✓] Deleted unwanted file: " + file.getName());
+					} else {
+						System.err.println("[i] Failed to delete file: " + file.getName());
+					}
+				}
+			}
+		}
+
+	}
+	private static void deleteTargetSourceFilesFromJni() throws IOException {
+		ConfigManager getConfInfo=ConfigManager.getInstance();		
+		String[] listFiles= getConfInfo.getTestIncludePaths();
+		String tragetSourceFolder=getConfInfo.getTestBasedir();
+		File outputJniFolder = new File(tragetSourceFolder, "jni");
+		// Create the 'jni' subfolder if it doesn't exist
+		if (!outputJniFolder.exists()) {
+			boolean created = outputJniFolder.mkdirs();
+			if (!created) {
+				System.out.println("Failed to create output JNI folder: " + outputJniFolder.getAbsolutePath());
+				return;
+			}
+		}
+		for(int i=0;i<listFiles.length;i++) {
+			//System.out.println(supportFiles[i]);
+			int lastIndex=listFiles[i].lastIndexOf('/');
+			File sourceFile = new File("jni/", listFiles[i].substring(lastIndex+1));
+			File destinationFile = new File(outputJniFolder, listFiles[i].substring(lastIndex+1));
+
+			if (sourceFile.exists()) {
+				try {
+					Files.move(sourceFile.toPath(), destinationFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+				} catch (IOException e) {
+					System.out.println("Failed to move: " + sourceFile.getAbsolutePath());
+					e.printStackTrace();
+				}
+			} 
+			//delete the unwanted header files
+			String headerFileName=listFiles[i].substring(lastIndex+1);
+			headerFileName=headerFileName.replace(".c", ".h");
+			File headerFile = new File("jni/",headerFileName);
+			if(headerFile.exists()) {
+				headerFile.delete();
+			}
+
+		}
+		//spcl case
+		File kcg_imported_functions = new File("jni/","kcg_imported_functions.h");
+		if(kcg_imported_functions.exists()) {
+			kcg_imported_functions.delete();
+		}
+		System.out.println("Instrumented files  are moved to "+outputJniFolder+"/ for backup.");
+
+	}
+	/*public static void createLogFile(StringBuilder logWriter) throws IOException {
+		LocalDateTime now = LocalDateTime.now();
+		DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss");
+		String formatedDateTime = now.format(formatter);
+		String fileName= "Log_"+formatedDateTime+".txt";
+		String dir_FileName =LOCALUSER_DIR+"/ocelot_logs/"+fileName;
+		try (BufferedWriter writer = new BufferedWriter(new FileWriter(dir_FileName))){
+			writer.write(logWriter.toString());
+		}
+	}*/
+
+	public static void deleteFileIfExists(String filePath) {
+		Path path = Paths.get(filePath);
+
+		try {
+			// Atomic check-and-delete provided by NIO2
+			boolean deleted = Files.deleteIfExists(path);
+
+			if (deleted) {
+				System.out.println("[✓] Deleted old build file: " + filePath);
+			}
+		} catch (IOException e) {
+			System.err.println("[X] Error deleting file (" + filePath + "): " + e.getMessage());
+		}
+	}
+
+	public static void resetFileQuietly(String filePathString) {
+		Path path = Paths.get(filePathString);
+
+		// 1. Check if the file exists at the location
+		if (Files.exists(path) && Files.isRegularFile(path)) {
+			try {
+				// 2. If yes, empty the content instantly
+				Files.newByteChannel(path, StandardOpenOption.WRITE, StandardOpenOption.TRUNCATE_EXISTING).close();
+				//System.out.println("Success: File content has been reset / emptied.");
+			} catch (IOException e) {
+				// This only runs if there is a system permission or locking issue
+				System.err.println("Could not empty the file: " + e.getMessage());
+			}
+		}
+		// 3. If no, it exits silently. No worries, no warning messages printed.
+	}
+	public static void checkErrorLogFile(String filePath) {
+		Path path = Paths.get(filePath);
+
+		// Only proceed if the file exists
+		if (!Files.exists(path) || !Files.isRegularFile(path)) {
+			return;
+		}
+
+		try {
+			String content = new String(Files.readAllBytes(path), StandardCharsets.UTF_8);
+
+			// Something is in the file (ignoring blank lines/whitespace)
+			if (!content.trim().isEmpty()) {
+				System.err.println("IMP: Errors from the branch distance calculations are written on the log file: " + filePath);
+			}
+		} catch (IOException e) {
+			System.err.println("Could not read file: " + filePath + " (" + e.getMessage() + ")");
 		}
 	}
 }

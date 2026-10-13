@@ -55,11 +55,11 @@ public class StandardBuilder extends Builder {
 	// Initialized during instrumentation
 	private String callMacro;
 	private String externDeclarations;
-	
+
 	public int syntheticBranchesGeneratedWithBool;
 	public int syntheticBranchesGeneratedWithFor;
 	public int foundSynthetic;
-	
+
 	public StandardBuilder(String pTestFilename, String pTestFunction, String[] pTestIncludes) throws IOException {
 		super();
 		setOutput(System.out);
@@ -70,7 +70,7 @@ public class StandardBuilder extends Builder {
 		this.testIncludes = pTestIncludes;
 		this.unitLevelComponents = config.getUnitLevelComponents();
 		this.bcm = new BranchChainManager();
-		
+
 		this.componentsTestObjectives = new HashMap<String, ArrayList<String>>();
 		this.nodeBranchMap = new HashMap<String, Map<String, List<String>>>();
 
@@ -194,17 +194,17 @@ public class StandardBuilder extends Builder {
 				// not using the InstrumenterVisitForIfMethodCalls instrumentation now!!!!!!!!!!!!!!!!!!!!!!!!!
 				InstrumenterVisitForIfMethodCalls instrumentor_if_method_call = new InstrumenterVisitForIfMethodCalls(tempUnitComponent, trackSynthetics);
 				translationUnit.accept(instrumentor_if_method_call);
-				 
+
 				ArrayList<String> testObjectives = new ArrayList<String>();
 				// Instruments unit-level components out main instrumenation
 				UnitComponentInstrumentorVisitor instrumentor = new UnitComponentInstrumentorVisitor(tempUnitComponent,
 						testObjectives, unitLevelComponents, trackSynthetics);
-				for (IASTProblem p : translationUnit.getPreprocessorProblems()) {
+				/*for (IASTProblem p : translationUnit.getPreprocessorProblems()) {
 				    System.out.println("PP problem: id=0x" + Integer.toHexString(p.getID())
 		            + " raw='" + p.getRawSignature() + "'"
 		            + " @ " + (p.getFileLocation() == null ? "?" : p.getFileLocation().getFileName()
 		                       + ":" + p.getFileLocation().getStartingLineNumber()));
-				}
+				}*/
 				translationUnit.accept(instrumentor);
 				foundSynthetic += instrumentor.foundSynthetics.size();
 
@@ -225,7 +225,7 @@ public class StandardBuilder extends Builder {
 					System.out.println("File modified with temp branch:"+tempUnitComponent);
 
 				}
-				
+
 				componentsTestObjectives.put(tempUnitComponent, testObjectives);
 				// Need to store this one outside the loop to generate the branch pairs
 				Map<String, List<String>> branchesToFun = new HashMap<String, List<String>>();
@@ -250,7 +250,7 @@ public class StandardBuilder extends Builder {
 				mainHeader.append("#include <math.h>\n");
 				mainHeader.append("#define OCELOT_TESTFUNCTION ").append(testFunName).append("\n");
 				Utils.writeFile("jni/main.h", mainHeader.toString());
-*/
+				 */
 				//From here, the new version of tool: from the CFG -> CDG -> bracnch chains->
 				CFG cfg = new CFG();
 				CFGVisitor cfgVistor = new CFGVisitor(cfg, tempUnitComponent);
@@ -261,40 +261,36 @@ public class StandardBuilder extends Builder {
 			else {
 				//here, just copy the other supported files to jni folder, eg kcg_types, database etc.
 				//add the feature to copy the header files
-				File sourceFile = new File(unitComponent);
+
 
 				File jniDir = new File("jni");
-				if (!sourceFile.exists()) {
-					System.out.println("Source file does not exist: " + unitComponent);
+				try {
+					Files.createDirectories(jniDir.toPath());
+				} catch (IOException e) {
+					System.err.println("Cannot create jni directory: " + e.getMessage());
 					return;
 				}
-
-				File destFile = new File(jniDir, sourceFile.getName());
-				try {
-					Files.copy(sourceFile.toPath(), destFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
-					System.out.println("File copied to: " + destFile.getAbsolutePath());
-				} catch (IOException e) {
-					System.out.println("Error copying file: " + e.getMessage());
+				File sourceFile = new File(unitComponent);
+				if (!sourceFile.exists()) {
+					System.out.println("Source file does not exist: " + unitComponent);
+					continue; // skip this iteration and go to the next one
 				}
-
-				String headerFile = unitComponent.replace(".c", ".h");
-				File sourceHeaderFile = new File(headerFile);
-				if (!sourceHeaderFile.exists()) {
-					System.out.println("Source file does not exist: " + headerFile);
-					continue; // skip this iteration and go to the next one some times only c files are needed.
-				}
-				File destHederFile = new File(jniDir, sourceHeaderFile.getName());
-				try {
-					Files.copy(sourceHeaderFile.toPath(), destHederFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
-					System.out.println("File copied to: " + destHederFile.getAbsolutePath());
-				} catch (IOException e) {
-					System.out.println("Error copying file: " + e.getMessage());
+				copySupportingFilesToDir(sourceFile, jniDir);
+				// Replace only the trailing ".c" extension
+				if (unitComponent.endsWith(".c")) {
+					String headerPath = unitComponent.substring(0, unitComponent.length() - 2) + ".h";
+					File headerFile = new File(headerPath);
+					if (headerFile.isFile()) {
+						copySupportingFilesToDir(headerFile, jniDir);
+					} else {
+						System.out.println("No header found (skipping): " + headerPath);
+					}
 				}
 			}
 		}
 		// To generate the pair from the branch chains.
 		bcm.generatePairsForBranchChains();
-		
+
 		System.out.println("Number of synthetic branches generated with Bool: " + syntheticBranchesGeneratedWithBool);
 		System.out.println("Number of synthetic branches generated with For: " + syntheticBranchesGeneratedWithFor);
 		System.out.println("Number of synthetic branches founded in the code: " + foundSynthetic);
@@ -310,7 +306,6 @@ public class StandardBuilder extends Builder {
 			ioe.printStackTrace(); 
 		}
 	}
-
 
 	private void instrument() throws Exception {
 		IASTTranslationUnit translationUnit = GCC.getTranslationUnit(this.testFilename, this.testIncludes).copy();
@@ -361,5 +356,23 @@ public class StandardBuilder extends Builder {
 				+ "typedef double _t_ocelot_array[OCELOT_ARRAYS_SIZE];\n" + "#endif\n";
 		Utils.writeFile("jni/pointers.h", pointersH);
 		Utils.writeFile("jni/EN_CBridge.c", metaJNI);
+	}
+	private void copySupportingFilesToDir(File source, File destDir) {
+		File dest = new File(destDir, source.getName());
+
+		try {
+			if (dest.exists()) {
+				if (Files.mismatch(source.toPath(), dest.toPath()) == -1) {
+					//Identical file already exists, skipping
+					return;
+				}
+				System.out.println("File exists but differs, overwriting: " + dest.getAbsolutePath());
+			}
+			Files.copy(source.toPath(), dest.toPath(), StandardCopyOption.REPLACE_EXISTING);
+			System.out.println("File copied to: " + dest.getAbsolutePath());
+		} catch (IOException e) {
+			System.err.println("Error copying " + source + ": " + e.getMessage());
+		}
+
 	}
 }

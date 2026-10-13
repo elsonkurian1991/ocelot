@@ -114,7 +114,7 @@ public class ConfigManager {
 	 * @return an {@code int}, the maximum time in seconds.
 	 */
 	public int getAlgorithmTime() {
-		return Integer.parseInt(this.properties.getProperty("algorithm.time”, “0"));
+		return Integer.parseInt(this.properties.getProperty("algorithm.time", "0"));
 	}
 	
 	/**
@@ -125,7 +125,7 @@ public class ConfigManager {
 	 * @return an {@code int}, the maximum number of generations.
 	 */
 	public int getAlgorithmGenerations() {
-		return Integer.parseInt(this.properties.getProperty("algorithm.generations”, “0"));
+		return Integer.parseInt(this.properties.getProperty("algorithm.generations", "0"));
 	}
 	/**
 	 * Returns the amount of time in seconds the genetic algorithm will run (uses evaluations.max if its value is zero)

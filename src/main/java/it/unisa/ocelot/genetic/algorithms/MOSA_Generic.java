@@ -383,16 +383,19 @@ public class MOSA_Generic extends OcelotAlgorithm {
 		if (this.algorithmTime > 0) {
 			long endTime = System.nanoTime();
 			if (TimeUnit.NANOSECONDS.toSeconds(endTime - startTime) >= this.algorithmTime) {
+				System.err.println("[MOSA] Maximum time limit reached: " + this.algorithmTime + " seconds.");
 				return false;
 			}
 		}
 		if (maxEvaluations > 0) {
 			if (evaluations >= maxEvaluations) {
+				System.err.println("[MOSA] Maximum evaluations limit reached: " + maxEvaluations + " evaluations.");
 				return false;
 			}
 		}
 		if (maxGenerations > 0) {
 			if (generations >= maxGenerations) {
+				System.err.println("[MOSA] Maximum generations limit reached: " + maxGenerations + " generations.");
 				return false;
 			}
 		}

@@ -55,7 +55,7 @@ public class GenericMOSATestSuiteGenerator extends TestSuiteGenerator implements
 		this.startBenchmarks();
 		coverMultiObjective(suite, objectives);
 		double coverage = calculateCoverage();
-		System.out.println("Coverage of MOSA test suite = " + coverage);
+		System.out.println("Coverage of MOSA test suite = " + coverage* 100);
 		return suite;
 	}
 

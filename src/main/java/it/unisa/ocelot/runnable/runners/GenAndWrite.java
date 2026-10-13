@@ -196,7 +196,7 @@ public class GenAndWrite {
 					restoreObjectiveIds(savedIds);
 				}
 				//delete the old distance from the file 
-				System.out.println("Resetting BranchDistanceTracker.txt for next iteration...");
+				System.out.println("Resetting BranchDistanceTracker files for next iteration...");
 				Run.resetFileQuietly(BranchChainManager.BRANCH_DIST_TRACK_FILE);
 				Run.resetFileQuietly(BranchChainManager.FUNCTION_NAME_MAP_FILE);
 				
@@ -271,7 +271,7 @@ public class GenAndWrite {
 			    + " | suite size: " + suite.size()
 			    + " | populationStore pool size: " + populationStore.size()); // or equivalent getter
 			} // For loop end
-
+			System.out.println("[INFO] EvInT run finished.");
 			// Close the CSV file writer cleanly after all iterations complete
 			//fitnessTracker.close();
 
@@ -292,16 +292,22 @@ public class GenAndWrite {
 			// Print and write uncovered branch-chain objectives to file (include coverage
 			// counts)
 			// printUncoveredBCobjectives(calculator, allObjectives, minimizedSuite);
+			
 			System.out.println(objCovEachIter.toString());
 			System.out.println("-------------------------------------------------------");
-			System.out.println("Size of objectivesToEvaluate: " + allObjectives.size());
+			System.out.println("Output Highlights:");
 			System.out.println("-------------------------------------------------------");
-			System.out.println("Minimized test cases: " + minimizedSuite.size());
-			System.out.println("Objective coverage achieved: " + verifier.getFinalCoverage(allObjectives));
+			System.out.println("[IN] Population size: " + config.getPopulationSize());
+			System.out.println("[IN] Max MAB iterations: " + config.getMaxIterForMosa());
+			System.out.println("[IN] Algorithm time limit(seconds): " +  String.valueOf(config.getAlgorithmTime()));
+			System.out.println("[IN] Algorithm generation limit: " + String.valueOf(config.getAlgorithmGenerations()));
+			System.out.println("[IN] Total input space (array size): " + String.valueOf(config.getTestArraysSize()));
+			System.out.println("-------------------------------------------------------");
+			System.out.println("[OUT] Total size of objectives to evaluate: " + allObjectives.size());
+			System.out.println("[OUT] Minimized test cases: " + minimizedSuite.size());
+			System.out.println("[OUT] Total objectives coveraged : " + verifier.getFinalCoverage(allObjectives));
 			//System.out.println("Objective coverage achieved: " + calculator.getObjectiveCoverage());//TODO this is not working
-		
-			System.out.println("-------------------------------------------------------");
-			System.out.println("Uncovered objectives: " + uncoveredObjectives.size());
+			//System.out.println("[OUT] Uncovered objectives: " + uncoveredObjectives.size());
 			
 			/* for (GenericObjective objective : uncoveredObjectives) { 
 				 if (!objective.isCovered()) { System.out.println(objective.toString()); } }
@@ -338,7 +344,7 @@ public class GenAndWrite {
 			*/
 			// Utils.writeFile(filename, content);
 
-			System.out.println("Operation completed!");
+			System.out.println("EvInT operation completed!");
 		} catch (Exception e) {
 			e.printStackTrace();
 			throw new RuntimeException(e);

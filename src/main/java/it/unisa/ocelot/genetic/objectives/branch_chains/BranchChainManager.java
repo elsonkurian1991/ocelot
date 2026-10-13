@@ -57,7 +57,7 @@ public class BranchChainManager {
 			}
 			generatedBranchChainObjectives = objectives;
 			//successfully generated branch-chain objectives
-			System.out.println("Successfully generated " + generatedBranchChainObjectives.size() + " branch-chain objectives");
+			System.out.println("Successfully generated " + generatedBranchChainObjectives.size() + " branch-chain-pair objectives");
 		}
 		return generatedBranchChainObjectives;
 	}
