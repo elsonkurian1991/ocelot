@@ -62,7 +62,7 @@ public class InstrumentorVisitorToAddBranch extends ASTVisitor{
             IASTStatement body = functionDef.getBody();
             
             if (body instanceof IASTCompoundStatement) {
-            	String ifCond="_f_ocelot_branch_out("+this.functionName+",0,true,0,1)";
+            	String ifCond ="_f_ocelot_branch_out(\"" + this.functionName + "\",0,true,0,1)";
                 CASTCompoundStatement compoundBody = (CASTCompoundStatement) body;
                 
                 CASTCompoundStatement substitute = new CASTCompoundStatement();
