@@ -198,6 +198,8 @@ public class GenAndWrite {
 				//delete the old distance from the file 
 				System.out.println("Resetting BranchDistanceTracker.txt for next iteration...");
 				Run.resetFileQuietly(BranchChainManager.BRANCH_DIST_TRACK_FILE);
+				Run.resetFileQuietly(BranchChainManager.FUNCTION_NAME_MAP_FILE);
+				
 				
 				// Accumulate test cases from this iteration into global suite
 				suite.addAll(iterationSuite);
@@ -317,10 +319,11 @@ public class GenAndWrite {
 			// calculator.getBranchCoverage());
 			// System.out.println("Statement coverage achieved: " +
 			// calculator.getBlockCoverage());
-
+			System.out.println("-------------------------------------------------------");
+			System.out.println("Log file written to: " + "exp_res_" + formatedDateTime + ".txt");
 			// TODO last enable the following to print the test cases.
 
-			String formattedFilename = config.getTestFilename();
+			/*String formattedFilename = config.getTestFilename();
 			formattedFilename = formattedFilename.replaceAll("[^A-Za-z0-9]", "_");
 			String filename = "_Test_" + config.getTestFunction() + "_" + formattedFilename + ".c";
 			System.out.println("Writing test suite on " + filename + "...");
@@ -332,6 +335,7 @@ public class GenAndWrite {
 			PrintWriter writer = new PrintWriter(dir_file, "UTF-8");
 			writer.print(content);
 			writer.close();
+			*/
 			// Utils.writeFile(filename, content);
 
 			System.out.println("Operation completed!");

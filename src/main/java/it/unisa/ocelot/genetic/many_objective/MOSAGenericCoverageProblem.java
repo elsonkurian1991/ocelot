@@ -71,7 +71,10 @@ public class MOSAGenericCoverageProblem extends StandardProblem {
 		if (solution instanceof GenericSolution) {
 			BranchChainManager.cacheFitnessValues((GenericSolution) solution);
 		}
-		
+		//delete the old distance from the file 
+		//System.out.println("Resetting BranchDistanceTracker.bin for next iteration...");
+		Run.resetFileQuietly(BranchChainManager.BRANCH_DIST_TRACK_FILE);
+		Run.resetFileQuietly(BranchChainManager.FUNCTION_NAME_MAP_FILE);
 		//Not important, MOSA uses his own algorithm for given objectives
 		return 0;
 	}

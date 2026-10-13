@@ -29,6 +29,7 @@ import it.unisa.ocelot.genetic.solutions.GenericSolution;
 public class BranchChainManager {
 	
 	public static final String BRANCH_DIST_TRACK_FILE = "/tmp/evint-run/BranchDistanceTracker.bin";
+	public static final String FUNCTION_NAME_MAP_FILE = "/tmp/evint-run/FunctionNameMap.txt";
 	private static Map<Integer, String> funcIdToName = new HashMap<>();
 	// Default filename for CDG output. The actual path is resolved lazily using test.basedir from ConfigManager.
 	private static final String DEFAULT_CDG_FILENAME = "cdg_output.txt";
