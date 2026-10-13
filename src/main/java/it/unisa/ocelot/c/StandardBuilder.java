@@ -22,6 +22,7 @@ import org.apache.commons.io.IOUtils;
 import org.eclipse.cdt.core.dom.ast.IASTNode;
 import org.eclipse.cdt.core.dom.ast.IASTPreprocessorIncludeStatement;
 import org.eclipse.cdt.core.dom.ast.IASTPreprocessorStatement;
+import org.eclipse.cdt.core.dom.ast.IASTProblem;
 import org.eclipse.cdt.core.dom.ast.IASTTranslationUnit;
 import org.eclipse.cdt.core.dom.rewrite.ASTRewrite;
 
@@ -29,6 +30,7 @@ import it.unisa.ocelot.c.cfg.CFG;
 import it.unisa.ocelot.c.cfg.CFGVisitor;
 import it.unisa.ocelot.c.compiler.GCC;
 import it.unisa.ocelot.c.instrumentor.ExternalReferencesVisitor;
+import it.unisa.ocelot.c.instrumentor.InstrumenterVisitForIfMethodCalls;
 import it.unisa.ocelot.c.instrumentor.InstrumentorVisitor;
 import it.unisa.ocelot.c.instrumentor.InstrumentorVisitorToAddBranch;
 import it.unisa.ocelot.c.instrumentor.MacroDefinerVisitor;
@@ -113,7 +115,6 @@ public class StandardBuilder extends Builder {
 		Future<String> stdoutFuture = (Future<String>) executor.submit(() -> IOUtils.toString(proc.getInputStream(), StandardCharsets.UTF_8));
 		Future<String> stderrFuture = (Future<String>) executor.submit(() -> IOUtils.toString(proc.getErrorStream(), StandardCharsets.UTF_8));
 		executor.shutdown();
-
 		String stdout = null;
 		try {
 			stdout = stdoutFuture.get();
@@ -133,9 +134,9 @@ public class StandardBuilder extends Builder {
 
 		try {
 			int result;
-			if ((result = proc.waitFor()) == 0)
+			if ((result = proc.waitFor()) == 0) {
 				this.stream.println("Done!");
-			else {
+			} else {
 				this.stream.println("Compiler errors:");
 				this.stream.println(stdout);
 				this.stream.println(stderr);
@@ -183,21 +184,27 @@ public class StandardBuilder extends Builder {
 				}*/
 
 				// Instruments unit-level components ExternalReferencesVisitor
-				ExternalReferencesVisitor referencesVisitor = new ExternalReferencesVisitor(tempUnitComponent);
-				translationUnit.accept(referencesVisitor);
-				MacroDefinerVisitor macroDefiner = new MacroDefinerVisitor(tempUnitComponent,referencesVisitor.getExternalReferences());
+				//ExternalReferencesVisitor referencesVisitor = new ExternalReferencesVisitor(tempUnitComponent);
+				//translationUnit.accept(referencesVisitor);
+				//MacroDefinerVisitor macroDefiner = new MacroDefinerVisitor(tempUnitComponent,referencesVisitor.getExternalReferences());
 				// NOTE: macroDefine MUST proceed instrument in visit
-				translationUnit.accept(macroDefiner);
+				//translationUnit.accept(macroDefiner);
 
 				//Here we add a instrumention visitor for method call in the if condition.
 				// not using the InstrumenterVisitForIfMethodCalls instrumentation now!!!!!!!!!!!!!!!!!!!!!!!!!
-				/*InstrumenterVisitForIfMethodCalls instrumentor_if_method_call = new InstrumenterVisitForIfMethodCalls(tempUnitComponent, trackSynthetics);
+				InstrumenterVisitForIfMethodCalls instrumentor_if_method_call = new InstrumenterVisitForIfMethodCalls(tempUnitComponent, trackSynthetics);
 				translationUnit.accept(instrumentor_if_method_call);
-				 */
+				 
 				ArrayList<String> testObjectives = new ArrayList<String>();
 				// Instruments unit-level components out main instrumenation
 				UnitComponentInstrumentorVisitor instrumentor = new UnitComponentInstrumentorVisitor(tempUnitComponent,
 						testObjectives, unitLevelComponents, trackSynthetics);
+				for (IASTProblem p : translationUnit.getPreprocessorProblems()) {
+				    System.out.println("PP problem: id=0x" + Integer.toHexString(p.getID())
+		            + " raw='" + p.getRawSignature() + "'"
+		            + " @ " + (p.getFileLocation() == null ? "?" : p.getFileLocation().getFileName()
+		                       + ":" + p.getFileLocation().getStartingLineNumber()));
+				}
 				translationUnit.accept(instrumentor);
 				foundSynthetic += instrumentor.foundSynthetics.size();
 
@@ -209,9 +216,7 @@ public class StandardBuilder extends Builder {
 				}*/
 
 				//here I need to add the case for function were does not have any branch
-				boolean isSpclFunWObranch=false;
 				if(testObjectives.isEmpty()) {
-					isSpclFunWObranch=true;
 					// not using the isSpclFunWObranch instrumentation now!!!!!!!!!!!!!!!!!!!!!!!!!
 					testObjectives.add(tempUnitComponent + ":" + "branch0-true");
 					ASTRewrite rewriterBranch = ASTRewrite.create(translationUnit);
@@ -239,13 +244,13 @@ public class StandardBuilder extends Builder {
 				result.append("#include \"ocelot.h\"\n");
 				result.append(outputCode);
 				Utils.writeFile(nameofComponent, result.toString());
-				StringBuilder mainHeader = new StringBuilder();
+				/*StringBuilder mainHeader = new StringBuilder();
 				mainHeader.append("#include \"ocelot.h\"\n");
 				mainHeader.append("#include <stdio.h>\n");
 				mainHeader.append("#include <math.h>\n");
 				mainHeader.append("#define OCELOT_TESTFUNCTION ").append(testFunName).append("\n");
 				Utils.writeFile("jni/main.h", mainHeader.toString());
-
+*/
 				//From here, the new version of tool: from the CFG -> CDG -> bracnch chains->
 				CFG cfg = new CFG();
 				CFGVisitor cfgVistor = new CFGVisitor(cfg, tempUnitComponent);
