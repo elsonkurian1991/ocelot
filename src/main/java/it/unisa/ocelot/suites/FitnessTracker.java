@@ -1,7 +1,7 @@
 package it.unisa.ocelot.suites;
 
 import it.unisa.ocelot.genetic.objectives.GenericObjective;
-
+import java.util.Locale;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
@@ -37,7 +37,20 @@ public class FitnessTracker {
 	private int cumulativeEvalOffset;
 
 	private final PrintWriter writer;
+	// Idle-objective rows are 7000+ per iteration; keep off unless you need them.
+	private boolean includeIdleObjectives = false;
+	public void setIncludeIdleObjectives(boolean v) { this.includeIdleObjectives = v; }
+	private final boolean enabled;
 
+	/** Returns a tracker that does nothing: no file is created, flush/close are no-ops. */
+	public static FitnessTracker disabled() {
+	    return new FitnessTracker();
+	}
+	private FitnessTracker() {
+	    this.enabled = false;
+	    this.writer = null;
+	    this.cumulativeEvalOffset = 0;
+	}
 	/**
 	 * Creates the CSV file and writes the header.
 	 * Call once before the outer iteration loop.
@@ -45,6 +58,7 @@ public class FitnessTracker {
 	 * @param outputDir directory to write fitness_progress.csv
 	 */
 	public FitnessTracker(String outputDir) throws IOException {
+		this.enabled = true;
 		this.cumulativeEvalOffset = 0;
 
 		File dir = new File(outputDir);
@@ -70,7 +84,7 @@ public class FitnessTracker {
 	public void flush(int outerIteration,
 			List<GenericObjective> allObjectives,
 			List<GenericObjective> subsetObjectives) {
-
+		if (!enabled) return;
 		// Build fast lookup of subset IDs
 		Set<Integer> subsetIds = new HashSet<>();
 		for (GenericObjective obj : subsetObjectives) {
@@ -101,12 +115,11 @@ public class FitnessTracker {
 
 			if (snapshots == null || snapshots.isEmpty()) {
 				// Fallback: no snapshots recorded (very short budget)
-				writer.printf("%d,%d,%d,%d,%.6f,%s,%s%n",
-						outerIteration, 0, cumulativeEvalOffset,
-						obj.getObjectiveID(),
-						obj.isCovered() ? 0.0 : 1.0,
-								obj.isCovered(), true);
-				continue;
+			    writeRow(outerIteration, 0, cumulativeEvalOffset,
+			            obj.getObjectiveID(),
+			            obj.isCovered() ? 0.0 : 1.0,
+			            true);
+			    continue;
 			}
 
 			for (double[] snapshot : snapshots) {
@@ -114,20 +127,14 @@ public class FitnessTracker {
 				int    localEval  = (int) snapshot[1];
 				double fitness    = snapshot[2];
 
-				writer.printf("%d,%d,%d,%d,%.6f,%s,%s%n",
-						outerIteration,
-						generation,
-						cumulativeEvalOffset + localEval,
-						obj.getObjectiveID(),
-						fitness,
-						obj.isCovered(),
-						true); // inSubset = true
+				writeRow(outerIteration, generation, cumulativeEvalOffset + localEval,
+			            obj.getObjectiveID(), fitness, true);
 			}
 		}
 
 		// Write non-subset objectives — one row per generation using their
 		// last known bestFitness so the plot shows all objectives every iter
-		int genCount = Math.max(1, generationsThisIteration);
+		/*int genCount = Math.max(1, generationsThisIteration);
 
 		for (GenericObjective obj : allObjectives) {
 			if (subsetIds.contains(obj.getObjectiveID())) continue; // already written
@@ -141,17 +148,23 @@ public class FitnessTracker {
 						? cumulativeEvalOffset + (gen * maxEvalThisIteration / genCount)
 								: cumulativeEvalOffset;
 
-				writer.printf("%d,%d,%d,%d,%.6f,%s,%s%n",
-						outerIteration,
-						gen,
-						approxEval,
-						obj.getObjectiveID(),
-						lastFitness,
-						obj.isCovered(),
-						false); // inSubset = false
+				writeRow(outerIteration, gen, approxEval,
+			            obj.getObjectiveID(), lastFitness, false);
 			}
+		}*/
+		// Idle objectives: ONE summary row per iteration (last generation) instead of one
+		// row per generation. Per-generation rows for thousands of idle objectives made
+		// the CSV grow by hundreds of millions of rows.
+		if (includeIdleObjectives) {
+		    int lastGen = Math.max(1, generationsThisIteration);
+		    for (GenericObjective obj : allObjectives) {
+		        if (subsetIds.contains(obj.getObjectiveID())) continue;
+		        double lastFitness = obj.isCovered() ? 0.0
+		                : (obj.getBestFitness() == Double.MAX_VALUE ? 1.0 : obj.getBestFitness());
+		        writeRow(outerIteration, lastGen, cumulativeEvalOffset + maxEvalThisIteration,
+		                obj.getObjectiveID(), lastFitness, false);
+		    }
 		}
-
 		writer.flush();
 
 		// Advance offset so next iteration's evals continue from here
@@ -161,7 +174,15 @@ public class FitnessTracker {
 				+ " | generations: " + generationsThisIteration
 				+ " | cumulative evals: " + cumulativeEvalOffset);
 	}
-
+	
+	/** Writes one CSV row. isCovered is derived from this row's fitness, not the final state. */
+	private void writeRow(int outerIteration, int generation, int evaluations,
+	        int objectiveId, double fitness, boolean inSubset) {
+	    writer.printf(Locale.ROOT, "%d,%d,%d,%d,%.6f,%s,%s%n",
+	            outerIteration, generation, evaluations,
+	            objectiveId, fitness, fitness == 0.0, inSubset);
+	}
+	
 	/** Closes the CSV writer. Call once after all iterations complete. */
 	public void close() {
 		if (writer != null) {
