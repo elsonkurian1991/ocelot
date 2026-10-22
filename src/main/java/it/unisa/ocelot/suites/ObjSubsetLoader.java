@@ -8,15 +8,15 @@ import java.util.List;
  * This class is used by the EvInT (Evolutionary Integration Testing) tool.
  */
 /**
- * Loads the next subset of objectives for a MOSA iteration.
+ * Returns the next subset of objectives to pass to MOSA.
  *
- * <p>Enforces the rule that subset size is always half of the configured
- * MOSA population size, so the number of objectives never exceeds what MOSA
- * can handle effectively (avoids the fitness dilution problem seen when 130
- * objectives compete for a population of 100 solutions).
+ * <p>MAB selection is used from the first iteration. Objectives never attempted
+ * all score Double.MAX_VALUE, so on iteration 1 they come back in original
+ * order, up to subsetSize. From then on UCB1 scores decide.
  *
- * <p>Delegates actual objective selection and ordering to {@link MABController},
- * which uses UCB1 to balance exploration and exploitation across iterations.
+ * @param uncoveredObjectives remaining uncovered objectives
+ * @param iterationNumber     current iteration (1-based), used for logging only
+ * @return selected subset, ordered by MAB priority (highest first)
  */
 public class ObjSubsetLoader {
 
