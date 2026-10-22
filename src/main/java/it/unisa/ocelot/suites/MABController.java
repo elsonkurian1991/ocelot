@@ -114,7 +114,7 @@ public class MABController {
 	 * Velocity = rate of fitness improvement across the run:
 	 * 
 	 * <pre>
-	 * velocity(i) = (firstSnapshotFitness - lastSnapshotFitness) / evaluationsDelta
+	 * velocity(i) = velocity(i) = (firstFitness - lastFitness) / firstFitness
 	 * </pre>
 	 * 
 	 * Higher velocity means faster improvement = objective is easier to cover. A
@@ -132,12 +132,12 @@ public class MABController {
 			List<double[]> snapshots = obj.getSnapshots();
 
 			if (snapshots == null || snapshots.size() < 2) {
-				// Not enough data points — velocity stays at previous value
+				// no data: velocity = 0.0 (no improvement possible)
 				obj.setVelocity(0.0);
 				continue;
 			}
 
-			double[] first = snapshots.get(0);
+			/*double[] first = snapshots.get(0);
 			double[] last = snapshots.get(snapshots.size() - 1);
 
 			double fitnessDelta = first[1] - last[1]; // improvement (positive = better)
@@ -150,7 +150,16 @@ public class MABController {
 
 			// Normalise to [0, 1] range — fitness values are already in [0, 1]
 			// --- Velocity formula — change here if needed ---
-			obj.setVelocity(fitnessDelta / evaluationDelta);
+			//obj.setVelocity(fitnessDelta / evaluationDelta);
+			*/
+			double first0 = snapshots.get(0)[2];
+			double last0  = snapshots.get(snapshots.size() - 1)[2];
+
+			// Relative improvement over this run, in [0, 1]. All subset objectives share
+			// the same evaluation budget, so dividing by evaluations would not change the ranking.
+			double improvement = (first0 - last0) / Math.max(first0, 1e-9);
+			obj.setVelocity(Math.max(0.0, Math.min(1.0, improvement)));
+			   System.out.println("[MAB] obj " + obj.getObjectiveID() + " velocity=" + obj.getVelocity());
 		}
 	}
 
@@ -160,10 +169,7 @@ public class MABController {
 	 * iteration's selection.
 	 *
 	 * <p>
-	 * Reward per objective = coverage gain contributed / evaluations spent. An
-	 * objective that was covered this iteration gets full reward; one that showed
-	 * no progress gets reward 0.
-	 *
+	 * Reward per objective = 1.0 if covered, otherwise the relative fitness improvement.
 	 * @param subsetObjectives objectives passed to MOSA this iteration
 	 * @param totalEvaluations total evaluations MOSA spent this iteration
 	 */
@@ -184,7 +190,7 @@ public class MABController {
 				reward = 1.0; // maximum reward for full coverage
 			} else if (totalEvaluations > 0) {
 				// Partial reward proportional to velocity (how much progress was made)
-				reward = Math.max(0.0, obj.getVelocity());
+				reward = 0.5 * Math.max(0.0, obj.getVelocity());
 			} else {
 				reward = 0.0;
 			}
