@@ -52,6 +52,10 @@ public class MOSAGenericCoverageProblem extends StandardProblem {
 	 */
 	@Override
 	public double evaluateSolution(Solution solution) throws JMException, SimulationException {
+		// Clear execution data from previous evaluation to avoid contamination
+		if (solution instanceof GenericSolution) {
+		    ((GenericSolution) solution).clearExecutionData();
+		}
 		VariableTranslator translator = new VariableTranslator(solution);
 		Object[][][] arguments = translator.translateArray(this.parameters);
 		
