@@ -1,9 +1,12 @@
 package it.unisa.ocelot.suites;
 
-import java.util.LinkedList;
-
 import it.unisa.ocelot.genetic.solutions.GenericSolution;
-import jmetal.core.Solution;
+
+import java.util.LinkedList;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+
 import jmetal.core.SolutionSet;
 /**
  * EVINT_TOOL_MARKER
@@ -22,7 +25,7 @@ public class PopulationStore {
     // Fixed maximum capacity of the pool — set once at construction
     private final int capacity;
  
-    // Ordered buffer: front = newest, back = oldest.
+    // Ordered buffer: front = best score (covering solutions first), back = worst.
     // LinkedList used for efficient add-front and remove-back operations.
     private final LinkedList<GenericSolution> pool;
  
@@ -39,42 +42,50 @@ public class PopulationStore {
     }
  
     /**
-     * Adds new solutions to the front of the pool (newest first).
-     * Evicts the oldest non-covering solutions from the back to stay within
-     * capacity. Solutions with fitness == 0.0 are never evicted.
-     *
-     * <p>If the pool is completely full of covering solutions (fitness == 0.0)
-     * and new non-covering solutions arrive, the new ones are discarded rather
-     * than evicting valuable covering solutions.
-     *
-     * @param population the final population from the completed MOSA run
+     * Stores the final population from a completed MOSA run into the pool.
+     * Merges the new population with the pool, ranks by score 
+     * (best objective value, 0.0 = covers an objective) and 
+     * keeps the best 'capacity' solutions. 
+     * Newer solutions win ties.
      */
     public void store(SolutionSet population) {
         if (population == null || population.size() == 0) return;
- 
-        int added = 0;
+
+        // New solutions first, then the existing pool. List.sort is stable, so
+        // on equal scores the newest solutions win.
+        List<GenericSolution> merged = new ArrayList<>(population.size() + pool.size());
         for (int i = 0; i < population.size(); i++) {
-            GenericSolution solution = new GenericSolution((GenericSolution) population.get(i)); // deep copy
- 
-            // Make room if pool is at capacity
-            if (pool.size() >= capacity) {
-                if (!evictOldestNonCovering()) {
-                    // Pool is full of covering solutions — discard this new one
-                    // to preserve the valuable covering solutions already stored
-                    continue;
-                }
-            }
- 
-            // Add to front so newest solutions are offered to MOSA first
-            pool.addFirst(solution);
-            added++;
+            merged.add(new GenericSolution((GenericSolution) population.get(i))); // deep copy
         }
- 
-        System.out.println("[PopulationStore] Stored " + added
-                + " new solutions. Pool size: " + pool.size()
-                + "/" + capacity);
+        merged.addAll(pool);
+        merged.sort(Comparator.comparingDouble(PopulationStore::score));
+
+        pool.clear();
+        for (int i = 0; i < Math.min(capacity, merged.size()); i++) {
+            pool.add(merged.get(i));
+        }
+
+        System.out.println("[PopulationStore] Offered " + population.size()
+                + " solutions. Pool size: " + pool.size() + "/" + capacity
+                + ", best score: " + score(pool.getFirst()));
     }
- 
+    
+    
+    /**
+     * Quality score of a solution: the best (lowest) objective value in its vector.
+     * 0.0 means the solution covers at least one objective. Uses only vector
+     * positions, so it does not depend on objective IDs (which are remapped per run).
+     */
+    private static double score(GenericSolution s) {
+        double best = Double.MAX_VALUE;
+        for (int i = 0; i < s.getNumberOfObjectives(); i++) {
+            double v = s.getObjective(i);
+            if (!Double.isNaN(v)) {
+                best = Math.min(best, v);
+            }
+        }
+        return best;
+    }
     /**
      * Returns true if at least one seed solution is available.
      */
@@ -84,7 +95,7 @@ public class PopulationStore {
  
     /**
      * Returns up to {@code maxSize} solutions from the pool for seeding MOSA.
-     * Newest solutions are returned first (front of the pool), as they are
+     * Best-scoring solutions are returned first, as they are
      * most relevant to the current iteration's objectives.
      *
      * @param maxSize maximum number of seeds to return
@@ -127,30 +138,5 @@ public class PopulationStore {
         pool.clear();
     }
  
-    /**
-     * Evicts the oldest non-covering solution from the back of the pool.
-     * Traverses from back (oldest) to front (newest), skipping any solution
-     * with fitness == 0.0 (a covering solution — never evicted).
-     *
-     * @return true if a solution was evicted, false if all remaining solutions
-     *         are covering solutions and cannot be removed
-     */
-    private boolean evictOldestNonCovering() {
-        // Traverse from back (oldest) to find first non-covering solution
-        for (int i = pool.size() - 1; i >= 0; i--) {
-        	GenericSolution candidate = pool.get(i);
- 
-            // fitness == 0.0 means this solution covered an objective — keep it
-            if (candidate.getFitness() == 0.0) {
-                continue; // skip — never evict a covering solution
-            }
- 
-            // Found an evictable (non-covering) solution — remove it
-            pool.remove(i);
-            return true;
-        }
- 
-        // All solutions in the pool are covering solutions — cannot evict
-        return false;
-    }
+    
 }
