@@ -569,7 +569,7 @@ public class BranchChainManager {
 
 		//closeTracker(); // flush C's buffered writes to disk before reading
 	    try {
-			loadFunctionNameMap("/tmp/evint-run/FunctionNameMap.txt");
+			loadFunctionNameMap(FUNCTION_NAME_MAP_FILE);
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
