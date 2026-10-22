@@ -16,6 +16,7 @@ import it.unisa.ocelot.util.Front;
 import jmetal.core.Operator;
 import jmetal.core.Solution;
 import jmetal.core.SolutionSet;
+import jmetal.core.Variable;
 import jmetal.util.JMException;
 import jmetal.util.MOSARanking_Generic;
 import jmetal.util.comparators.CrowdingComparator;
@@ -219,11 +220,23 @@ public class MOSA_Generic extends OcelotAlgorithm {
 		// These carry over the search progress already made, avoiding
 		// re-discovery of the same easy regions from scratch.
 		for (int i = 0; i < seedCount && i < populationSize; i++) {
+		    Variable[] oldVars = ((GenericSolution) seedPopulation.get(i)).getDecisionVariables();
+		    Variable[] vars = new Variable[oldVars.length];
+		    for (int k = 0; k < vars.length; k++) {
+		        vars[k] = oldVars[k].deepCopy();
+		    }
+		    // Fresh solution bound to THIS run's problem: sized vector, no stale values
+		    newSolution = new GenericSolution((MOSAGenericCoverageProblem) problem_, vars);
+		    problem_.evaluate(newSolution);
+		    evaluations++;
+		    population.add(newSolution);
+		}
+		/*for (int i = 0; i < seedCount && i < populationSize; i++) {
 			newSolution = new GenericSolution((GenericSolution) seedPopulation.get(i));
 			problem_.evaluate(newSolution);  //TODO is it really necessary to run *again* the test on the seeded solutions?
 			evaluations++;
 			population.add(newSolution);
-		}
+		}*/
 		System.err.println("[MOSA] Seeded " + seedCount + " solutions from previous iteration.");
 
 		// Fill the remainder of the population with fresh random solutions.
@@ -254,7 +267,7 @@ public class MOSA_Generic extends OcelotAlgorithm {
 			
 			// feedback: print the current global fitness (i.e., the sum of the best fitnesses of
 			// the uncovered objectives)
-			//if (generations % 10 == 0) {
+			if (shouldPrint(generations)) {
 				double globalFitness = 0;
 				for (GenericObjective obj : allTargets) {
 					if (obj.isCovered()) {
@@ -264,7 +277,7 @@ public class MOSA_Generic extends OcelotAlgorithm {
 					globalFitness += objFitness;
 				}
 				System.out.println("[MOSA] Generation: " + generations + ", current global fitness: " + globalFitness);
-			//}
+			}
 			
 			// Record a fitness snapshot for every objective at the end of each
 			// generation so FitnessTracker can plot convergence curves.
@@ -364,7 +377,12 @@ public class MOSA_Generic extends OcelotAlgorithm {
 			updateArchive(population, evaluations);
 
 		}// while
-		
+		// Final snapshot so the last generation's progress is not lost
+		for (GenericObjective target : allTargets) {
+		    double f = target.isCovered() ? 0.0 : target.getBestFitness();
+		    if (f == Double.MAX_VALUE) f = 1.0;
+		    target.recordSnapshot(generations + 1, evaluations, f);
+		}
 		// Feedback: time statistics
 		long endTime = System.nanoTime();
 		long time = endTime - startTime;
@@ -379,23 +397,45 @@ public class MOSA_Generic extends OcelotAlgorithm {
 		return this.archive;
 	}
 
+	private boolean shouldPrint(int generation) {
+		 if (generation < 10) {
+		        return true;
+		    }
+		    if (generation < 200) {
+		        return generation % 10 == 0;       // 100, 110, ..., 190
+		    }
+		    long step = 1;
+		    while (step * 10 <= generation) {      // step = largest power of 10 <= generation
+		        step *= 10;
+		    }
+		    return generation % step == 0;         // 200, 300, ..., 1000, 2000, ..., 10000, 20000, ...
+	}
+
 	private boolean keepRunning(int evaluations, int maxEvaluations, int generations, int maxGenerations, long startTime) {
 		if (this.algorithmTime > 0) {
 			long endTime = System.nanoTime();
 			if (TimeUnit.NANOSECONDS.toSeconds(endTime - startTime) >= this.algorithmTime) {
-				System.err.println("[MOSA] Maximum time limit reached: " + this.algorithmTime + " seconds.");
+				System.err.println("[MOSA-Exit-Reason] Maximum time limit reached: " + this.algorithmTime + " seconds.");
+				System.err.println("[MOSA-Exit] at : " + maxEvaluations + " evaluations.");
+				System.err.println("[MOSA-Exit] at : " + maxGenerations + " generations.");
+				
 				return false;
 			}
 		}
 		if (maxEvaluations > 0) {
 			if (evaluations >= maxEvaluations) {
-				System.err.println("[MOSA] Maximum evaluations limit reached: " + maxEvaluations + " evaluations.");
+				System.err.println("[MOSA-Exit-Reason] Maximum evaluations limit reached: " + maxEvaluations + " evaluations.");
+				System.err.println("[MOSA-Exit] at : " + this.algorithmTime + " seconds.");
+				System.err.println("[MOSA-Exit] at : " + maxGenerations + " generations.");
 				return false;
 			}
 		}
 		if (maxGenerations > 0) {
 			if (generations >= maxGenerations) {
-				System.err.println("[MOSA] Maximum generations limit reached: " + maxGenerations + " generations.");
+				System.err.println("[MOSA-Exit-Reason] Maximum generations limit reached: " + maxGenerations + " generations.");
+				System.err.println("[MOSA-Exit] at :  " + this.algorithmTime + " seconds.");
+				System.err.println("[MOSA-Exit] at : " + maxEvaluations + " evaluations.");
+				
 				return false;
 			}
 		}
@@ -449,8 +489,9 @@ public class MOSA_Generic extends OcelotAlgorithm {
 		SolutionSet front_0 = new SolutionSet(allTargets.size());
 
 		/*** preference criterion ***/
-		double minimum_fitness = Double.MAX_VALUE;
-		GenericSolution t_best = null; // best test case
+		// For every uncovered objective, pick the solution with the lowest value for it
+		// and put it in front 0. Each solution enters front 0 at most once, even if it
+		// is the best for several objectives.
 		Set<GenericSolution> solutionsToDelete = new HashSet<>();
 
 		for (GenericObjective target : allTargets) {
@@ -458,24 +499,28 @@ public class MOSA_Generic extends OcelotAlgorithm {
 				continue;
 			if (front_0.size() == front_0.getCapacity())
 				break; // Exit if front_0 is full
-			
+			/*** preference criterion ***/
+			double minimum_fitness = Double.MAX_VALUE;
+			GenericSolution t_best = null; // best test case
+			int idObjective = target.getObjectiveID();
 			Iterator<Solution> populationIterator = population.iterator();
 			while (populationIterator.hasNext()) {
-
-				GenericSolution currentSolution = (GenericSolution) populationIterator.next();
-				int idObjective = target.getObjectiveID();
+				GenericSolution currentSolution = (GenericSolution) populationIterator.next();				
 				double currentObjective = currentSolution.getObjective(idObjective);
-
 				if (currentObjective < minimum_fitness) {
 					minimum_fitness = currentObjective;
 					t_best = currentSolution;
-				}// end-if
-				
+				}// end-if	
 			} // end-while
-			t_best.setRank(0); // set rank 0 for preference criterion
+			// add each solution once, even if it is best for several objectives
+		    if (t_best != null && solutionsToDelete.add(t_best)) {
+		        t_best.setRank(0);
+		        front_0.add(t_best);
+		    }
+			/*t_best.setRank(0); // set rank 0 for preference criterion
 			front_0.add(t_best);	// adding to front 0
 			solutionsToDelete.add(t_best);
-
+			 */
 		} // end for
 
 		front.addFront(front_0);
