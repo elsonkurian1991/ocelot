@@ -13,6 +13,7 @@ import java.io.IOException;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.IdentityHashMap;
 
 import org.apache.commons.io.output.TeeOutputStream;
 
@@ -55,39 +56,37 @@ import it.unisa.ocelot.suites.SerendipitousCoverageChecker;
  * <li>Reset per-objective state so MOSA starts clean.</li>
  * <li>Seed MOSA with the final population from the previous iteration (via
  * PopulationStore) so progress is not lost.</li>
- * <li>Run MOSA on the selected subset.</li>  
+ * <li>Run MOSA on the selected subset.</li>
  * <li>Store MOSA's final population in PopulationStore.</li>
- * <li>CoverageVerifier identifies newly covered and still-uncovered
- * objectives.</li>
+ * <li>SerendipitousCoverageChecker marks non-subset objectives covered by the new TCs.</li>
+ * <li>CoverageVerifier identifies newly covered and still-uncovered objectives.</li>
  * <li>MABController records results (coverage gain, velocity) and updates UCB
  * scores for the next iteration's selection.</li>
  * <li>Repeat until MAX_ITERATIONS or full coverage.</li>
  * </ol>
  *
  * <p>
- * <b>Isolation guarantee:</b> MOSA and all other generators are unmodified
- * except for two small additions to MOSA_Generic (seed setter + population
- * getter) which do not affect existing behaviour when not called.
+ * <b>Isolation guarantee:</b> MOSA changes: seed setter and population getter only
  */
 public class GenAndWrite {
 	// One-time-per-JVM guard: delete old fitness mapping output file on first call
 	// to getOutputFile()
-	private static volatile boolean OUTPUT_FITNESS_FILE_CLEANED = false;
 
 	public void run() {
+		FitnessTracker fitnessTracker = null;
+		PrintStream originalOut = System.out;
+		FileOutputStream fos = null;
+		PrintStream ps = null;
 		try {
 			ConfigManager config = ConfigManager.getInstance();
 
 			// Sets up the output file
 			File outputDirectory = new File(config.getOutputFolder());
 			outputDirectory.mkdirs();
-			LocalDateTime now = LocalDateTime.now();
-			DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss");
-			String formatedDateTime = now.format(formatter);
-			FileOutputStream fos = new FileOutputStream(
-					config.getOutputFolder() + "exp_res_" + formatedDateTime + ".txt");
-			TeeOutputStream myOut = new TeeOutputStream(System.out, fos);
-			PrintStream ps = new PrintStream(myOut);
+			String formatedDateTime = LocalDateTime.now()
+					.format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss"));
+			fos = new FileOutputStream(new File(outputDirectory, "exp_res_" + formatedDateTime + ".txt"));
+			ps = new PrintStream(new TeeOutputStream(originalOut, fos), true);
 			System.setOut(ps);
 
 			// Builds the CFG and sets the target
@@ -126,17 +125,21 @@ public class GenAndWrite {
 			List<GenericObjective> uncoveredObjectives = new ArrayList<>(allObjectives);
 
 			System.out.println("Starting MAB-guided iterative generation. " + "Max iterations: " + config.getMaxIterForMosa()
-					+ ", subset size: " + subsetLoader.getSubsetSize());
+			+ ", subset size: " + subsetLoader.getSubsetSize());
 			StringBuilder objCovEachIter = new StringBuilder();
 			// Tracks and persists fitness snapshots to CSV for post-run analysis.
 			// "." writes fitness_progress.csv to the current working directory —
 			// change to config.getOutputDir() or similar if you have an output path.
-			FitnessTracker fitnessTracker = null;
-			openFitnessProgressFile(config,fitnessTracker);
 			
+			boolean trackFitness = Boolean.parseBoolean(
+			        System.getProperty("evint.trackFitness", "false"));//TODO fix this to be configurable via config file instead of system property
+			fitnessTracker = trackFitness
+			        ? openFitnessProgressFile(config)
+			        : FitnessTracker.disabled();
+
 			// Main iterative generation loop
 			for (int iteration = 1; iteration <= config.getMaxIterForMosa(); iteration++) {
-				
+
 				System.out.println("\n=== Iteration " + iteration + "/" + config.getMaxIterForMosa() + " ===");
 				System.out.println("Uncovered objectives remaining: " + uncoveredObjectives.size());
 
@@ -166,41 +169,33 @@ public class GenAndWrite {
 				// ArrayIndexOutOfBoundsException in MOSAGenericCoverageProblem.
 				Map<GenericObjective, Integer> savedIds = remapObjectiveIds(subsetObjectives);
 
-				// Build generator for this iteration's objective subset
-				TestSuiteGenerator generator = TestSuiteGeneratorHandler.getInstance(config, cfg, subsetObjectives);
-
-				if (generator == null) {
-					restoreObjectiveIds(savedIds);
-					System.err.println("No generator found for: " + config.getTestSuiteGenerator());
-					break;
-				}
-
-				System.out.println("Generator: " + generator.getClass().getSimpleName());
-				// Seed MOSA with the previous iteration's final population.
-				// This preserves search progress — without seeding, each MOSA
-				// instance re-discovers the same easy solutions from scratch.
-				// Only GenericMOSATestSuiteGenerator supports seeding.
-				if (generator instanceof GenericMOSATestSuiteGenerator && populationStore.hasSeedPopulation()) {
-					int seedSize = config.getPopulationSize() / 2;
-					SolutionSet seeds = populationStore.getSeedPopulation(seedSize);
-					((GenericMOSATestSuiteGenerator) generator).setSeedPopulation(seeds);
-					System.out.println("Seeded MOSA with " + seeds.size() + " solutions from previous iteration.");
-				}
-				// Run MOSA — the core generation step.
-				// try/finally guarantees IDs are always restored even on exception.
+				TestSuiteGenerator generator = null;
 				Set<TestCase> iterationSuite;
 				try {
+					generator = TestSuiteGeneratorHandler.getInstance(config, cfg, subsetObjectives);
+					if (generator == null) {
+						throw new IllegalStateException(
+								"No generator found for: " + config.getTestSuiteGenerator());
+					}
+					System.out.println("Generator: " + generator.getClass().getSimpleName());
+
+					if (generator instanceof GenericMOSATestSuiteGenerator && populationStore.hasSeedPopulation()) {
+						SolutionSet seeds = populationStore.getSeedPopulation(subsetLoader.getSubsetSize());
+						((GenericMOSATestSuiteGenerator) generator).setSeedPopulation(seeds);
+						System.out.println("Seeded MOSA with " + seeds.size() + " solutions from previous iteration.");
+					}
+
 					iterationSuite = generator.generateTestSuite();
-				} finally {
-					// Restore original IDs before any coverage reporting
+				}finally {
+					// Always restore original IDs, even on exception
 					restoreObjectiveIds(savedIds);
 				}
-				//delete the old distance from the file 
+				//Reset branch-distance tracking files so the next iteration starts clean 
 				System.out.println("Resetting BranchDistanceTracker files for next iteration...");
 				Run.resetFileQuietly(BranchChainManager.BRANCH_DIST_TRACK_FILE);
 				Run.resetFileQuietly(BranchChainManager.FUNCTION_NAME_MAP_FILE);
-				
-				
+
+
 				// Accumulate test cases from this iteration into global suite
 				suite.addAll(iterationSuite);
 				System.out.println("Test cases this iteration: " + iterationSuite.size() + " | Total accumulated: "
@@ -221,21 +216,25 @@ public class GenAndWrite {
 				// Any objective whose fitness == 0.0 is marked covered for free,
 				// without spending an additional MOSA iteration on it.
 				// ------------------------------------------------------------------
+				long t0 = System.nanoTime();
+				// ... check(...) ...
+				
 				int serendipitouslyCovered = serendipityChecker.check(iterationSuite, // TCs produced this iteration
 						allObjectives, // full objective list to scan
 						subsetObjectives); // exclude — MOSA already handled these
 				if (serendipitouslyCovered > 0) {
-					System.out.println("Serendipitous coverage: " + serendipitouslyCovered
+					System.out.println("[Serendipity] Serendipitous coverage: " + serendipitouslyCovered
 							+ " additional objective(s) covered at no extra cost.");
 				}
-
+				System.out.println("[Serendipity] took " + (System.nanoTime() - t0) / 1_000_000 + " ms");
 				// MAB step 2 — compute velocity for each objective in subset.
 				// Uses fitnessSnapshots recorded by MOSA_Generic during the run.
 				mab.computeVelocities(subsetObjectives);
 
 				// Flush per-generation snapshots for ALL objectives — subset ones have
 				// real snapshots, non-subset ones get last-known fitness as placeholder
-				//fitnessTracker.flush(iteration, allObjectives, subsetObjectives);
+				// Write per-generation fitness snapshots for all objectives to the CSV
+				fitnessTracker.flush(iteration, allObjectives, subsetObjectives);
 
 				// Coverage verification — identify newly covered objectives
 				System.out.println(verifier.summarise(allObjectives));
@@ -243,15 +242,17 @@ public class GenAndWrite {
 				// Update the uncovered list using the full allObjectives state
 				uncoveredObjectives = verifier.getUncoveredObjectivesSorted(allObjectives, suite);
 				long chainPairCount = uncoveredObjectives.stream()
-					    .filter(o -> o instanceof BranchChainPairObjective)
-					    .count();
+						.filter(o -> o instanceof BranchChainPairObjective)
+						.count();
 				String lineChainPairCount = "\n" + iteration + "/" + config.getMaxIterForMosa() + " -> " + "Uncovered BranchChainPairObjectives: "
 						+ "" + chainPairCount + " / " + uncoveredObjectives.size();
 				objCovEachIter.append(lineChainPairCount);
-					System.out.println("Uncovered BranchChainPairObjectives: " + chainPairCount + " / " + uncoveredObjectives.size());
+				System.out.println("Uncovered BranchChainPairObjectives: " + chainPairCount + " / " + uncoveredObjectives.size());
 				int newlyCovered = uncoveredBefore - uncoveredObjectives.size();
 				String line = "\n" + iteration + "/" + config.getMaxIterForMosa() + " -> " + iterationSuite.size()
-				        + " test cases, " + newlyCovered + " objectives newly covered";
+				+ " test cases, " + newlyCovered + " objectives newly covered";
+				//String line = "\n" + iteration + "/" + MAX_ITERATIONS + " -> " + iterationSuite.size()+ " Objectives covered";
+				objCovEachIter.append(line);
 				//System.out.println("Uncovered after iteration " + iteration + ": " + uncoveredObjectives.size());
 				// MAB step 3 — record result and update UCB statistics.
 				// Uses the number of evaluations MOSA spent this iteration.
@@ -265,24 +266,23 @@ public class GenAndWrite {
 					System.out.println("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%");
 					break;
 				}
-				//String line = "\n" + iteration + "/" + MAX_ITERATIONS + " -> " + iterationSuite.size()+ " Objectives covered";
-				objCovEachIter.append(line);
-				System.err.println("[Iter " + iteration + "] "
-			    + " | suite size: " + suite.size()
-			    + " | populationStore pool size: " + populationStore.size()); // or equivalent getter
+
+				System.out.println("[Iter " + iteration + "] "
+						+ " | suite size: " + suite.size()
+						+ " | populationStore pool size: " + populationStore.size()); // or equivalent getter
 			} // For loop end
 			System.out.println("[INFO] EvInT run finished.");
 			// Close the CSV file writer cleanly after all iterations complete
 			//fitnessTracker.close();
 
-			// Final coverage report
+			// Report if the iteration budget ran out before full coverage
 			if (!verifier.isFullyCovered(allObjectives)) {
 				System.out.println("\nBudget exhausted after " + config.getMaxIterForMosa() + " iteration(s). "
 						+ verifier.summarise(allObjectives));
 			}
 
-			// Final coverage report (unchanged from original)
-			// Set<TestCase> minimizedSuite = minimizer.minimize(suite); //TODO later
+			// Final coverage calculation and report
+			// Set<TestCase> minimizedSuite = minimizer.minimize(suite); //TODO No minimization yet
 			Set<TestCase> minimizedSuite = suite;
 
 			GenericCoverageCalculator calculator = new GenericCoverageCalculator(cfg, allObjectives);
@@ -292,34 +292,35 @@ public class GenAndWrite {
 			// Print and write uncovered branch-chain objectives to file (include coverage
 			// counts)
 			// printUncoveredBCobjectives(calculator, allObjectives, minimizedSuite);
-			
+
 			System.out.println(objCovEachIter.toString());
 			System.out.println("-------------------------------------------------------");
 			System.out.println("Output Highlights:");
 			System.out.println("-------------------------------------------------------");
+			System.out.println("[IN] Algorithm time limit(seconds): " +  String.valueOf(config.getAlgorithmTime()));
+			System.out.println("[IN] Algorithm evaluation limit: " +  String.valueOf(config.getMaxEvaluations()));			
 			System.out.println("[IN] Population size: " + config.getPopulationSize());
 			System.out.println("[IN] Max MAB iterations: " + config.getMaxIterForMosa());
-			System.out.println("[IN] Algorithm time limit(seconds): " +  String.valueOf(config.getAlgorithmTime()));
 			System.out.println("[IN] Algorithm generation limit: " + String.valueOf(config.getAlgorithmGenerations()));
 			System.out.println("[IN] Total input space (array size): " + String.valueOf(config.getTestArraysSize()));
 			System.out.println("-------------------------------------------------------");
 			System.out.println("[OUT] Total size of objectives to evaluate: " + allObjectives.size());
 			System.out.println("[OUT] Minimized test cases: " + minimizedSuite.size());
-			System.out.println("[OUT] Total objectives coveraged : " + verifier.getFinalCoverage(allObjectives));
+			System.out.println("[OUT] Total objectives covered: " + verifier.getFinalCoverage(allObjectives));
 			//System.out.println("Objective coverage achieved: " + calculator.getObjectiveCoverage());//TODO this is not working
 			//System.out.println("[OUT] Uncovered objectives: " + uncoveredObjectives.size());
-			
+
 			/* for (GenericObjective objective : uncoveredObjectives) { 
 				 if (!objective.isCovered()) { System.out.println(objective.toString()); } }
 			 System.out.println("-------------------------------------------------------");
-			 
+
 			/* System.out.println("-------------------------------------------------------");
 				System.out.println("Covered objectives: " + verifier.getFinalCoverage(allObjectives));
-				
+
 				 for (GenericObjective objective : allObjectives) { 
 					 if (objective.isCovered()) { System.out.println(objective.toString()); } }
 				 System.out.println("-------------------------------------------------------");
-				*/ 
+			 */ 
 			//TODO printUncoveredBCobjectives(calculator, allObjectives, minimizedSuite);
 			// System.out.println("Branch coverage achieved: " +
 			// calculator.getBranchCoverage());
@@ -341,45 +342,31 @@ public class GenAndWrite {
 			PrintWriter writer = new PrintWriter(dir_file, "UTF-8");
 			writer.print(content);
 			writer.close();
-			*/
+			 */
 			// Utils.writeFile(filename, content);
 
 			System.out.println("EvInT operation completed!");
+
 		} catch (Exception e) {
-			e.printStackTrace();
 			throw new RuntimeException(e);
+		} finally {
+			if (fitnessTracker != null) {
+				fitnessTracker.close();
+			}
+			if (ps != null) {
+				ps.flush();
+			}
+			System.setOut(originalOut);
+			if (fos != null) {
+				try { fos.close(); } catch (IOException ignored) { }
+			}
 		}
 	}
 
-	private void openFitnessProgressFile(ConfigManager config, FitnessTracker fitnessTracker) {
+	private FitnessTracker openFitnessProgressFile(ConfigManager config) {
 		try {
-			String outputDir = config.getTestBasedir();
-			// Ensure we delete any old fitness mapping output file only once per JVM run.
-			if (!OUTPUT_FITNESS_FILE_CLEANED) {
-				File candidate = new File(outputDir + "fitness_progress.csv");
-				try {
-					// Ensure parent directory exists
-					File parent = candidate.getParentFile();
-					if (parent != null && !parent.exists()) {
-						parent.mkdirs();
-					}
-
-					if (candidate.exists()) {
-						boolean deleted = candidate.delete();
-						if (!deleted) {
-							System.err.println("Warning: unable to delete existing fitness_progress.csv file: "
-									+ candidate.getAbsolutePath());
-						}
-					}
-				} catch (SecurityException se) {
-					System.err.println("Warning deleting fitness_progress.csv file: " + se.getMessage());
-				} finally {
-					OUTPUT_FITNESS_FILE_CLEANED = true;
-					System.err.println("deleted previous fitness_progress.csv file: ");
-				}
-			}
-
-			fitnessTracker = new FitnessTracker(outputDir);
+			// Constructor creates the directory if needed and overwrites any old CSV
+			return new FitnessTracker(config.getTestBasedir());
 		} catch (IOException e) {
 			throw new RuntimeException("Could not create FitnessTracker CSV", e);
 		}
@@ -395,7 +382,7 @@ public class GenAndWrite {
 	// ------------------------------------------------------------------
 	private Map<GenericObjective, Integer> remapObjectiveIds(List<GenericObjective> objectives) {
 
-		Map<GenericObjective, Integer> saved = new HashMap<>(objectives.size());
+		Map<GenericObjective, Integer> saved = new IdentityHashMap<>(objectives.size());
 		for (int i = 0; i < objectives.size(); i++) {
 			GenericObjective obj = objectives.get(i);
 			saved.put(obj, obj.getObjectiveID()); // save original
@@ -418,6 +405,7 @@ public class GenAndWrite {
 	// Helper: prints uncovered branch-chain objectives (human readable) and writes
 	// them to uncoveredBCobjectives.txt
 	//TODO: Consider refactoring this method to separate printing and file writing for clarity and testability.
-	
-	
+
+
+
 }
