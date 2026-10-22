@@ -105,7 +105,7 @@ public class ConfigManager {
 	 * @return
 	 */
 	public int getMaxEvaluations() {
-		return Integer.parseInt(this.properties.getProperty("evaluations.max", "25000"));
+		return Integer.parseInt(this.properties.getProperty("algorithm.evaluations", "25000"));
 	}
 	/**
 	 * Returns the maximum amount of time in seconds the genetic algorithm
