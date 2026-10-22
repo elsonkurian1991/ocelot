@@ -1,6 +1,8 @@
 package it.unisa.ocelot.suites.generators.many_objective;
 
+import java.util.Collections;
 import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Set;
 
@@ -40,6 +42,7 @@ public class GenericMOSATestSuiteGenerator extends TestSuiteGenerator implements
 	 * Reference to the MOSA_Generic algorithm instance from the last run.
 	 * Retained so GenAndWrite can call getFinalPopulation() after the run
 	 * to store the population for the next iteration's seeding.
+	 * It holds a SolutionSet
 	 */
 	private SolutionSet lastFinalPopulation;
 
@@ -119,13 +122,19 @@ public class GenericMOSATestSuiteGenerator extends TestSuiteGenerator implements
 		
 		Solution currentSolution;
 		List<Integer> numberOfEvaluations = mosaExperiment.getNumberOfEvaluations();
+		Set<Solution> seen = Collections.newSetFromMap(new IdentityHashMap<>());
 		for (int i = 0; i < archiveSolutions.size(); i++) {
 			currentSolution = archiveSolutions.get(i);
+		    if (!seen.add(currentSolution)) continue;   // same solution covers several objectives
+		    TestCase testCase = this.createTestCase(cfg.getParameterTypes(), currentSolution, suite.size());
+		    suite.add(testCase);
+		    this.measureBenchmarks("MOSA Target", suite, numberOfEvaluations.get(i));
+			/*currentSolution = archiveSolutions.get(i);
 			if (currentSolution.getFitness() == 0) {
 				TestCase testCase = this.createTestCase(cfg.getParameterTypes(), currentSolution, suite.size());
 				suite.add(testCase);
 				this.measureBenchmarks("MOSA Target", suite, numberOfEvaluations.get(i));
-			}
+			}*/
 		}
 		System.out.println("Test suite size: " + suite.size());
 	}
