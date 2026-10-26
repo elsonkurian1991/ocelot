@@ -116,4 +116,19 @@ public class GenericSolution extends Solution implements Serializable {
 	        this.cacheObject = saved;
 	    }
 	}
+	
+	/**
+	 * Evaluates an objective against the given execution data, without changing
+	 * this solution. Used to verify coverage on freshly re-executed data.
+	 * For verfication purposes, the objective does not need to be in this solution's problem.
+	 */
+	public double evaluateObjectiveOn(Object data, GenericObjective objective) {
+	    Object saved = this.cacheObject;
+	    this.cacheObject = data;
+	    try {
+	        return objective.getFitness(this);
+	    } finally {
+	        this.cacheObject = saved;
+	    }
+	}
 }
