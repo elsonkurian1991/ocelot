@@ -39,7 +39,7 @@ public class SerendipitousCoverageChecker {
                      List<GenericObjective> allObjectives,
                      List<GenericObjective> subsetObjectives) {
 
-        List<GenericObjective> candidates = buildCandidateList(allObjectives, subsetObjectives);
+        List<GenericObjective> candidates = buildCandidateList(allObjectives);
         if (candidates.isEmpty()) {
             System.out.println("[Serendipity] No candidate objectives to check.");
             return 0;
@@ -83,15 +83,11 @@ public class SerendipitousCoverageChecker {
 
     /** Uncovered objectives that are not in the MOSA subset (compared by identity). */
     private List<GenericObjective> buildCandidateList(
-            List<GenericObjective> allObjectives,
-            List<GenericObjective> subsetObjectives) {
-
-        Set<GenericObjective> subset = Collections.newSetFromMap(new IdentityHashMap<>());
-        subset.addAll(subsetObjectives);
+            List<GenericObjective> allObjectives) {
 
         List<GenericObjective> candidates = new ArrayList<>();
         for (GenericObjective obj : allObjectives) {
-            if (!obj.isCovered() && !subset.contains(obj)) {
+            if (!obj.isCovered()) {
                 candidates.add(obj);
             }
         }
