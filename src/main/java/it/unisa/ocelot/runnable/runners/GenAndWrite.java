@@ -7,6 +7,7 @@ import java.io.PrintWriter;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.io.IOException;
@@ -23,9 +24,11 @@ import it.unisa.ocelot.c.cfg.CFG;
 import it.unisa.ocelot.c.cfg.CFGBuilder;
 import it.unisa.ocelot.c.types.CTypeHandler;
 import it.unisa.ocelot.conf.ConfigManager;
+import it.unisa.ocelot.genetic.many_objective.MOSAGenericCoverageProblem;
 import it.unisa.ocelot.genetic.objectives.GenericObjective;
 import it.unisa.ocelot.genetic.objectives.branch_chains.BranchChainManager;
 import it.unisa.ocelot.genetic.objectives.branch_chains.BranchChainPairObjective;
+import it.unisa.ocelot.genetic.solutions.GenericSolution;
 import it.unisa.ocelot.runnable.Run;
 import it.unisa.ocelot.simulator.CBridge;
 import it.unisa.ocelot.simulator.GenericCoverageCalculator;
@@ -98,7 +101,9 @@ public class GenAndWrite {
 
 			int mcCabePaths = cfg.edgeSet().size() - cfg.vertexSet().size() + 1;
 			System.out.println("Cyclomatic complexity: " + mcCabePaths);
-
+			
+			// Reset the static test case ID counter so each run starts from 0 again
+			GenericMOSATestSuiteGenerator.resetTestCaseIds();
 			// Load the full objective list once
 			List<GenericObjective> allObjectives = BranchChainManager.loadObjectives();
 			System.out.println("Total objectives loaded: " + allObjectives.size());
@@ -131,8 +136,7 @@ public class GenAndWrite {
 			// "." writes fitness_progress.csv to the current working directory —
 			// change to config.getOutputDir() or similar if you have an output path.
 			
-			boolean trackFitness = Boolean.parseBoolean(
-			        System.getProperty("evint.trackFitness", "false"));//TODO fix this to be configurable via config file instead of system property
+			boolean trackFitness = false;//TODO fix this to be configurable via config file instead of system property
 			fitnessTracker = trackFitness
 			        ? openFitnessProgressFile(config)
 			        : FitnessTracker.disabled();
@@ -288,7 +292,14 @@ public class GenAndWrite {
 			GenericCoverageCalculator calculator = new GenericCoverageCalculator(cfg, allObjectives);
 
 			calculator.calculateCoverage(minimizedSuite);
-
+			// ---- Check 1: replay coverage from the final suite only ----
+			verifyCoverageBySuite(suite, allObjectives);
+			// ---- Check 2: re-execute each TC in the final suite and compare with stored coverage ----
+			verifyCoverageByReexecution(suite, allObjectives);
+			
+			
+			
+			
 			// Print and write uncovered branch-chain objectives to file (include coverage
 			// counts)
 			// printUncoveredBCobjectives(calculator, allObjectives, minimizedSuite);
@@ -402,10 +413,87 @@ public class GenAndWrite {
 		}
 	}
 
+	// Debug check: recompute coverage using only the test cases in the final suite
+	// and compare with the objectives flagged as covered during the run.
+	private void verifyCoverageBySuite(Set<TestCase> suite, List<GenericObjective> allObjectives) {
+	    Set<GenericObjective> replay = Collections.newSetFromMap(new IdentityHashMap<>());
+System.out.println("[Check1] Verifying coverage by replaying " + suite.size() + " test cases against "
+	            + allObjectives.size() + " objectives.");
+	    for (TestCase tc : suite) {
+	        if (!(tc.getSolution() instanceof GenericSolution)) {
+	            System.out.println("[Check1] TC " + tc.getId() + " has no GenericSolution");
+	            continue;
+	        }
+	        GenericSolution s = (GenericSolution) tc.getSolution();
+	        if (!s.hasExecutionData()) {
+	            System.out.println("[Check1] TC " + tc.getId() + " has no execution data");
+	            continue;
+	        }
+	        int n = 0;
+	        for (GenericObjective o : allObjectives) {
+	            if (s.evaluateObjective(o) == 0.0) {
+	                replay.add(o);
+	                n++;
+	            }
+	        }
+	        System.out.println("[Check1] TC " + tc.getId() + " covers " + n + " objectives");
+	    }
+
+	    long flagged = allObjectives.stream().filter(GenericObjective::isCovered).count();
+	    System.out.println("[Check1] flagged=" + flagged + " replay=" + replay.size());
+	    if (flagged != replay.size()) {
+	        System.out.println("[Check1] MISMATCH: " + Math.abs(flagged - replay.size())
+	                + (flagged > replay.size()
+	                    ? " objectives flagged covered without a TC in the suite (false positives)"
+	                    : " objectives covered by the suite but not flagged"));
+	    }
+	}
+	
+	private void verifyCoverageByReexecution(Set<TestCase> suite, List<GenericObjective> allObjectives)
+	        throws Exception {
+		System.out.println("[Check2] Re-executing " + suite.size() + " test cases against "
+	            + allObjectives.size() + " objectives.");
+	    Set<GenericObjective> reexec = Collections.newSetFromMap(new IdentityHashMap<>());
+
+	    for (TestCase tc : suite) {
+	        GenericSolution s = (GenericSolution) tc.getSolution();
+	        MOSAGenericCoverageProblem problem = (MOSAGenericCoverageProblem) s.getProblem();
+	        Object[][][] args = tc.getParameters();
+
+	        HashMap<String, Double> run1 = problem.executeForFitnessMap(args);
+	        HashMap<String, Double> run2 = problem.executeForFitnessMap(args);
+	        boolean deterministic = run1.equals(run2);
+
+	        int stored = 0, fresh = 0, differ = 0;
+	        for (GenericObjective o : allObjectives) {
+	            boolean a = s.evaluateObjective(o) == 0.0;          // stored data (Check 1)
+	            boolean b = s.evaluateObjectiveOn(run1, o) == 0.0;  // fresh execution
+	            if (a) stored++;
+	            if (b) { fresh++; reexec.add(o); }
+	            if (a != b) differ++;
+	        }
+	        System.out.println("[Check2] TC " + tc.getId() + " stored=" + stored + " fresh=" + fresh
+	                + " differ=" + differ + " deterministic=" + deterministic
+	                + " mapSize=" + run1.size());
+	    }
+
+	    long flagged = allObjectives.stream().filter(GenericObjective::isCovered).count();
+	    System.out.println("[Check2] flagged=" + flagged + " reexecuted=" + reexec.size());
+	}
+	
+	
+	
+	
+	
+	
+	
 	// Helper: prints uncovered branch-chain objectives (human readable) and writes
 	// them to uncoveredBCobjectives.txt
 	//TODO: Consider refactoring this method to separate printing and file writing for clarity and testability.
 
+	
+	
+	
 
 
 }
