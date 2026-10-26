@@ -566,7 +566,10 @@ public class BranchChainManager {
 	}
 	
 	public static void cacheFitnessValues(GenericSolution solution) {
-
+		 solution.update(readFitnessMap());
+	}
+	/** Reads the tracker files and returns the branch-distance map of the last execution. */
+	public static HashMap<String, Double> readFitnessMap() {
 		//closeTracker(); // flush C's buffered writes to disk before reading
 	    try {
 			loadFunctionNameMap(FUNCTION_NAME_MAP_FILE);
@@ -601,8 +604,7 @@ public class BranchChainManager {
 	    } catch (IOException e) {
 	        System.err.println("Error reading " + BRANCH_DIST_TRACK_FILE + ": " + e.getMessage());
 	    }
-
-	    solution.update(fitnessMap);
+		return fitnessMap;
 	}
 
 	private static void updateFitness(Map<String, Double> map, String key, double val) {
