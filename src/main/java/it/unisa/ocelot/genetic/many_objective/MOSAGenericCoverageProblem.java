@@ -1,5 +1,6 @@
 package it.unisa.ocelot.genetic.many_objective;
 
+import java.util.HashMap;
 import java.util.List;
 import org.apache.commons.lang3.Range;
 
@@ -82,7 +83,24 @@ public class MOSAGenericCoverageProblem extends StandardProblem {
 		//Not important, MOSA uses his own algorithm for given objectives
 		return 0;
 	}
+	/**
+	 * Executes the given arguments through the C bridge and the simulator and returns
+	 * the resulting branch-distance map, without touching any solution. 
+	 * IMP: Used for verification purpose only.
+	 */
+	public HashMap<String, Double> executeForFitnessMap(Object[][][] arguments)
+	        throws SimulationException {
+	    CBridge bridge = getCurrentBridge();
+	    EventsHandler handler = new EventsHandler();
+	    bridge.getEvents(handler, arguments[0][0], arguments[1], arguments[2][0]);
+	    new Simulator(cfg, handler.getEvents()).simulate();
 
+	    HashMap<String, Double> map = BranchChainManager.readFitnessMap();
+	    // Same cleanup as evaluateSolution, so the next execution starts clean
+	    Run.resetFileQuietly(BranchChainManager.BRANCH_DIST_TRACK_FILE);
+	    Run.resetFileQuietly(BranchChainManager.FUNCTION_NAME_MAP_FILE);
+	    return map;
+	}
 	/**
 	 * Returns the set of objectives representing the target of our coverage
 	 * problem
