@@ -462,25 +462,26 @@ public class MOSA_Generic extends OcelotAlgorithm {
 			}
 			firstRun = false;
 		}*/
-
-		for (GenericObjective objective : allTargets) {
-
-			if (objective.isCovered())
-				continue;
-			Iterator<Solution> iteratorCandidates = candidates.iterator();
-			while (iteratorCandidates.hasNext()) {
-
-				GenericSolution currentCandidate = (GenericSolution) iteratorCandidates.next();
+		
+		// Notice that a SolutionSet is NOT a set! It is an array, so it may contain
+		// duplicates. Thus we need to MANUALLY check for duplicates before adding to the archive. 
+		// We do this by removing candidates from the candidate set once they are added to the archive.
+		Iterator<Solution> iteratorCandidates = candidates.iterator();
+		while (iteratorCandidates.hasNext()) {
+			GenericSolution currentCandidate = (GenericSolution) iteratorCandidates.next();
+			for (GenericObjective objective : allTargets) {
+				if (objective.isCovered())
+					continue;
 				double objectiveScore = currentCandidate.getObjective(objective.getObjectiveID());
 				objective.updateBestFitness(objectiveScore);
 				if (objectiveScore == 0.0) {
 					archive.add(currentCandidate);
 					evaluations.add(evaluation);
+					iteratorCandidates.remove(); // Remove from candidates to avoid duplicates in future iterations
 					break;
 				}
-			} // while candidates
-		} // while targets
-
+			} // while targets
+		} // while candidates
 	}
 
 	private Front preferenceSorting(SolutionSet candidates) {
