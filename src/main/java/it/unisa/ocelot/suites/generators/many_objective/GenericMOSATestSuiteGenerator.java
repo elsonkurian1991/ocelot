@@ -5,6 +5,7 @@ import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import it.unisa.ocelot.TestCase;
 import it.unisa.ocelot.c.cfg.CFG;
@@ -51,7 +52,14 @@ public class GenericMOSATestSuiteGenerator extends TestSuiteGenerator implements
 		this.config = config;
 		this.objectives = objectives;
 	}
+	// Run-wide TC id source: ids stay unique across MAB iterations
+	// (suite.size() restarted at 0 in every iteration).
+	private static final AtomicInteger NEXT_TC_ID = new AtomicInteger(0);
 
+	/** Call once at the start of a run so ids start from 0 again. */
+	public static void resetTestCaseIds() {
+	    NEXT_TC_ID.set(0);
+	}
 	@Override
 	public Set<TestCase> generateTestSuite(Set<TestCase> pSuite) throws TestSuiteGenerationException {
 		Set<TestCase> suite = new HashSet<TestCase>(pSuite);
@@ -126,7 +134,7 @@ public class GenericMOSATestSuiteGenerator extends TestSuiteGenerator implements
 		for (int i = 0; i < archiveSolutions.size(); i++) {
 			currentSolution = archiveSolutions.get(i);
 		    if (!seen.add(currentSolution)) continue;   // same solution covers several objectives
-		    TestCase testCase = this.createTestCase(cfg.getParameterTypes(), currentSolution, suite.size());
+		    TestCase testCase = this.createTestCase(cfg.getParameterTypes(), currentSolution, NEXT_TC_ID.getAndIncrement());
 		    suite.add(testCase);
 		    this.measureBenchmarks("MOSA Target", suite, numberOfEvaluations.get(i));
 			/*currentSolution = archiveSolutions.get(i);
