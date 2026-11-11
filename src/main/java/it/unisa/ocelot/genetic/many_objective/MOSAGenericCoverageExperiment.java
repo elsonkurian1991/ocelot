@@ -14,8 +14,8 @@ import it.unisa.ocelot.genetic.settings.MOSASettingsGeneric;
 import it.unisa.ocelot.genetic.settings.SettingsFactory;
 import it.unisa.ocelot.genetic.solutions.GenericSolution;
 import jmetal.core.Algorithm;
-import jmetal.core.Solution;
 import jmetal.core.SolutionSet;
+import jmetal.core.Variable;
 /**
  * EVINT_TOOL_MARKER
  * This class is used by the EvInT (Evolutionary Integration Testing) tool.
@@ -57,6 +57,7 @@ public class MOSAGenericCoverageExperiment extends OcelotExperiment {
 			if (ranges != null) {
 				problem = new MOSAGenericCoverageProblem(this.cfg, this.parametersTypes, config.getTestArraysSize(), 
 						ranges, objectives);
+				mangleBestSolutions();
 				if (seedPopulation != null) {
 					mangleSeedPopulation();
 				}
@@ -86,8 +87,14 @@ public class MOSAGenericCoverageExperiment extends OcelotExperiment {
 		}
 
 		SolutionSet solutionSet = this.algorithm.execute();
-		this.finalPopulation = solutionSet;
+		//this.finalPopulation = solutionSet; // execute() returns this.archive
+		//MOSA_Generic.execute() returns archive, which only holds solutions that cover something. 
+		//When an iteration covers nothing, the archive is empty.
 		
+		// So we need to get the final population from MOSA_Generic, 
+		//which holds all solutions, even if they cover nothing.
+		this.finalPopulation = ((MOSA_Generic) this.algorithm).getFinalPopulation();
+
 		this.budgetManager.reportConsumedBudget(this, this.algorithm.getStats().getEvaluations());
 		return solutionSet;
 	}
@@ -121,16 +128,38 @@ public class MOSAGenericCoverageExperiment extends OcelotExperiment {
 		return this.finalPopulation;
 	}
 	
-	/**
-	 * Mangles the seed population to ensure that it is compatible with the current problem instance.
-	 */
 	private void mangleSeedPopulation() {
-		SolutionSet mangledPopulation = new SolutionSet(seedPopulation.size());
-		for (int i = 0; i < seedPopulation.size(); i++) {
-			GenericSolution seedOld = (GenericSolution) seedPopulation.get(i);
-			GenericSolution seedNew = new GenericSolution(problem, seedOld.getDecisionVariables());
-			mangledPopulation.add(seedNew);
+		SolutionSet mangledPopulation = new SolutionSet(this.seedPopulation.size());
+				
+		for (int i = 0; i < this.seedPopulation.size(); i++) {
+			GenericSolution old = (GenericSolution) this.seedPopulation.get(i);
+			GenericSolution newSolution = mangle(old);
+			mangledPopulation.add(newSolution);
 		}
 		this.seedPopulation = mangledPopulation;
+	}
+	
+	private void mangleBestSolutions() {
+		List<GenericSolution> bestSolutionsMangled = this.objectives.stream()
+				.map(o -> o.getBestSolution() == null ? null : mangle(o.getBestSolution()))
+				.toList();
+		for (int i = 0; i < this.objectives.size(); i++) {
+			if (bestSolutionsMangled.get(i) == null) continue;
+			this.objectives.get(i).updateBestFitness(bestSolutionsMangled.get(i));
+		}
+	}
+	
+	/**
+	 * Mangles a GenericSolution to ensure that it is compatible with the current problem instance.
+	 */
+	private GenericSolution mangle(GenericSolution old)  {
+		Variable[] oldVars = old.getDecisionVariables();
+		Variable[] vars = new Variable[oldVars.length];
+		for (int k = 0; k < vars.length; k++) {
+			vars[k] = oldVars[k].deepCopy();
+		}
+		GenericSolution newSolution = new GenericSolution(problem, vars);
+		newSolution.update(old.getCacheObject());
+		return newSolution;
 	}
 }
