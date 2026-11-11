@@ -10,7 +10,6 @@ import it.unisa.ocelot.genetic.StandardProblem;
 import it.unisa.ocelot.genetic.VariableTranslator;
 import it.unisa.ocelot.genetic.objectives.GenericObjective;
 import it.unisa.ocelot.genetic.objectives.branch_chains.BranchChainManager;
-import it.unisa.ocelot.genetic.solutions.CacheAccessor;
 import it.unisa.ocelot.genetic.solutions.GenericSolution;
 import it.unisa.ocelot.runnable.Run;
 import it.unisa.ocelot.simulator.CBridge;
@@ -53,10 +52,6 @@ public class MOSAGenericCoverageProblem extends StandardProblem {
 	 */
 	@Override
 	public double evaluateSolution(Solution solution) throws JMException, SimulationException {
-		// Clear execution data from previous evaluation to avoid contamination
-		if (solution instanceof GenericSolution) {
-		    ((GenericSolution) solution).clearExecutionData();
-		}
 		VariableTranslator translator = new VariableTranslator(solution);
 		Object[][][] arguments = translator.translateArray(this.parameters);
 		
@@ -74,7 +69,7 @@ public class MOSAGenericCoverageProblem extends StandardProblem {
 		simulator.simulate();
 		
 		if (solution instanceof GenericSolution) {
-			BranchChainManager.cacheFitnessValues((GenericSolution) solution);
+			BranchChainManager.evaluate((GenericSolution) solution);
 		}
 		//delete the old distance from the file 
 		//System.out.println("Resetting BranchDistanceTracker.bin for next iteration...");
