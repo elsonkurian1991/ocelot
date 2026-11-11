@@ -63,7 +63,7 @@ public class BranchChain {
 	/**
 	 * Calculates and return the fitness value as sum of all condition fitVals.
 	 */
-	public double calculateBranchChainFitness(HashMap<String, Object> fitnessMap) {
+	/*public double calculateBranchChainFitness(HashMap<String, Object> fitnessMap) {
 		double branchDistanceSum = 0.0d;
 		int numBranchConditions = 0;
 		for (PathStep step : path) {
@@ -84,8 +84,30 @@ public class BranchChain {
 		} else {
 			return 0.0d;
 		}
-	}
+	}*/
+	public double calculateBranchChainFitness(HashMap<String, Object> fitnessMap) {
+	    int total = 0;
+	    for (PathStep step : path) if (step.hasBranchCondition()) total++;
+	    if (total == 0) return 0.0d;
 
+	    int index = 0;                       // conditions already satisfied (in order)
+	    for (PathStep step : path) {
+	        if (!step.hasBranchCondition()) continue;
+	        Object d = step.getBranchDistance(fitnessMap);
+	        if (d == null) {
+	            // step never reached: approach level = remaining conditions, no local distance
+	            return (double) (total - index) / total;
+	        }
+	        double dist = ((Double) d).doubleValue();
+	        if (dist > 0.0) {
+	            // reached but not satisfied: remaining conditions, plus normalised local distance
+	            double local = dist / (1.0 + dist);        // maps [0, inf) to [0, 1)
+	            return ((total - index - 1) + local) / total;
+	        }
+	        index++;                         // satisfied, move on
+	    }
+	    return 0.0d;                         // all satisfied
+	}
 	/**
 	 * Returns the chain number within its unit component.
 	 */
