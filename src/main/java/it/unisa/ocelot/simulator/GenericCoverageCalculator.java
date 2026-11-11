@@ -11,7 +11,6 @@ import it.unisa.ocelot.genetic.objectives.GenericObjective;
 import it.unisa.ocelot.genetic.solutions.GenericSolution;
 import it.unisa.ocelot.simulator.listeners.CoverageCalculatorListener;
 import it.unisa.ocelot.util.Utils;
-import jmetal.core.Solution;
 /**
  * EVINT_TOOL_MARKER
  * This class is used by the EvInT (Evolutionary Integration Testing) tool.
