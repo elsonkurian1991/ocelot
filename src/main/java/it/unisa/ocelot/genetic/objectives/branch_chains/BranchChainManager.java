@@ -20,7 +20,6 @@ import it.unisa.ocelot.c.cfg.CFG;
 import it.unisa.ocelot.c.cfg.nodes.CFGNode;
 import it.unisa.ocelot.conf.ConfigManager;
 import it.unisa.ocelot.genetic.objectives.GenericObjective;
-import it.unisa.ocelot.genetic.solutions.CacheAccessor;
 import it.unisa.ocelot.genetic.solutions.GenericSolution;
 /**
  * EVINT_TOOL_MARKER
@@ -565,7 +564,7 @@ public class BranchChainManager {
 	    }
 	}
 	
-	public static void cacheFitnessValues(GenericSolution solution) {
+	public static void evaluate(GenericSolution solution) {
 		 solution.update(readFitnessMap());
 	}
 	/** Reads the tracker files and returns the branch-distance map of the last execution. */
