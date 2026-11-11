@@ -350,7 +350,7 @@ public class CDGBranchPathCollector {
 	 */
 	private String buildConditionLabel(CDGNode conditionNode, ControlDependenceEdge edge, BranchType branchType, int branchCounter) {
 		if (branchType == BranchType.SWITCH_CASE) {
-			return unitComponentName + ":branch" + branchCounter + "-" + "TRUE";
+			return unitComponentName + ":branch" + branchCounter + "-" + "true";
 		}
 		String direction = (edge != null) ? edge.toString() : "FLOW";
 		return unitComponentName + ":branch" + branchCounter + "-" + direction.toLowerCase();
