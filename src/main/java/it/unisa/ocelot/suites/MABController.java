@@ -3,6 +3,7 @@ package it.unisa.ocelot.suites;
 import it.unisa.ocelot.genetic.objectives.GenericObjective;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -61,12 +62,15 @@ public class MABController {
 	private static final double VELOCITY_WEIGHT = 0.1;
 
 	// Per-objective statistics tracked across iterations
-	// Key = objectiveID
-	private final Map<Integer, ObjectiveStats> statsMap;
+	// Key = objective, value = stats (attempts, total reward, etc.)
+	private final Map<GenericObjective, ObjectiveStats> statsMap;
 
 	// Total number of (objective, iteration) attempts across all objectives
 	private int totalAttempts;
-
+	
+	private static final double NEVER_TRIED_BASE = 1e9;   // keeps "untried first" priority
+	private static final double PROXIMITY_WEIGHT = 0.5;
+	
 	public MABController() {
 		this.statsMap = new HashMap<>();
 		this.totalAttempts = 0;
@@ -88,14 +92,16 @@ public class MABController {
 	public List<GenericObjective> selectSubset(List<GenericObjective> uncoveredObjectives, int subsetSize) {
 
 		// Score every uncovered objective
-		List<ScoredObjective> scored = new ArrayList<>(uncoveredObjectives.size());
 		for (GenericObjective obj : uncoveredObjectives) {
 			double score = computeUCBScore(obj);
-			scored.add(new ScoredObjective(obj, score));
+			this.statsMap.putIfAbsent(obj, new ObjectiveStats(obj));
+			ObjectiveStats objStats = this.statsMap.get(obj);
+			objStats.score = score;
 		}
 
 		// Sort descending by UCB score — highest priority first
-		scored.sort(Comparator.comparingDouble(ScoredObjective::getScore).reversed());
+		List<ObjectiveStats> scored = new ArrayList<>(this.statsMap.values());
+		Collections.sort(scored, Comparator.comparingDouble(ObjectiveStats::getScore).reversed());
 
 		// Take the top subsetSize objectives
 		int count = Math.min(subsetSize, scored.size());
@@ -129,11 +135,13 @@ public class MABController {
 	 */
 	public void computeVelocities(List<GenericObjective> subsetObjectives) {
 		for (GenericObjective obj : subsetObjectives) {
+			ObjectiveStats objStats = this.statsMap.get(obj);
+			
 			List<double[]> snapshots = obj.getSnapshots();
 
 			if (snapshots == null || snapshots.size() < 2) {
 				// no data: velocity = 0.0 (no improvement possible)
-				obj.setVelocity(0.0);
+				objStats.velocity = 0.0;
 				continue;
 			}
 
@@ -158,8 +166,8 @@ public class MABController {
 			// Relative improvement over this run, in [0, 1]. All subset objectives share
 			// the same evaluation budget, so dividing by evaluations would not change the ranking.
 			double improvement = (first0 - last0) / Math.max(first0, 1e-9);
-			obj.setVelocity(Math.max(0.0, Math.min(1.0, improvement)));
-			   System.out.println("[MAB] obj " + obj.getObjectiveID() + " velocity=" + obj.getVelocity());
+			objStats.velocity = Math.max(0.0, Math.min(1.0, improvement));
+			   //System.out.println("[MAB] obj " + obj.getObjectiveID() + " velocity=" + obj.getVelocity());
 		}
 	}
 
@@ -176,11 +184,9 @@ public class MABController {
 	public void recordResult(List<GenericObjective> subsetObjectives, int totalEvaluations) {
 
 		for (GenericObjective obj : subsetObjectives) {
-			int id = obj.getObjectiveID();
-
-			// Initialise stats entry on first encounter
-			statsMap.putIfAbsent(id, new ObjectiveStats());
-			ObjectiveStats stats = statsMap.get(id);
+				// Initialise stats entry on first encounter
+			this.statsMap.putIfAbsent(obj, new ObjectiveStats(obj));
+			ObjectiveStats stats = this.statsMap.get(obj);
 
 			// Reward = 1.0 if covered this iteration, else proportional to
 			// fitness improvement (velocity signal).
@@ -190,13 +196,13 @@ public class MABController {
 				reward = 1.0; // maximum reward for full coverage
 			} else if (totalEvaluations > 0) {
 				// Partial reward proportional to velocity (how much progress was made)
-				reward = 0.5 * Math.max(0.0, obj.getVelocity());
+				reward = 0.5 * Math.max(0.0, stats.getVelocity());
 			} else {
 				reward = 0.0;
 			}
 
 			stats.addAttempt(reward);
-			totalAttempts++;
+			this.totalAttempts++;
 		}
 	}
 
@@ -206,7 +212,17 @@ public class MABController {
 	 * (exploration priority).
 	 */
 	private double computeUCBScore(GenericObjective obj) {
-		int id = obj.getObjectiveID();
+		ObjectiveStats stats = statsMap.get(obj);
+	    double proximityBonus = PROXIMITY_WEIGHT * obj.getProximity();
+
+	    if (stats == null || stats.attempts == 0) {
+	        return NEVER_TRIED_BASE + proximityBonus;     // untried: closest first
+	    }
+	    double exploitation = stats.avgReward();
+	    double exploration = EXPLORATION_CONSTANT * Math.sqrt(Math.log(totalAttempts) / stats.attempts);
+	    double velocityBonus = VELOCITY_WEIGHT * stats.getVelocity();
+	    return exploitation + exploration + velocityBonus + proximityBonus;
+		/*int id = obj.getObjectiveID();
 		ObjectiveStats stats = statsMap.get(id);
 
 		// Never attempted — give maximum priority so it gets tried at least once
@@ -224,36 +240,49 @@ public class MABController {
 		// --- Velocity bonus formula — change here if needed ---
 		double velocityBonus = VELOCITY_WEIGHT * obj.getVelocity();
 
-		return exploitation + exploration + velocityBonus;
+		return exploitation + exploration + velocityBonus;*/
 	}
 	
 	/** Tracks attempt count and cumulative reward for one objective. */
 	private static class ObjectiveStats {
-		int attempts = 0;
-		double totalReward = 0.0;
+		final GenericObjective objective;
+		double score;
+		int attempts;
+		double totalReward;
+		/**
+		 * Velocity of fitness improvement for this objective, computed after each
+		 * MOSA run by MABController.
+		 * velocity = (prevBestFitness - currentBestFitness) / evaluationsDelta
+		 * Higher value means the objective is improving faster (easier to cover).
+		 * Initialised to 0.0 — unknown velocity before first run.
+		 */
+		double velocity;
+		
+		ObjectiveStats(GenericObjective objective) {
+			this.objective = objective;
+			this.score = 0.0;
+			this.attempts = 0;
+			this.totalReward = 0.0;
+			this.velocity = 0.0;
+		}
 
 		void addAttempt(double reward) {
-			attempts++;
-			totalReward += reward;
+			this.attempts++;
+			this.totalReward += reward;
 		}
 
 		double avgReward() {
-			return attempts == 0 ? 0.0 : totalReward / attempts;
-		}
-	}
-
-	/** Pairs an objective with its computed UCB score for sorting. */
-	private static class ScoredObjective {
-		final GenericObjective objective;
-		final double score;
-
-		ScoredObjective(GenericObjective objective, double score) {
-			this.objective = objective;
-			this.score = score;
+			return this.attempts == 0 ? 0.0 : this.totalReward / this.attempts;
 		}
 
 		double getScore() {
-			return score;
+			return this.score;
 		}
+		
+		/** Returns the velocity of fitness improvement computed by MABController. */
+		public double getVelocity() {
+			return this.velocity;
+		}
+
 	}
 }
