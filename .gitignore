@@ -72,7 +72,6 @@ testobject/
 BranchDistanceTracker.txt
 BranchDistanceInstrumentationErrors.txt
 fitnessValues.txt
-testObjectives.to
 unitLevelComponents.txt
 uncoveredPairs.txt
 uncoveredBranches.txt
