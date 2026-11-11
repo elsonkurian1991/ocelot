@@ -22,7 +22,6 @@ import org.apache.commons.io.IOUtils;
 import org.eclipse.cdt.core.dom.ast.IASTNode;
 import org.eclipse.cdt.core.dom.ast.IASTPreprocessorIncludeStatement;
 import org.eclipse.cdt.core.dom.ast.IASTPreprocessorStatement;
-import org.eclipse.cdt.core.dom.ast.IASTProblem;
 import org.eclipse.cdt.core.dom.ast.IASTTranslationUnit;
 import org.eclipse.cdt.core.dom.rewrite.ASTRewrite;
 
@@ -64,11 +63,15 @@ public class StandardBuilder extends Builder {
 		super();
 		setOutput(System.out);
 
-		this.config = ConfigManager.getInstance();
+		try {
+			this.config = ConfigManager.getInstance();
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}
 		this.testFilename = pTestFilename;
 		this.testFunction = pTestFunction;
 		this.testIncludes = pTestIncludes;
-		this.unitLevelComponents = config.getUnitLevelComponents();
+		this.unitLevelComponents = this.config.getUnitLevelComponents();
 		this.bcm = new BranchChainManager();
 
 		this.componentsTestObjectives = new HashMap<String, ArrayList<String>>();
@@ -83,14 +86,16 @@ public class StandardBuilder extends Builder {
 	@SuppressWarnings("deprecation")
 	@Override
 	public void build() throws IOException, BuildingException {
-		if (this.makefileGenerator == null)
+		if (this.makefileGenerator == null) {
 			throw new BuildingException("No makefile generator specified");
-		if (this.stream == null)
+		}
+		if (this.stream == null) {
 			throw new BuildingException("No output stream specified");
+		}
 		try {
-			this.stream.print("Instrumenting Unit-Level Components: C file... \n");
+			this.stream.println("Instrumenting Unit-Level Components: C file...");
 			instrumentUnitComponents();
-			this.stream.print("Instrumenting Target C file... \n");
+			this.stream.println("Instrumenting Target C file...");
 			instrument();
 			this.stream.println("Done!");
 		} catch (Exception e) {
@@ -98,15 +103,16 @@ public class StandardBuilder extends Builder {
 			throw new BuildingException(e.getMessage());
 		}
 
-		// Adds extra macros in CBridge.c
+		// Generates EN_CBridge.c (from CBridge.c)
+		// and pointers.h
 		this.stream.print("Defining test function call... ");
 		enrichJNICall();
 		this.stream.println("Done!");
 
 		// Builds the library
-		this.stream.print("Building library... ");
+		this.stream.print("Building library...");
 		this.makefileGenerator.generate();
-		this.stream.print("........... ");
+		this.stream.print("...........");
 		Process proc = this.makefileGenerator.runCompiler();
 
 		//this.stream.println(IOUtils.toString(proc.getInputStream()));
