@@ -19,47 +19,43 @@ public class GenericSolution extends Solution implements Serializable {
 	private static final long serialVersionUID = 1456425403777198793L;
 
 	private Object cacheObject;
-	// Execution data (branch-distance map) of the last evaluation. Unlike cacheObject,
-	// which update() clears, this is kept so objectives outside the problem's target
-	// list can be evaluated later. Never mutated after creation, so copies share it.
-	private Object executionData;
-	
-	/** Discards execution data so a failed evaluation cannot leave a parent's data behind. */
-	public void clearExecutionData() {
-	    this.executionData = null;
-	}
+
 	public GenericSolution(MOSAGenericCoverageProblem problem) throws ClassNotFoundException {
 		super(problem);
 		cacheObject = null;
 	}
 
-	public GenericSolution(MOSAGenericCoverageProblem problem, Variable [] variables){
+	public GenericSolution(MOSAGenericCoverageProblem problem, Variable [] variables) {
 		super(problem, variables);
-		cacheObject = null;
+		this.cacheObject = null;
 	}
 
 	public GenericSolution(GenericSolution solution) {
 		super(solution);
 		cacheObject = solution.cacheObject;
-		executionData = solution.executionData;
 	}
 
 	public Object getCacheObject() {
 		return cacheObject;
 	}
-	public boolean hasExecutionData() {
-	    return executionData != null;
-	}
+
 	public void update(Object cacheObject) {
 		this.cacheObject = cacheObject;
-		this.executionData = cacheObject;
 		setAllFitnessValuesFromCache();
-		this.cacheObject = null;
 	}
 
 	private void setAllFitnessValuesFromCache() {
 		for (GenericObjective objective : objectives()) {
-			super.setObjective(objective.getObjectiveID(), objective.getFitness(this));
+			setObjectiveFitness(objective);
+		}
+	}
+
+	private List<GenericObjective> objectives() {
+		Problem problem = getProblem();
+		if (problem instanceof MOSAGenericCoverageProblem) {
+			return ((MOSAGenericCoverageProblem) problem).getTargetObjectives();
+		} else {
+			throw new IllegalStateException("GenericSolution is not associated with a MOSAGenericCoverageProblem");
 		}
 	}
 
@@ -73,15 +69,6 @@ public class GenericSolution extends Solution implements Serializable {
 			}
 		}
 		return coveredObjectives;
-	}
-
-	private List<GenericObjective> objectives() {
-		Problem problem = this.getProblem();
-		if (problem instanceof MOSAGenericCoverageProblem) {
-			return ((MOSAGenericCoverageProblem) problem).getTargetObjectives();
-		} else {
-			throw new IllegalStateException("GenericSolution is not associated with a MOSAGenericCoverageProblem");
-		}
 	}
 
 	public Collection<? extends GenericObjective> getCoveredObjectives(List<GenericObjective> objectives) {
@@ -99,22 +86,12 @@ public class GenericSolution extends Solution implements Serializable {
 		return coveredObjectives;
 	}
 
+	public void setObjectiveFitness(GenericObjective objective) {
+		setObjective(objective.getObjectiveID(), objective.getFitness(this));
+	}
 
-	/**
-	 * Evaluates any objective (even one not in this solution's problem) against the
-	 * execution data of the last evaluation. Does not touch the objective vector.
-	 */
-	public double evaluateObjective(GenericObjective objective) {
-	    if (executionData == null) {
-	        throw new IllegalStateException("Solution has not been evaluated yet");
-	    }
-	    Object saved = this.cacheObject;
-	    this.cacheObject = executionData;
-	    try {
-	        return objective.getFitness(this);
-	    } finally {
-	        this.cacheObject = saved;
-	    }
+	public double getObjectiveFitness(GenericObjective objective) {
+		return getObjective(objective.getObjectiveID());
 	}
 	
 	/**
