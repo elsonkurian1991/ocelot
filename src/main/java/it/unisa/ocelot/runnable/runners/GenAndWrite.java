@@ -3,13 +3,13 @@ package it.unisa.ocelot.runnable.runners;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.PrintStream;
-import java.io.PrintWriter;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
+import java.util.TreeMap;
 import java.io.IOException;
 import java.util.Map;
 import java.util.HashMap;
@@ -41,6 +41,7 @@ import it.unisa.ocelot.suites.generators.TestSuiteGeneratorHandler;
 import it.unisa.ocelot.suites.generators.many_objective.GenericMOSATestSuiteGenerator;
 import it.unisa.ocelot.writer.TestFramework;
 import it.unisa.ocelot.writer.check.CheckFactory;
+import jmetal.core.Solution;
 import jmetal.core.SolutionSet;
 import it.unisa.ocelot.suites.SerendipitousCoverageChecker;
 /**
@@ -101,7 +102,7 @@ public class GenAndWrite {
 
 			int mcCabePaths = cfg.edgeSet().size() - cfg.vertexSet().size() + 1;
 			System.out.println("Cyclomatic complexity: " + mcCabePaths);
-			
+
 			// Reset the static test case ID counter so each run starts from 0 again
 			GenericMOSATestSuiteGenerator.resetTestCaseIds();
 			// Load the full objective list once
@@ -135,11 +136,11 @@ public class GenAndWrite {
 			// Tracks and persists fitness snapshots to CSV for post-run analysis.
 			// "." writes fitness_progress.csv to the current working directory —
 			// change to config.getOutputDir() or similar if you have an output path.
-			
+
 			boolean trackFitness = false;//TODO fix this to be configurable via config file instead of system property
 			fitnessTracker = trackFitness
-			        ? openFitnessProgressFile(config)
-			        : FitnessTracker.disabled();
+					? openFitnessProgressFile(config)
+							: FitnessTracker.disabled();
 
 			// Main iterative generation loop
 			for (int iteration = 1; iteration <= config.getMaxIterForMosa(); iteration++) {
@@ -156,6 +157,12 @@ public class GenAndWrite {
 				// ObjSubsetLoader enforces size = populationSize / 2 and uses
 				// UCB1 scoring to pick the most promising objectives.
 				List<GenericObjective> subsetObjectives = subsetLoader.loadSubset(uncoveredObjectives, iteration);
+				//Print the objective IDs in the subset for debugging
+				System.out.println("Selected objective IDs for this iteration: ");
+				for (GenericObjective obj : subsetObjectives) {
+					System.out.print(" "+obj.getObjectiveID());
+				}
+				System.out.println();
 				// Reset per-objective state before handing to MOSA.
 				// isActive, bestFitness, counter must be clean so MOSA's
 				// internal deactivation and preference criterion start fresh.
@@ -183,13 +190,26 @@ public class GenAndWrite {
 					}
 					System.out.println("Generator: " + generator.getClass().getSimpleName());
 
-					if (generator instanceof GenericMOSATestSuiteGenerator && populationStore.hasSeedPopulation()) {
-						SolutionSet seeds = populationStore.getSeedPopulation(subsetLoader.getSubsetSize());
-						((GenericMOSATestSuiteGenerator) generator).setSeedPopulation(seeds);
-						System.out.println("Seeded MOSA with " + seeds.size() + " solutions from previous iteration.");
-					}
+					if (generator instanceof GenericMOSATestSuiteGenerator) {
+						// buildAdaptiveSeeds() returns a SolutionSet containing the best-ever solutions
+						//for each objective in the current subset, 
+						//plus any additional solutions from the PopulationStore to fill the rest of the population.
+						// buildAdaptiveSeeds() is tried but not working as expected, so we are not using it for now.
+						//SolutionSet seeds = buildAdaptiveSeeds(subsetObjectives, populationStore,subsetLoader.getSubsetSize());
 
+						if (generator instanceof GenericMOSATestSuiteGenerator && populationStore.hasSeedPopulation()) {
+							SolutionSet seeds = populationStore.getSeedPopulation(subsetLoader.getSubsetSize());
+							((GenericMOSATestSuiteGenerator) generator).setSeedPopulation(seeds);
+							if (seeds.size() > 0) {
+								((GenericMOSATestSuiteGenerator) generator).setSeedPopulation(seeds);
+								System.out.println("Seeded MOSA with " + seeds.size() + " solutions from previous iteration.");
+							}
+						}
+
+					}
 					iterationSuite = generator.generateTestSuite();
+					SolutionSet fp = ((GenericMOSATestSuiteGenerator) generator).getFinalPopulation();
+					System.out.println("[Debug] finalPopulation=" + (fp == null ? "null" : fp.size()));
 				}finally {
 					// Always restore original IDs, even on exception
 					restoreObjectiveIds(savedIds);
@@ -207,6 +227,14 @@ public class GenAndWrite {
 				// Store MOSA's final population for seeding next iteration.
 				// Retrieved from GenericMOSATestSuiteGenerator.getFinalPopulation()
 				// which in turn calls MOSA_Generic.getFinalPopulation().
+				/*if (generator instanceof GenericMOSATestSuiteGenerator) {
+					SolutionSet seeds = buildAdaptiveSeeds(subsetObjectives, populationStore,
+							subsetLoader.getSubsetSize());
+					if (seeds.size() > 0) {
+						((GenericMOSATestSuiteGenerator) generator).setSeedPopulation(seeds);
+						System.out.println("Seeded MOSA with " + seeds.size() + " solutions from previous iteration.");
+					}
+				}*/
 				if (generator instanceof GenericMOSATestSuiteGenerator) {
 					SolutionSet finalPop = ((GenericMOSATestSuiteGenerator) generator).getFinalPopulation();
 					if (finalPop != null && finalPop.size() > 0) {
@@ -222,10 +250,28 @@ public class GenAndWrite {
 				// ------------------------------------------------------------------
 				long t0 = System.nanoTime();
 				// ... check(...) ...
-				
-				int serendipitouslyCovered = serendipityChecker.check(iterationSuite, // TCs produced this iteration
+				List<Solution> evaluated = new ArrayList<>();
+				for (TestCase tc : iterationSuite) {
+					evaluated.add(tc.getSolution());
+				}
+				if (generator instanceof GenericMOSATestSuiteGenerator) {
+					SolutionSet fp = ((GenericMOSATestSuiteGenerator) generator).getFinalPopulation();
+					// we added the final population to the population store, 
+					//but we also want to check if any of those solutions serendipitously covered objectives 
+					//outside the subset
+					if (fp != null) {
+						for (int i = 0; i < fp.size(); i++) {
+							evaluated.add(fp.get(i));
+						}
+					}
+				}
+				int serendipitouslyCovered = serendipityChecker.check(iterationSuite, allObjectives, subsetObjectives);
+				if(iteration%10==0) {
+					dumpProximity(allObjectives, iteration);
+				}
+				/*int serendipitouslyCovered = serendipityChecker.check(iterationSuite, // TCs produced this iteration
 						allObjectives, // full objective list to scan
-						subsetObjectives); // exclude — MOSA already handled these
+						subsetObjectives); // exclude — MOSA already handled these*/
 				if (serendipitouslyCovered > 0) {
 					System.out.println("[Serendipity] Serendipitous coverage: " + serendipitouslyCovered
 							+ " additional objective(s) covered at no extra cost.");
@@ -296,10 +342,10 @@ public class GenAndWrite {
 			verifyCoverageBySuite(suite, allObjectives);
 			// ---- Check 2: re-execute each TC in the final suite and compare with stored coverage ----
 			verifyCoverageByReexecution(suite, allObjectives);
-			
-			
-			
-			
+
+
+
+
 			// Print and write uncovered branch-chain objectives to file (include coverage
 			// counts)
 			// printUncoveredBCobjectives(calculator, allObjectives, minimizedSuite);
@@ -416,84 +462,91 @@ public class GenAndWrite {
 	// Debug check: recompute coverage using only the test cases in the final suite
 	// and compare with the objectives flagged as covered during the run.
 	private void verifyCoverageBySuite(Set<TestCase> suite, List<GenericObjective> allObjectives) {
-	    Set<GenericObjective> replay = Collections.newSetFromMap(new IdentityHashMap<>());
-System.out.println("[Check1] Verifying coverage by replaying " + suite.size() + " test cases against "
-	            + allObjectives.size() + " objectives.");
-	    for (TestCase tc : suite) {
-	        if (!(tc.getSolution() instanceof GenericSolution)) {
-	            System.out.println("[Check1] TC " + tc.getId() + " has no GenericSolution");
-	            continue;
-	        }
-	        GenericSolution s = (GenericSolution) tc.getSolution();
-	        if (!s.hasExecutionData()) {
-	            System.out.println("[Check1] TC " + tc.getId() + " has no execution data");
-	            continue;
-	        }
-	        int n = 0;
-	        for (GenericObjective o : allObjectives) {
-	            if (s.evaluateObjective(o) == 0.0) {
-	                replay.add(o);
-	                n++;
-	            }
-	        }
-	        System.out.println("[Check1] TC " + tc.getId() + " covers " + n + " objectives");
-	    }
+		System.out.println("[Check1] Verifying coverage by replaying " + suite.size() + " test cases against "
+				+ allObjectives.size() + " objectives.");
+		HashSet<GenericObjective> coveredBySomeTest = new HashSet<>();
+		for (TestCase tc : suite) {
+			if (!(tc.getSolution() instanceof GenericSolution)) {
+				System.out.println("[Check1] TC " + tc.getId() + " has no GenericSolution");
+				continue;
+			}
+			GenericSolution s = (GenericSolution) tc.getSolution();
+			int previouslyCovered = coveredBySomeTest.size();
+			for (GenericObjective o : allObjectives) {
+				if (o.getFitness(s) == 0.0) {
+					coveredBySomeTest.add(o);
+				}
+			}
+			System.out.println("[Check1] TC " + tc.getId() + " covers " + (coveredBySomeTest.size() - previouslyCovered) + " objectives");
+		}
 
-	    long flagged = allObjectives.stream().filter(GenericObjective::isCovered).count();
-	    System.out.println("[Check1] flagged=" + flagged + " replay=" + replay.size());
-	    if (flagged != replay.size()) {
-	        System.out.println("[Check1] MISMATCH: " + Math.abs(flagged - replay.size())
-	                + (flagged > replay.size()
-	                    ? " objectives flagged covered without a TC in the suite (false positives)"
-	                    : " objectives covered by the suite but not flagged"));
-	    }
+		long flagged = allObjectives.stream().filter(GenericObjective::isCovered).count();
+		System.out.println("[Check1] flagged=" + flagged + " coveredBySomeTest=" + coveredBySomeTest.size());
+		if (flagged != coveredBySomeTest.size()) {
+			System.out.println("[Check1] MISMATCH: " + Math.abs(flagged - coveredBySomeTest.size())
+			+ (flagged > coveredBySomeTest.size()
+					? " objectives flagged covered without a TC in the suite (false positives)"
+							: " objectives covered by the suite but not flagged"));
+		}
 	}
-	
+
 	private void verifyCoverageByReexecution(Set<TestCase> suite, List<GenericObjective> allObjectives)
-	        throws Exception {
+			throws Exception {
 		System.out.println("[Check2] Re-executing " + suite.size() + " test cases against "
-	            + allObjectives.size() + " objectives.");
-	    Set<GenericObjective> reexec = Collections.newSetFromMap(new IdentityHashMap<>());
+				+ allObjectives.size() + " objectives.");
+		Set<GenericObjective> reexec = Collections.newSetFromMap(new IdentityHashMap<>());
 
-	    for (TestCase tc : suite) {
-	        GenericSolution s = (GenericSolution) tc.getSolution();
-	        MOSAGenericCoverageProblem problem = (MOSAGenericCoverageProblem) s.getProblem();
-	        Object[][][] args = tc.getParameters();
+		for (TestCase tc : suite) {
+			GenericSolution s = (GenericSolution) tc.getSolution();
+			MOSAGenericCoverageProblem problem = (MOSAGenericCoverageProblem) s.getProblem();
+			Object[][][] args = tc.getParameters();
 
-	        HashMap<String, Double> run1 = problem.executeForFitnessMap(args);
-	        HashMap<String, Double> run2 = problem.executeForFitnessMap(args);
-	        boolean deterministic = run1.equals(run2);
+			HashMap<String, Double> run1 = problem.executeForFitnessMap(args);
+			HashMap<String, Double> run2 = problem.executeForFitnessMap(args);
+			boolean deterministic = run1.equals(run2);
 
-	        int stored = 0, fresh = 0, differ = 0;
-	        for (GenericObjective o : allObjectives) {
-	            boolean a = s.evaluateObjective(o) == 0.0;          // stored data (Check 1)
-	            boolean b = s.evaluateObjectiveOn(run1, o) == 0.0;  // fresh execution
-	            if (a) stored++;
-	            if (b) { fresh++; reexec.add(o); }
-	            if (a != b) differ++;
-	        }
-	        System.out.println("[Check2] TC " + tc.getId() + " stored=" + stored + " fresh=" + fresh
-	                + " differ=" + differ + " deterministic=" + deterministic
-	                + " mapSize=" + run1.size());
-	    }
+			int stored = 0, fresh = 0, differ = 0;
+			for (GenericObjective o : allObjectives) {
+				boolean a = o.getFitness(s) == 0.0;          // stored data (Check 1)
+				boolean b = s.evaluateObjectiveOn(run1, o) == 0.0;  // fresh execution
+				if (a) stored++;
+				if (b) { fresh++; reexec.add(o); }
+				if (a != b) differ++;
+			}
+			System.out.println("[Check2] TC " + tc.getId() + " stored=" + stored + " fresh=" + fresh
+					+ " differ=" + differ + " deterministic=" + deterministic
+					+ " mapSize=" + run1.size());
+		}
 
-	    long flagged = allObjectives.stream().filter(GenericObjective::isCovered).count();
-	    System.out.println("[Check2] flagged=" + flagged + " reexecuted=" + reexec.size());
+		long flagged = allObjectives.stream().filter(GenericObjective::isCovered).count();
+		System.out.println("[Check2] flagged=" + flagged + " reexecuted=" + reexec.size());
 	}
-	
-	
-	
-	
-	
-	
-	
+
+
+
+
+
+
+
 	// Helper: prints uncovered branch-chain objectives (human readable) and writes
 	// them to uncoveredBCobjectives.txt
 	//TODO: Consider refactoring this method to separate printing and file writing for clarity and testability.
 
-	
-	
-	
 
 
+		private void dumpProximity(List<GenericObjective> all, int iteration) {
+		Map<Double, Integer> hist = new TreeMap<>();
+		int never = 0;
+		for (GenericObjective o : all) {
+			if (o.isCovered()) continue;
+			double f = o.getBestFitness();
+			if (f == Double.MAX_VALUE) { never++; continue; }
+			hist.merge(Math.round(f * 100) / 100.0, 1, Integer::sum);   // bucket to 0.01
+		}
+		System.out.println("[Prox-dump] iter=" + iteration + " neverEvaluated=" + never
+				+ " distinctFitnessValues=" + hist.size());
+		hist.entrySet().stream()
+		.sorted((a, b) -> b.getValue() - a.getValue()).limit(10)
+		.forEach(e -> System.out.println("[Prox-dump]   fitness=" + e.getKey() + " -> " + e.getValue() + " objectives"));
+	}
 }

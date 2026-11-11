@@ -156,7 +156,7 @@ public class Run {
 		long minutes = TimeUnit.MILLISECONDS.toMinutes(time) % 60;
 		long seconds = TimeUnit.MILLISECONDS.toSeconds(time) % 60;
 
-		System.out.println("Total execution time: " + hours + " hours, " + minutes + " minutes, " + seconds + " seconds");
+		System.out.println("Total execution time: " + hours + " hours " + minutes + " minutes " + seconds + " seconds");
 		System.out.println("-------------------------------------------------------");
 		checkErrorLogFile(filePathToDelete7);
 		checkErrorLogFile(filePathToDelete8);
