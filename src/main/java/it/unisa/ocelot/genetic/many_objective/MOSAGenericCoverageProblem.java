@@ -1,110 +1,58 @@
 package it.unisa.ocelot.genetic.many_objective;
 
-import java.util.List;
+import java.util.Set;
+
 import org.apache.commons.lang3.Range;
 
 import it.unisa.ocelot.c.cfg.CFG;
-import it.unisa.ocelot.c.types.CType;
 import it.unisa.ocelot.genetic.StandardProblem;
-import it.unisa.ocelot.genetic.VariableTranslator;
-import it.unisa.ocelot.genetic.objectives.BranchDistanceCache;
+import it.unisa.ocelot.genetic.objectives.BranchDistancesReader;
 import it.unisa.ocelot.genetic.objectives.GenericObjective;
-import it.unisa.ocelot.simulator.CBridge;
-import it.unisa.ocelot.simulator.EventsHandler;
-import it.unisa.ocelot.simulator.SimulationException;
-import it.unisa.ocelot.simulator.Simulator;
-import it.unisa.ocelot.util.Utils;
+import it.unisa.ocelot.simulator.SimulatorListener;
 import jmetal.core.Solution;
-import jmetal.util.JMException;
 
 /**
- * Class representing a many-objective optimization branch coverage problem
- * 
- * @author giograno
- *
+ * Problem: Cover all (externally-specified, generic) objectives in a program, as a multi-objective problem.
  */
-public class MOSAGenericCoverageProblem extends StandardProblem {
-
-	private CFG cfg;
-	
-	private List<GenericObjective> objectives;
-
-	private boolean debug;
-
-	/**
-	 * 
-	 */
+public final class MOSAGenericCoverageProblem extends StandardProblem {
 	private static final long serialVersionUID = 1L;
 
-	public MOSAGenericCoverageProblem(CFG cfg, CType[] parameters, int pArraySize,
-			Range<Double>[] ranges, List<GenericObjective> objectives) throws Exception {
-		super(parameters, ranges, pArraySize);
-		numberOfObjectives_ = objectives.size();
-		this.cfg = cfg;
-		this.objectives = objectives;
-	}
+	private final Set<? extends GenericObjective> objectives;
 
-	/**
-	 * Evaluate a solution
-	 * 
-	 * @param solution
-	 *            The solution to evaluate
-	 */
+	public MOSAGenericCoverageProblem(boolean pDebug, CFG pCfg, int pArraySize,
+			Range<Double>[] pRanges, Set<? extends GenericObjective> pObjectives) {
+		super(MOSAGenericCoverageProblem.class.getName(), pObjectives.size(), pDebug, pCfg, pArraySize, pRanges);
+		this.objectives = pObjectives;
+	}
+	
 	@Override
-	public double evaluateSolution(Solution solution) throws JMException, SimulationException {
-		VariableTranslator translator = new VariableTranslator(solution);
-		Object[][][] arguments = translator.translateArray(this.parameters);
-		
-		if (debug)
-			System.out.println(Utils.printParameters(arguments));
-
-		CBridge bridge = getCurrentBridge();
-		EventsHandler handler = new EventsHandler();
-		try {
-			bridge.getEvents(handler, arguments[0][0], arguments[1], arguments[2][0]);
-		} catch (RuntimeException e) {
-			this.onError(solution, e);
-			return -1;
+	protected SimulatorListener[] getListeners() {
+		return new SimulatorListener[0]; //No listeners for us
+	}
+	
+	@Override
+	protected void completeEvaluation(Solution solution) {
+		BranchDistancesReader.read();
+		for (GenericObjective objective : this.objectives) {
+			objective.evaluate(solution);
 		}
-
-		Simulator simulator = new Simulator(cfg, handler.getEvents());
-		
-		simulator.simulate();
-		
-		//LUCA: read fitnessValues.txt (branch fitnesses) file and store it. More efficient than reading it for every objective.
-		BranchDistanceCache.cacheFitnessValues();
-		for (GenericObjective objective : objectives) {
-			//if (objective.isCovered() || !objective.isActive() )
-			if (objective.isCovered())
-				continue;
-			double fitness = objective.getFitness(arguments);
-			solution.setObjective(objective.getObjectiveID(), fitness);
-		}
-		
-		//Not important, MOSA uses his own algorithm
-		return 0;
+	}
+	
+	@Override
+	public double getLastBranchDistance() {
+		return 0; //this method is not used by MOSA_Generic
 	}
 
+	//methods that can possibly be deleted(see also MOSA)
+
+	//TODO do we really need to get the targets from HERE???????
 	/**
-	 * Returns the set of objectives representing the target of our coverage
-	 * problem
+	 * Returns the set of objectives representing the targets 
+	 * of our coverage problem
 	 * 
 	 * @return a List of Labeled objectives
 	 */
-	public List<GenericObjective> getTargetObjectives() {
+	public Set<? extends GenericObjective> getTargets() {
 		return this.objectives;
-	}
-
-	/**
-	 * Returns the control flow graph of the function under test
-	 * 
-	 * @return a CFG
-	 */
-	public CFG getControlFlowGraph() {
-		return this.cfg;
-	}
-
-	public void setDebug(boolean debug) {
-		this.debug = debug;
 	}
 }

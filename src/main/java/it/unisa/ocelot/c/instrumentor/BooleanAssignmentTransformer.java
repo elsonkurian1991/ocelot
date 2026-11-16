@@ -16,7 +16,6 @@ public class BooleanAssignmentTransformer extends ASTVisitor {
     private INodeFactory nodeFactory;
     
     public BooleanAssignmentTransformer() {
-        super();
         this.shouldVisitStatements = true;
         this.shouldVisitDeclSpecifiers = true;
         this.shouldVisitExpressions = true;

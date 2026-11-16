@@ -1,22 +1,18 @@
 package it.unisa.ocelot.suites.generators.many_objective;
 
-import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 
 import org.jgrapht.graph.DefaultEdge;
 
-import it.unisa.ocelot.TestCase;
 import it.unisa.ocelot.c.cfg.CFG;
-import it.unisa.ocelot.c.cfg.dominators.Dominators;
+import it.unisa.ocelot.c.cfg.dominators.DominanceCalculatorVertices;
 import it.unisa.ocelot.c.cfg.edges.LabeledEdge;
 import it.unisa.ocelot.c.cfg.nodes.CFGNode;
 import it.unisa.ocelot.c.edge_graph.EdgeGraph;
-import it.unisa.ocelot.c.edge_graph.EdgeWrapper;
+import it.unisa.ocelot.c.edge_graph.Wrapper;
 import it.unisa.ocelot.conf.ConfigManager;
-import it.unisa.ocelot.suites.TestSuiteGenerationException;
-import it.unisa.ocelot.suites.generators.CascadeableGenerator;
+import it.unisa.ocelot.suites.generators.CascadeableTestSuiteGenerator;
 
 /**
  * Many-Objective test suite generator. Approach inspired by Panichella et al. (Reformulating Branch Coverage as a 
@@ -25,61 +21,32 @@ import it.unisa.ocelot.suites.generators.CascadeableGenerator;
  * @author simone
  *
  */
-public class ReducedMOSATestSuiteGenerator extends MOSATestSuiteGenerator implements CascadeableGenerator {
-	private boolean satisfied;
-
+//TODO sooner or later this class will not be a subclass of MOSATestSuiteGenerator anymore
+public final class ReducedMOSATestSuiteGenerator extends MOSATestSuiteGenerator implements CascadeableTestSuiteGenerator {
 	public ReducedMOSATestSuiteGenerator(ConfigManager config, CFG cfg) {
-		super(config, cfg);
-	}
-
-	@Override
-	public Set<TestCase> generateTestSuite(Set<TestCase> pSuite)
-			throws TestSuiteGenerationException {
-
-		Set<TestCase> suite = new HashSet<TestCase>(pSuite);
-		this.startBenchmarks();
-		
-		List<LabeledEdge> realTargets = this.getRealTargets();
-
-		coverMultiObjectiveBranches(suite, realTargets);
-
-		calculator.calculateCoverage(suite);
-		System.out.println("Coverage of MOSA test suite = "
-				+ calculator.getObjectiveCoverage());
-		
-		if (calculator.getObjectiveCoverage() >= this.config.getRequiredCoverage()) {
-			this.satisfied = true;
-		}
-			
-		return suite;
+		super(config, cfg, getRealTargets(cfg));
 	}
 	
-	private List<LabeledEdge> getRealTargets() {
-		//Creates an edge-graph for the CFG, gets all the non-dominator nodes and retrieves the original edges from
-		//the wrappers in a list that will be used
-		EdgeGraph<CFGNode, LabeledEdge> graph = new EdgeGraph<CFGNode, LabeledEdge>(cfg, cfg.getStart(), cfg.getEnd());
+	private static Set<LabeledEdge> getRealTargets(CFG pCfg) {
+		//Creates an EdgeGraph for the CFG, gets all the 
+		//non-dominator nodes and retrieves the original 
+		//edges from the wrappers in a list that will be used
+		EdgeGraph<CFGNode, LabeledEdge> graph = new EdgeGraph<>(pCfg, pCfg.getEntry(), pCfg.getExit());
 		
-		Dominators<EdgeWrapper<LabeledEdge>, DefaultEdge> dominators = 
-				new Dominators<EdgeWrapper<LabeledEdge>, DefaultEdge>(graph, graph.getStart());
+		DominanceCalculatorVertices<Wrapper<LabeledEdge>, DefaultEdge> dominators = 
+				new DominanceCalculatorVertices<>(graph, graph.getEntry());
 		
-		List<EdgeWrapper<LabeledEdge>> nonDominators = dominators.getNonDominators();
-		nonDominators.remove(graph.getEnd());
-		
-		List<LabeledEdge> realTargets = new ArrayList<LabeledEdge>();
-				
-		int id = 0;
-		for (EdgeWrapper<LabeledEdge> wrapper : nonDominators) {
-			LabeledEdge target = wrapper.getWrappedEdge();
-			target.setObjectiveID(id);
+		Set<Wrapper<LabeledEdge>> nonDominators = dominators.getNonDominators();
+		nonDominators.remove(graph.getExit());
+		HashSet<LabeledEdge> realTargets = new HashSet<>();
+		int nextAvailableObjectiveId = 0;
+		for (Wrapper<LabeledEdge> wrapper : nonDominators) {
+			LabeledEdge target = wrapper.getWrapped();
+			target.setObjectiveId(nextAvailableObjectiveId);
 			realTargets.add(target);
-			id++;
+			nextAvailableObjectiveId++;
 		}
 		
 		return realTargets;
-	}
-	
-	@Override
-	public boolean isSatisfied() {
-		return this.satisfied;
 	}
 }

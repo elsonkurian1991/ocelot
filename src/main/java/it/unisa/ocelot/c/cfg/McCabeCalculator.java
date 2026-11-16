@@ -10,91 +10,110 @@ import org.apache.commons.math3.linear.ArrayRealVector;
 import org.apache.commons.math3.linear.RealVector;
 import org.jgrapht.alg.CycleDetector;
 
+import it.unisa.ocelot.c.cfg.edges.EdgeComparator;
 import it.unisa.ocelot.c.cfg.edges.LabeledEdge;
 import it.unisa.ocelot.c.cfg.nodes.CFGNode;
 
 /**
  * Calculate all linearly independent McCabe paths for a given control flow
- * graph
+ * graph.
  * 
  * @author giograno
  *
  */
-public class McCabeCalculator {
-
-	private CFG cfg;
-	private CFGNode startNode;
-	private CycleDetector<CFGNode, LabeledEdge> cycleGraph;
+public final class McCabeCalculator {
+	private final CFG cfg;
+	private CFGNode nodeStart;
+	private final HashSet<CFGNode> nodesVisited;
+	private final CycleDetector<CFGNode, LabeledEdge> cycleGraph;
 	// paths node by node
-	private ArrayList<ArrayList<CFGNode>> mcCabePaths;
+	private final List<List<CFGNode>> mcCabePathsByNode;
 	// paths edge by edge
-	private ArrayList<ArrayList<LabeledEdge>> mcCabeEdgePaths;
+	private final List<List<LabeledEdge>> mcCabePaths;
+	// paths vector
+	private final List<RealVector> mcCabePathsVector;
 
 	/**
-	 * Constructor of McCabeCalculator class
+	 * Constructor.
 	 * 
-	 * @param cfg
-	 *            control flow graph to analyze
+	 * @param pCfg a {@link CFG}.
 	 */
-	public McCabeCalculator(CFG cfg) {
-		this.cfg = cfg;
-		this.cycleGraph = new CycleDetector<>(cfg);
-		this.startNode = cfg.getStart();
-		this.mcCabePaths = new ArrayList<ArrayList<CFGNode>>();
-		this.reset();
-	}
-	
-	public void reset() {
-		for (CFGNode node : this.cfg.vertexSet())
-			node.setVisited(false);
+	public McCabeCalculator(CFG pCfg) {
+		this.cfg = pCfg;
+		this.nodeStart = this.cfg.getEntry();
+		this.nodesVisited = new HashSet<>();
+		this.cycleGraph = new CycleDetector<>(this.cfg);
+		this.mcCabePathsByNode = new ArrayList<>();
+		this.mcCabePaths = new ArrayList<>();
+		this.mcCabePathsVector = new ArrayList<>();
+		calculateMcCabePaths();
 	}
 
 	/**
-	 * Performs calculation of McCabe linearly independent paths
+	 * Performs calculation of McCabe linearly independent paths.
 	 */
-	public void calculateMcCabePaths() {
-		this.FindBasis(this.startNode, new ArrayList<CFGNode>());
+	private void calculateMcCabePaths() {
+		//calculates this.mcCabePathsByNode
+		findBasis(this.nodeStart, new ArrayList<>());
+		
+		//calculates this.mcCabePaths
+		for (List<CFGNode> nodePath : this.mcCabePathsByNode) {
+			ArrayList<LabeledEdge> currentPath = new ArrayList<>();
+			for (int i = 0; i < nodePath.size() - 1; i++) {
+				CFGNode startNode = nodePath.get(i);
+				CFGNode endNode = nodePath.get(i + 1);
+				currentPath.add(this.cfg.getEdge(startNode, endNode));
+			}
+			this.mcCabePaths.add(currentPath);
+		}
+		List<List<LabeledEdge>> paths = getMcCabePaths();
+		List<LabeledEdge> orderedEdges = new ArrayList<>(this.cfg.edgeSet());
+		Collections.sort(orderedEdges, new EdgeComparator(this.cfg));
+
+		//calculates this.mcCabePathsVector
+		for (List<LabeledEdge> path : paths) {
+			double[] vector = new double[orderedEdges.size()];
+			for (int i = 0; i < orderedEdges.size(); i++) {
+				LabeledEdge edge = orderedEdges.get(i);
+				vector[i] = Collections.frequency(path, edge);
+			}
+			this.mcCabePathsVector.add(new ArrayRealVector(vector));
+		}
 	}
 
 	/**
-	 * Traverse recursively the control flow graph calculating all basis path
+	 * Traverse recursively the control flow graph calculating all basis path.
 	 * 
-	 * @param node
-	 *            starting node
-	 * @param path
-	 *            empty path
+	 * @param node a {@link CFGNode}.
+	 * @param path an {@link ArrayList}{@code <}{@link CFGNode}{@code >}
 	 */
-	private void FindBasis(CFGNode node, ArrayList<CFGNode> path) {
+	private void findBasis(CFGNode node, ArrayList<CFGNode> path) {
 		// add current node to McCabe path
 		path.add(node);
 
-		CFGNode defaultDestination = this.getDefaultDestination(node);
-		Set<LabeledEdge> currentOutgoingEdges = cfg.outgoingEdgesOf(node);
-		HashSet<LabeledEdge> outgoingEndges = new HashSet<>(
-				currentOutgoingEdges);
+		CFGNode defaultDestination = getDefaultDestination(node);
+		HashSet<LabeledEdge> outgoingEdges = new HashSet<>(this.cfg.outgoingEdgesOf(node)); //TODO is this safety copy necessary?
 
-		if (currentOutgoingEdges.isEmpty()) {
+		if (outgoingEdges.isEmpty()) {
 			// return path as a solution
-			mcCabePaths.add(path);
-		} else if (!node.isVisited()) {
-			node.setVisited(true);
-
-			this.FindBasis(defaultDestination, new ArrayList<>(path));
+			this.mcCabePathsByNode.add(path);
+		} else if (this.nodesVisited.contains(node)) {
+			findBasis(defaultDestination, new ArrayList<>(path));
+		} else { //(node not yet visited)
+			this.nodesVisited.add(node);
+			findBasis(defaultDestination, new ArrayList<>(path));
 
 			// removing edge from edges to explore
-			outgoingEndges.remove(cfg.getEdge(node, defaultDestination));
+			outgoingEdges.remove(this.cfg.getEdge(node, defaultDestination));
 
-			for (LabeledEdge labeledEdge : outgoingEndges)
-				this.FindBasis(cfg.getEdgeTarget(labeledEdge), new ArrayList<>(
-						path));
-
-		} else
-			this.FindBasis(defaultDestination, new ArrayList<>(path));
-
+			for (LabeledEdge edge : outgoingEdges) {
+				findBasis(this.cfg.getEdgeTarget(edge), new ArrayList<>(path));
+			}
+		}
 	}
 
 	/**
-	 * It calculates the vertex targeting by the default edge. Default edge is
+	 * Calculates the vertex targeting by the default edge. Default edge is
 	 * any edge that is not a back edge or which later causes a node to have two
 	 * incoming edges˙
 	 * 
@@ -103,78 +122,48 @@ public class McCabeCalculator {
 	 * @return the default edge for given node
 	 */
 	private CFGNode getDefaultDestination(CFGNode node) {
-		Set<LabeledEdge> currentOutgoingEdges = cfg.outgoingEdgesOf(node);
-		Set<CFGNode> vertexInCycle = cycleGraph
-				.findCyclesContainingVertex(node);
+		Set<LabeledEdge> currentOutgoingEdges = this.cfg.outgoingEdgesOf(node);
+		Set<CFGNode> vertexInCycle = this.cycleGraph.findCyclesContainingVertex(node);
 		Set<CFGNode> neighborVertex = new HashSet<>();
 
 		for (LabeledEdge labeledEdge : currentOutgoingEdges) {
-			CFGNode targetEdge = cfg.getEdgeTarget(labeledEdge);
+			CFGNode targetEdge = this.cfg.getEdgeTarget(labeledEdge);
 			neighborVertex.add(targetEdge);
 		}
 
 		for (CFGNode cfgNode : neighborVertex) {
-			if (!vertexInCycle.contains(cfgNode))
+			if (!vertexInCycle.contains(cfgNode)) {
 				return cfgNode;
+			}
 		}
 
-		ArrayList<CFGNode> neighborList = new ArrayList<CFGNode>(neighborVertex);
-		if (neighborList.isEmpty())
+		ArrayList<CFGNode> neighborList = new ArrayList<>(neighborVertex);
+		if (neighborList.isEmpty()) {
 			return null;
-		return new ArrayList<CFGNode>(neighborVertex).get(0);
-
+		}
+		return neighborList.get(0);
 	}
 
 	/**
-	 * Returns all McCabe linearly independent paths, when a single path is
-	 * described by its nodes
+	 * Returns all McCabe linearly independent paths (lists of nodes).
 	 * 
 	 * @return a list of McCabe paths
 	 */
-	public ArrayList<ArrayList<CFGNode>> getMcCabeNodePaths() {
+	public List<List<CFGNode>> getMcCabePathsByNodes() {
+		return this.mcCabePathsByNode;
+	}
+
+	/**
+	 * Returns all McCabe linearly independent paths (lists of edges).
+	 * 
+	 * @return a list of McCabe paths
+	 */
+	public List<List<LabeledEdge>> getMcCabePaths() {
 		return this.mcCabePaths;
 	}
 
-	/**
-	 * Returns all McCabe linearly independent paths, when a single path is
-	 * described by its edges
-	 * 
-	 * @return a list of McCabe paths
-	 */
-	public ArrayList<ArrayList<LabeledEdge>> getMcCabeEdgePaths() {
-		if (mcCabeEdgePaths != null)
-			return this.mcCabeEdgePaths;
 
-		mcCabeEdgePaths = new ArrayList<ArrayList<LabeledEdge>>();
-		for (ArrayList<CFGNode> nodePath : mcCabePaths) {
-			ArrayList<LabeledEdge> currentEdgePath = new ArrayList<>();
-			for (int i = 0; i < nodePath.size() - 1; i++) {
-				CFGNode startNode = nodePath.get(i);
-				CFGNode endNode = nodePath.get(i + 1);
-				currentEdgePath.add(cfg.getEdge(startNode, endNode));
-			}
-			mcCabeEdgePaths.add(currentEdgePath);
-		}
-		return this.mcCabeEdgePaths;
-	}
-	
-	
 	public List<RealVector> getMcCabeVectorPaths() {
-		ArrayList<ArrayList<LabeledEdge>> paths = this.getMcCabeEdgePaths();
-		List<LabeledEdge> orderedEdges = new ArrayList<LabeledEdge>(this.cfg.edgeSet());
-		Collections.sort(orderedEdges);
-		
-		List<RealVector> result = new ArrayList<RealVector>();
-		for (ArrayList<LabeledEdge> path : paths) {
-			double[] vector = new double[orderedEdges.size()];
-			for (int i = 0; i < orderedEdges.size(); i++) {
-				LabeledEdge edge = orderedEdges.get(i);
-				
-				vector[i] = Collections.frequency(path, edge);
-			}
-			result.add(new ArrayRealVector(vector));
-		}
-		
-		return result;
+		return this.mcCabePathsVector;
 	}
 }

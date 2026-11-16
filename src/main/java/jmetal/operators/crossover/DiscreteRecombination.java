@@ -30,8 +30,9 @@ public class DiscreteRecombination extends Crossover {
 	 */
 	public DiscreteRecombination(HashMap<String, Object> parameters) {
 		super(parameters);
-		if (parameters.get("probability") != null)
+		if (parameters.get("probability") != null) {
 			crossoverProbability_ = (Double) parameters.get("probability");
+		}
 	}
 
 	/**
@@ -56,8 +57,7 @@ public class DiscreteRecombination extends Crossover {
 			Configuration.logger_.severe("DiscreteRecombination: the solutions type "
 					+ parents[0].getType() + " is not allowed with this operator");
 
-			Class<String> cls = java.lang.String.class;
-			String name = cls.getName();
+			String name = getClass().getName();
 			throw new JMException("Exception in " + name + ".execute()");
 		}
 

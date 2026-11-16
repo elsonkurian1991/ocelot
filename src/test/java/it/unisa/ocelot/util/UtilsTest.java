@@ -45,7 +45,7 @@ public class UtilsTest {
                 {{0.0, 0.0, 0.0}},
                 {{1,1,1}}
         };
-        String res = Utils.printParameters(parameters);
+        String res = Utils.printArguments(parameters);
         assertNotNull(res);
     }
 }

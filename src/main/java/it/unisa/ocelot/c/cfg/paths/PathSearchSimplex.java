@@ -1,6 +1,7 @@
 package it.unisa.ocelot.c.cfg.paths;
 
 import it.unisa.ocelot.c.cfg.CFG;
+import it.unisa.ocelot.c.cfg.edges.EdgeComparator;
 import it.unisa.ocelot.c.cfg.edges.LabeledEdge;
 import it.unisa.ocelot.c.cfg.nodes.CFGNode;
 
@@ -48,10 +49,10 @@ public class PathSearchSimplex {
 	}
 	
 	public void solve(Collection<LabeledEdge> pToCover) {
-		List<LabeledEdge> sortedEdges = new ArrayList<LabeledEdge>(this.cfg.edgeSet());
-		Collections.sort(sortedEdges);
+		List<LabeledEdge> sortedEdges = new ArrayList<>(this.cfg.edgeSet());
+		Collections.sort(sortedEdges, new EdgeComparator(this.cfg));
 		
-		LabeledEdge startingEdge = new ArrayList<LabeledEdge>(this.cfg.outgoingEdgesOf(this.cfg.getStart())).get(0);
+		LabeledEdge startingEdge = new ArrayList<>(this.cfg.outgoingEdgesOf(this.cfg.getEntry())).get(0);
 		
 		int[] toCover = new int[sortedEdges.size()];
 		for (int i = 0 ; i < sortedEdges.size(); i++)
@@ -62,7 +63,7 @@ public class PathSearchSimplex {
 		Problem problem = new Problem();
 		Linear objective = new Linear();
 		for (int i = 0; i < this.basisPaths.size(); i++)
-			objective.add(1, "C"+i);
+			objective.add(1, "C" + i);
 		
 		problem.setObjective(objective, OptType.MIN);
 		
@@ -113,13 +114,13 @@ public class PathSearchSimplex {
 	
 	private List<List<LabeledEdge>> getPaths(RealVector coefficients) {
 		List<LabeledEdge> cliche = new ArrayList<LabeledEdge>(this.cfg.edgeSet());
-		Collections.sort(cliche);
+		Collections.sort(cliche, new EdgeComparator(this.cfg));
 		
 		Random random = new Random();
 				
 		List<List<LabeledEdge>> paths = new ArrayList<List<LabeledEdge>>();
 		List<LabeledEdge> currentPath = new ArrayList<LabeledEdge>();
-		CFGNode currentNode = this.cfg.getStart();
+		CFGNode currentNode = this.cfg.getEntry();
 		
 		while (true) {
 			List<LabeledEdge> edges = new ArrayList<LabeledEdge>();
@@ -147,8 +148,8 @@ public class PathSearchSimplex {
 			currentNode = this.cfg.getEdgeTarget(chosenEdge);
 			
 			//If we reach the end of the CFG, we go back to the start
-			if (currentNode.equals(this.cfg.getEnd())) {
-				currentNode = this.cfg.getStart();
+			if (currentNode.equals(this.cfg.getExit())) {
+				currentNode = this.cfg.getEntry();
 				paths.add(currentPath);
 				currentPath = new ArrayList<LabeledEdge>();
 			}

@@ -5,12 +5,14 @@ import java.util.List;
 import java.util.Set;
 
 import it.unisa.ocelot.c.cfg.CFG;
-import it.unisa.ocelot.c.cfg.dominators.Dominators;
+import it.unisa.ocelot.c.cfg.dominators.DominanceCalculatorVertices;
 import it.unisa.ocelot.c.cfg.edges.FalseEdge;
 import it.unisa.ocelot.c.cfg.edges.LabeledEdge;
 import it.unisa.ocelot.c.cfg.edges.TrueEdge;
 import it.unisa.ocelot.c.cfg.nodes.CFGNode;
+import it.unisa.ocelot.simulator.CaseExecutionEvent;
 import it.unisa.ocelot.simulator.ExecutionEvent;
+import it.unisa.ocelot.simulator.IfExecutionEvent;
 import it.unisa.ocelot.simulator.SimulatorListener;
 
 /**
@@ -19,43 +21,44 @@ import it.unisa.ocelot.simulator.SimulatorListener;
  * is used instead.
  * 
  * @author giograno
- *
  */
+//TODO DUPLICATES!!! This class and ManyNodesDistanceListener and ManyNodesDistanceListenerShortestPath and ManyEdgesDistanceListener are almost identical
 @Deprecated
-public class DominatorListener implements SimulatorListener {
-
-	private CFG cfg;
-	private LabeledEdge target;
-	private CFGNode parentNode;
-	private static Dominators<CFGNode, LabeledEdge> dominatorTree;
-	private Set<CFGNode> dominatorNodes;
+public final class DominatorListener implements SimulatorListener {
+	private final CFG cfg;
+	private final LabeledEdge target;
+	
+	private final CFGNode parentNode;
+	private final DominanceCalculatorVertices<CFGNode, LabeledEdge> dominatorTree;
+	private final Set<CFGNode> dominators; //of parentNode
+	
+	private final List<ExecutionEvent> nearestEvents;
 	private CFGNode nearestNode;
 	private LabeledEdge nearestEdge;
-	private int shortestPath;
-	private List<ExecutionEvent> nearestEvents;
+	
+	private int shortestPathLength;
 
 	private boolean targetVisited;
 
 	@SuppressWarnings("static-access")
-	public DominatorListener(CFG cfg, LabeledEdge target) {
-		this.cfg = cfg;
-		this.target = target;
-		this.parentNode = this.cfg.getEdgeSource(target);
-		if (dominatorTree == null)
-			this.dominatorTree = new Dominators<CFGNode, LabeledEdge>(cfg, cfg.getStart());
-		this.dominatorNodes = this.dominatorTree.getStrictDominators(parentNode);
-		this.nearestEvents = new ArrayList<ExecutionEvent>();
-		this.shortestPath = Integer.MAX_VALUE;
-
+	public DominatorListener(CFG pCfg, LabeledEdge pTarget) {
+		this.cfg = pCfg;
+		this.target = pTarget;
+		this.parentNode = this.cfg.getEdgeSource(pTarget);
+		this.dominatorTree = new DominanceCalculatorVertices<>(pCfg, pCfg.getEntry());
+		this.dominators = this.dominatorTree.getStrictDominators(this.parentNode);
+		this.nearestEvents = new ArrayList<>();
+		this.shortestPathLength = Integer.MAX_VALUE;
 		this.targetVisited = false;
 	}
 
 	@Override
 	public void onEdgeVisit(LabeledEdge pEdge) {
+		//nothing to do here
 	}
 
 	@Override
-	public void onEdgeVisit(LabeledEdge pEdge, ExecutionEvent pEvent) {
+	public void onEdgeVisit(LabeledEdge pEdge, IfExecutionEvent pEvent) {
 
 		if (!targetVisited) {
 			CFGNode node = this.cfg.getEdgeSource(pEdge);
@@ -72,7 +75,7 @@ public class DominatorListener implements SimulatorListener {
 	}
 
 	@Override
-	public void onEdgeVisit(LabeledEdge pEdge, ExecutionEvent pEvent, List<ExecutionEvent> pCases) {
+	public void onEdgeVisit(LabeledEdge pEdge, CaseExecutionEvent pEvent, List<CaseExecutionEvent> pCases) {
 		CFGNode node = this.cfg.getEdgeSource(pEdge);
 
 		if (node.equals(this.nearestNode)) {
@@ -83,52 +86,64 @@ public class DominatorListener implements SimulatorListener {
 
 	@Override
 	public void onNodeVisit(CFGNode pNode) {
-		if (this.dominatorNodes.contains(pNode))
-			dominatorNodes.remove(pNode);
+		if (this.dominators.contains(pNode)) {
+			this.dominators.remove(pNode);
+		}
 
-		if (dominatorNodes.size() < this.shortestPath) {
+		if (this.dominators.size() < this.shortestPathLength) {
 			this.nearestNode = pNode;
-			shortestPath = dominatorNodes.size();
-			if (dominatorNodes.size() == 0) {
+			this.shortestPathLength = this.dominators.size();
+			if (this.dominators.size() == 0) {
 				List<LabeledEdge> outgoingEdges = new ArrayList<>(this.cfg.outgoingEdgesOf(pNode));
 				this.nearestEdge = outgoingEdges.get(0);
-			} else
+			} else {
 				this.nearestEdge = this.target;
+			}
 		}
 	}
 
 	public int getApproachLevel() {
-		if (dominatorNodes.isEmpty())
+		if (this.dominators.isEmpty()) {
 			return 0;
+		}
 
-		return dominatorNodes.size();
+		return this.dominators.size();
 	}
 	
 	public double getBranchDistance() {
 		double distance = 0.D;
 
-		if (this.getApproachLevel() == 0.D) {
+		if (getApproachLevel() == 0) {
 			// execution reach the parent node of edge target
-			ExecutionEvent event = nearestEvents.get(0);
+			IfExecutionEvent event = (IfExecutionEvent) this.nearestEvents.get(0);
 
-			if (target instanceof FalseEdge)
-				distance = event.distanceFalse;
-			if (target instanceof TrueEdge)
-				distance = event.distanceTrue;
+			if (target instanceof FalseEdge) {
+				distance = event.getDistanceElse();
+			} else if (target instanceof TrueEdge) {
+				distance = event.getDistanceThen();
+			}
 			return distance;
 		}
 
 		// approach level more than 0
-		if (nearestEvents.size() == 1) {
+		
+		if (this.nearestEvents.size() == 1) {
 			// single condition
-			ExecutionEvent event = nearestEvents.get(0);
-			distance = Math.max(event.distanceTrue, event.distanceFalse);
+			//TODO is this cast correct? Possibly this is a CaseExecutionEvent
+			IfExecutionEvent event = (IfExecutionEvent) nearestEvents.get(0);
+			distance = Math.max(event.getDistanceThen(), event.getDistanceElse());
 		} else {
 			for (ExecutionEvent event : this.nearestEvents) {
-				if (event.getEdge().equals(this.nearestEdge))
-					distance = Math.max(event.distanceTrue, event.distanceFalse);
+				if (event.getEdge().equals(this.nearestEdge)) {
+					//TODO is this cast correct? Possibly this is a IfExecutionEvent
+					CaseExecutionEvent eEvent = (CaseExecutionEvent) event;
+					distance = eEvent.getDistance();
+					//TODO break?
+				}
 			}
+			assert distance != 0 : "non-positive distance error!";
 		}
+		
 		return distance;
 	}
 

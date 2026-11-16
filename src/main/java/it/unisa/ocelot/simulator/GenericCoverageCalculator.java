@@ -1,124 +1,82 @@
 package it.unisa.ocelot.simulator;
 
-import java.io.FileWriter;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashSet;
-import java.util.List;
+import java.util.Iterator;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import it.unisa.ocelot.TestCase;
-import it.unisa.ocelot.c.cfg.CFG;
-import it.unisa.ocelot.genetic.objectives.BranchDistanceCache;
 import it.unisa.ocelot.genetic.objectives.GenericObjective;
-import it.unisa.ocelot.genetic.objectives.PC_PairObjective;
-import it.unisa.ocelot.util.Utils;
 
-public class GenericCoverageCalculator {
-	private CFG cfg;
-	private List<GenericObjective> objectives;
-	private Set<GenericObjective> coveredObjectives = new HashSet<GenericObjective>();
-	private double objectiveCoverage = 0;
+import jmetal.core.Solution;
 
-	public GenericCoverageCalculator(CFG cfg, List<GenericObjective> objectives) {
-		this.cfg = cfg;
-		this.objectives = objectives;
+//This class is progressive: its constructor filters out the already covered objectives.
+public final class GenericCoverageCalculator extends CoverageCalculator<GenericObjective> {
+	private final Set<? extends GenericObjective> objectives;
+	private final Set<GenericObjective> coveredObjectives;
+	private final Set<? extends GenericObjective> uncoveredObjectives;
+	private double coverage;
+
+	/**
+	 * Constructor.
+	 * 
+	 * @param pObjectives all the {@link GenericObjective}s.
+	 */
+	public GenericCoverageCalculator(Set<? extends GenericObjective> pObjectives) {
+		this.objectives = new HashSet<>(pObjectives);
+		this.coveredObjectives = pObjectives.stream().filter(GenericObjective::isCovered).collect(Collectors.toSet());
+		this.uncoveredObjectives = pObjectives.stream().filter(o -> !o.isCovered()).collect(Collectors.toSet());
+		updateCoverage();
 	}
-
-	public void calculateCoverage(List<Object[][][]> pParametersList) {
-		for (Object[][][] params : pParametersList) {
-			CBridge bridge = new CBridge();
-			EventsHandler h = new EventsHandler();
-			bridge.getEvents(h, params[0][0], params[1], params[2][0]);
-
-			Simulator simulator = new Simulator(cfg, h.getEvents());
-
-			simulator.simulate();
-
-			// LUCA: read fitnessValues.txt (branch fitnesses) file and store it. More
-			// efficient than reading it for every objective.
-			BranchDistanceCache.cacheFitnessValues();
-			for (GenericObjective objective : objectives) {
-				double fitness = objective.getFitness(params);
-				if (fitness == 0.0) {
-					coveredObjectives.add(objective);
-					//System.out.println("Test case covers: " + objective.toString());
+	
+	@Override
+	public void resetCoverage() {
+		//this should never be invoked: this class is progressive
+		throw new UnsupportedOperationException();
+	}
+	
+	@Override
+	public void updateCoverage(TestCase pTestCase) {
+		if (pTestCase.hasCoverageInformationObjectives()) {
+			//safety update, as possibly this testCase was updated elsewhere
+			this.coveredObjectives.addAll(pTestCase.getCoveredObjectives());
+			this.uncoveredObjectives.removeAll(pTestCase.getCoveredObjectives());
+		} else {
+			Solution solution = pTestCase.getSolution();
+			HashSet<GenericObjective> coveredObjectivesByTest = new HashSet<>();
+			for (Iterator<? extends GenericObjective> itUncovered = this.uncoveredObjectives.iterator();
+					itUncovered.hasNext(); ) {
+				GenericObjective objective = itUncovered.next();
+				if (objective.isCovered(solution)) {
+					objective.setCovered();
+					//note that the objective might already have been
+					//set covered earlier, but this code works anyways
+					coveredObjectivesByTest.add(objective);
+					this.coveredObjectives.add(objective);
+					itUncovered.remove();
 				}
 			}
-
-			if (!simulator.isSimulationCorrect())
-				throw new RuntimeException("Simulation error for parameters " + Utils.printParameters(params));
+			pTestCase.setCoverageObjectives(coveredObjectivesByTest);
 		}
+		updateCoverage();
+	}
+	
+	private void updateCoverage() {
+		this.coverage = ((double) this.coveredObjectives.size()) / this.objectives.size();
 	}
 
-	public void calculateCoverage(Object[][][] pParameters) {
-		List<Object[][][]> parametersList = new ArrayList<Object[][][]>();
-		parametersList.add(pParameters);
-		this.calculateCoverage(parametersList);
+	@Override
+	public Set<GenericObjective> getUncovered() {
+		return new HashSet<>(this.uncoveredObjectives);
 	}
 
-	public void calculateCoverage(Set<TestCase> pTestCases) {
-		int i = 0;
-		for (TestCase tc : pTestCases) {
-			System.out.println("Computing coverage for TC: " + i + " out of: " + pTestCases.size());
-			calculateCoverage(tc.getParameters());
-			i = i + 1;
-		}
-		this.objectiveCoverage = ((double) this.coveredObjectives.size()) / this.objectives.size();
-		try {
-			FileWriter uncoveredWriter = new FileWriter("uncoveredPairs.txt");
-			FileWriter coveredWriter = new FileWriter("coveredPairs.txt");
-			//Set<String> maybeUncoveredBranches = new HashSet<String>();
-			for (GenericObjective objective : this.getUncoveredObjectives()) {
-				if(objective instanceof PC_PairObjective) {
-					PC_PairObjective pairObj= ((PC_PairObjective)objective);
-
-					uncoveredWriter.append(pairObj.sm.getTestObjOne());
-					uncoveredWriter.append(",");
-					uncoveredWriter.append(pairObj.sm.getTestObjTwo());
-					uncoveredWriter.append("\n");
-				}
-			}
-			
-			for (GenericObjective objective : this.coveredObjectives) {
-				if(objective instanceof PC_PairObjective) {
-					PC_PairObjective pairObj= ((PC_PairObjective)objective);
-					
-					coveredWriter.append(pairObj.sm.getTestObjOne());
-					coveredWriter.append(",");
-					coveredWriter.append(pairObj.sm.getTestObjTwo());
-					coveredWriter.append("\n");
-				}
-			}
-			
-
-
-			uncoveredWriter.close();
-			coveredWriter.close();
-
-		} catch (IOException e) {
-			System.out.println("Unable to generate file uncoveredBranches.txt");
-			e.printStackTrace();
-		}
-
-
-
-
+	@Override
+	public Set<GenericObjective> getCovered() {
+		return new HashSet<>(this.coveredObjectives);
 	}
 
-	public double getObjectiveCoverage() {
-		return this.objectiveCoverage;
+	@Override
+	public double getCoverage() {
+		return this.coverage;
 	}
-
-	public Set<GenericObjective> getCoveredObjectives() {
-		return this.coveredObjectives;
-	}
-
-	public List<GenericObjective> getUncoveredObjectives() {
-		List<GenericObjective> uncovered = new ArrayList<GenericObjective>(this.objectives);
-		uncovered.removeAll(this.coveredObjectives);
-		return uncovered;
-	}
-
 }

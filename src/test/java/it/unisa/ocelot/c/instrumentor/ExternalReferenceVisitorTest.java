@@ -52,7 +52,7 @@ public class ExternalReferenceVisitorTest {
 			
 			IASTTranslationUnit translationUnit = writeTU(testfile);
 			
-			ExternalReferencesVisitor visitor = new ExternalReferencesVisitor("test");
+			CASTVisitorExternalReferences visitor = new CASTVisitorExternalReferences("test");
 			
 			translationUnit.accept(visitor);
 			
@@ -86,7 +86,7 @@ public class ExternalReferenceVisitorTest {
 			
 			IASTTranslationUnit translationUnit = writeTU(testfile);
 			
-			ExternalReferencesVisitor visitor = new ExternalReferencesVisitor("test2");
+			CASTVisitorExternalReferences visitor = new CASTVisitorExternalReferences("test2");
 			
 			translationUnit.accept(visitor);
 			
@@ -121,7 +121,7 @@ public class ExternalReferenceVisitorTest {
 			
 			IASTTranslationUnit translationUnit = writeTU(testfile);
 			
-			ExternalReferencesVisitor visitor = new ExternalReferencesVisitor("test2");
+			CASTVisitorExternalReferences visitor = new CASTVisitorExternalReferences("test2");
 			
 			translationUnit.accept(visitor);
 			
@@ -163,7 +163,7 @@ public class ExternalReferenceVisitorTest {
 			
 			IASTTranslationUnit translationUnit = writeTU(testfile);
 			
-			ExternalReferencesVisitor visitor = new ExternalReferencesVisitor("test2");
+			CASTVisitorExternalReferences visitor = new CASTVisitorExternalReferences("test2");
 			
 			translationUnit.accept(visitor);
 			

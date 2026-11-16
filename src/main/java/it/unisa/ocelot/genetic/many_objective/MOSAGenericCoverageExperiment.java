@@ -1,23 +1,18 @@
 package it.unisa.ocelot.genetic.many_objective;
 
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.ObjectOutputStream;
 import java.util.List;
-
-import org.apache.commons.lang3.Range;
+import java.util.Set;
 
 import it.unisa.ocelot.c.cfg.CFG;
-import it.unisa.ocelot.c.types.CType;
 import it.unisa.ocelot.conf.ConfigManager;
 import it.unisa.ocelot.genetic.OcelotExperiment;
 import it.unisa.ocelot.genetic.StandardSettings;
 import it.unisa.ocelot.genetic.algorithms.MOSA_Generic;
 import it.unisa.ocelot.genetic.objectives.GenericObjective;
-import it.unisa.ocelot.genetic.settings.MOSASettingsGeneric;
 import it.unisa.ocelot.genetic.settings.SettingsFactory;
+import it.unisa.ocelot.suites.budget.BudgetManager;
 import jmetal.core.Algorithm;
-import jmetal.core.SolutionSet;
+import jmetal.util.JMException;
 
 /**
  * A Branch Coverage experiment performed with MOSA algorithm proposed by
@@ -26,63 +21,46 @@ import jmetal.core.SolutionSet;
  * 2015
  * 
  * @author giograno
- *
  */
-public class MOSAGenericCoverageExperiment extends OcelotExperiment {
-	private CType[] parametersTypes;
-	private CFG cfg;
-	private ConfigManager config;
-	private List<GenericObjective> objectives;
+public final class MOSAGenericCoverageExperiment extends OcelotExperiment<GenericObjective> {
+	private final CFG cfg;
+	private final Set<? extends GenericObjective> objectives;
 
-	public MOSAGenericCoverageExperiment(CFG cfg, List<GenericObjective> objectives, ConfigManager configManager, CType[] types) {
-		super(configManager.getResultsFolder(), configManager.getExperimentRuns());
+	public MOSAGenericCoverageExperiment(CFG pCfg, Set<? extends GenericObjective> pObjectives, ConfigManager pConfigManager, BudgetManager pBudgetManager) {
+		super(pConfigManager, pBudgetManager);
+		
+		if (!pConfigManager.getAlgorithm().equals(SettingsFactory.ALGORITHM_MOSA_GENERIC)) {
+			//overrides config manager
+			System.err.println("Warning: A generic MOSA coverage experiment will always run with the generic MOSA algorithm: Your algorithm settings will be ignored");
+			pConfigManager.setAlgorithm(SettingsFactory.ALGORITHM_MOSA_GENERIC); //TODO make it better
+		}
 
-		this.config = configManager;
-		this.parametersTypes = types;
-		this.objectives = objectives;
-		this.cfg = cfg;
-
-		this.algorithmNameList_ = new String[] { "MOSA" };
+		this.experimentName_ = "MOSA generic coverage experiment";
+		this.problemList_ = new String[] { SettingsFactory.PROBLEM_GENERIC_COVERAGE_MOSA };
+		
+		this.cfg = pCfg;
+		this.objectives = pObjectives;
+	}
+	
+	@Override
+	public Class<GenericObjective> getTargetClass() {
+		return GenericObjective.class;
 	}
 
 	@Override
-	public void algorithmSettings(Algorithm[] algorithm) {
-		try {
-			Range<Double>[] ranges = config.getTestRanges();
+	protected void algorithmSettingsOcelot(Algorithm[] algorithm) throws JMException {
+		// Makes the problem
+		MOSAGenericCoverageProblem problem = new MOSAGenericCoverageProblem(this.configManager.getDebug(), this.cfg, this.configManager.getTestArraysSize(), this.configManager.getTestRanges(), this.objectives);
 
-			MOSAGenericCoverageProblem problem = null;
-			if (ranges != null) {
-				problem = new MOSAGenericCoverageProblem(this.cfg, this.parametersTypes, config.getTestArraysSize(), 
-						ranges, objectives);
-				}
-			else
-				throw new RuntimeException("Error: please, set the ranges for the parameters for MOSA algorithm");
-			
-			if (config.getAlgorithm().equals(SettingsFactory.AVM)) {
-				System.err.println("Warning: MOSA will run with its own algorithm (AVM ignored)!");
-			}
+		// Makes the settings
+		StandardSettings settings = SettingsFactory.getSettings(this.configManager, problem, this.cfg.getConstantsNumeric()); //TODO what about non-numeric constants?
+		this.algorithmSettings_[0] = settings; //TODO who should set this.algorithmSettings_ ?
 
-			MOSASettingsGeneric settings = new MOSASettingsGeneric(problem, config, objectives);
-			if (config.isMetaMutatorEnabled())
-				settings.useMetaMutator();
-			settings.setNumericConstants(this.cfg.getConstantNumbers());
-			problem.setDebug(config.getDebug());
-			algorithm[0] = settings.configure(cfg, parametersTypes);
-		} catch (Exception e) {
-			System.err.println("An error occurred while instantiating problem: " + e.getMessage());
-			return;
-		}
+		// Makes the algorithm
+		algorithm[0] = settings.configure();
 	}
 
-	public SolutionSet multiObjectiveRun() throws ClassNotFoundException, jmetal.util.JMException {
-		this.algorithmSettings(this.problemList_[0], 0, new Algorithm[1]);
-
-		SolutionSet solutionSet = this.algorithm.execute();
-		
-		this.budgetManager.reportConsumedBudget(this, this.algorithm.getStats().getEvaluations());
-		return solutionSet;
-	}
-
+	//TODO do we really care?
 	public List<Integer> getNumberOfEvaluations() {
 		return ((MOSA_Generic) this.algorithm).getEvaluations();
 	}

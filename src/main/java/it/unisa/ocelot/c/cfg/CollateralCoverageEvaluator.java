@@ -1,106 +1,89 @@
 package it.unisa.ocelot.c.cfg;
 
-import it.unisa.ocelot.c.cfg.dominators.Dominators;
+import it.unisa.ocelot.c.cfg.dominators.DominanceCalculatorVertices;
 import it.unisa.ocelot.c.cfg.edges.LabeledEdge;
 import it.unisa.ocelot.c.cfg.nodes.CFGNode;
 
-import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
+import org.jgrapht.DirectedGraph;
 import org.jgrapht.graph.DefaultEdge;
-import org.jgrapht.graph.SimpleDirectedGraph;
 
 public class CollateralCoverageEvaluator {
+	private final CFG cfg;
+	private final DominanceCalculatorVertices<CFGNode, LabeledEdge> dominance;
+	private final DirectedGraph<CFGNode, DefaultEdge> cdg;
+	private final Set<LabeledEdge> covered; // M
+	private final Set<LabeledEdge> coveredByCurrentSolution; // P(x)
+	private final int potentiallyCoverable; // L_e(n)
+	private final double collateralCoverage;
 
-	private CFG controlFlowGraph;
-	private LabeledEdge target;
 
-	private List<LabeledEdge> alreadyCoveredBranches; // M
-	private List<LabeledEdge> coveredBranchByCurrentSolution; // P(x)
-
-	private int potentiallyCoverableEdges; // L_e(n)
-
-	private static Dominators<CFGNode, LabeledEdge> dominator;
-
-	// control dependence graph
-	private static SimpleDirectedGraph<CFGNode, DefaultEdge> controlDependenceGraph;
-
-	public CollateralCoverageEvaluator(CFG controlFlowGraph, LabeledEdge target,
-			List<LabeledEdge> branches, List<LabeledEdge> coveredBranchByCurrentSolution) {
-
-		this.controlFlowGraph = controlFlowGraph;
-		this.target = target;
-		this.coveredBranchByCurrentSolution = coveredBranchByCurrentSolution;
-
-		this.alreadyCoveredBranches = new ArrayList<>();
-		for (LabeledEdge edge : branches)
-			if (edge.isCovered())
-				this.alreadyCoveredBranches.add(edge);
-
-		if (dominator == null)
-			CollateralCoverageEvaluator.dominator = new Dominators<CFGNode, LabeledEdge>(
-					controlFlowGraph, controlFlowGraph.getStart());
-
-		if (controlDependenceGraph == null)
-			controlDependenceGraph = CollateralCoverageEvaluator.dominator.getDominatorTree();
-
-		this.potentiallyCoverableEdges = calculatePotentiallyCoverableEdges(this.target, 0);
+	public CollateralCoverageEvaluator(CFG pCfg, LabeledEdge pTarget,
+			Set<LabeledEdge> pAll, Set<LabeledEdge> pCoveredByCurrentSolution) {
+		this.cfg = pCfg;
+		this.dominance = new DominanceCalculatorVertices<>(pCfg, pCfg.getEntry());
+		this.cdg = this.dominance.getDominatorTree();
+		this.covered = pAll.stream().filter(LabeledEdge::isCovered).collect(Collectors.toSet());
+		this.coveredByCurrentSolution = pCoveredByCurrentSolution;
+		this.potentiallyCoverable = calculatePotentiallyCoverable(pTarget, 0);
+		this.collateralCoverage = calculateCollateralCoverage();
 	}
 
-	public double calculateCollateralCoverage() {
-		if (Math.abs(coveredBranchByCurrentSolution.size() - alreadyCoveredBranches.size()) > potentiallyCoverableEdges)
-			return 1.0;
-		else {
-			if (potentiallyCoverableEdges == 0) {
-				return 0;
-			}
-			return (Math.abs(coveredBranchByCurrentSolution.size() - alreadyCoveredBranches.size()) / potentiallyCoverableEdges);
-		}
-	}
+	private int calculatePotentiallyCoverable(LabeledEdge edge, int potentiallyCoverable) {
+		CFGNode childNode = this.cdg.getEdgeTarget(edge);
 
-	private int calculatePotentiallyCoverableEdges(LabeledEdge edge, int potentiallyCoverableEdges) {
-		CFGNode childNode = CollateralCoverageEvaluator.controlDependenceGraph.getEdgeTarget(edge);
-
-		if (CollateralCoverageEvaluator.controlDependenceGraph.outDegreeOf(childNode) <= 1)
+		if (this.cdg.outDegreeOf(childNode) <= 1) { //TODO why not of cfg?
 			return 0; // not a branching node
+		}
 
-		Set<DefaultEdge> outgoingFromCDG = CollateralCoverageEvaluator.controlDependenceGraph
-				.outgoingEdgesOf(childNode);
-		Set<LabeledEdge> outgoingFromCFG = this.controlFlowGraph.outgoingEdgesOf(childNode);
+		Set<DefaultEdge> outgoingFromCDG = this.cdg.outgoingEdgesOf(childNode);
+		Set<LabeledEdge> outgoingFromCFG = this.cfg.outgoingEdgesOf(childNode);
 
 		Set<LabeledEdge> commonOutgoings = new HashSet<>();
 		for (LabeledEdge cfgEdge : outgoingFromCFG) {
-			CFGNode cfgSouce = this.controlFlowGraph.getEdgeSource(cfgEdge);
-			CFGNode cfgTarget = this.controlFlowGraph.getEdgeTarget(cfgEdge);
+			CFGNode cfgSouce = this.cfg.getEdgeSource(cfgEdge);
+			CFGNode cfgTarget = this.cfg.getEdgeTarget(cfgEdge);
 			for (DefaultEdge cdgEdge : outgoingFromCDG) {
-				CFGNode cdgSource = CollateralCoverageEvaluator.controlDependenceGraph
-						.getEdgeSource(cdgEdge);
-				CFGNode cdgTarget = CollateralCoverageEvaluator.controlDependenceGraph
-						.getEdgeTarget(cdgEdge);
-				if (cfgSouce == cdgSource && cfgTarget == cdgTarget)
+				CFGNode cdgSource = this.cdg.getEdgeSource(cdgEdge);
+				CFGNode cdgTarget = this.cdg.getEdgeTarget(cdgEdge);
+				if (cfgSouce == cdgSource && cfgTarget == cdgTarget) {
 					commonOutgoings.add(cfgEdge);
+				}
 			}
 		}
 
 		int max = Integer.MIN_VALUE;
 		for (LabeledEdge outEdge : commonOutgoings) {
-			int currentCollateral = calculatePotentiallyCoverableEdges(outEdge, potentiallyCoverableEdges);
-			if (currentCollateral > max)
+			int currentCollateral = calculatePotentiallyCoverable(outEdge, potentiallyCoverable);
+			if (currentCollateral > max) {
 				max = currentCollateral;
+			}
 		}
 		
-		potentiallyCoverableEdges += max;
+		potentiallyCoverable += max;
 
 		if (edge.isCovered()) {
-			return potentiallyCoverableEdges;
+			return potentiallyCoverable;
 		} else {
-			return (1 + potentiallyCoverableEdges);
+			return (1 + potentiallyCoverable);
 		}
 	}
 
-	public int getPotentiallyCoverableEdges() {
-		return this.potentiallyCoverableEdges;
+	private double calculateCollateralCoverage() {
+		int notCoveredByCurrentSolution = Math.abs(this.covered.size() - this.coveredByCurrentSolution.size()); //TODO why abs? Shouldn't be always positive?
+		if (notCoveredByCurrentSolution > this.potentiallyCoverable) {
+			return 1.0;
+		} else if (this.potentiallyCoverable == 0) {
+			return 0;
+		} else {
+			return (notCoveredByCurrentSolution / this.potentiallyCoverable);
+		}
+	}
+
+	public double getCollateralCoverage() {
+		return this.collateralCoverage;
 	}
 }

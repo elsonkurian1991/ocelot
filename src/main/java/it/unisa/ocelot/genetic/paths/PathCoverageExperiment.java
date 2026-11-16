@@ -6,51 +6,48 @@ import org.apache.commons.lang3.Range;
 
 import it.unisa.ocelot.c.cfg.CFG;
 import it.unisa.ocelot.c.cfg.edges.LabeledEdge;
-import it.unisa.ocelot.c.types.CType;
 import it.unisa.ocelot.conf.ConfigManager;
 import it.unisa.ocelot.genetic.OcelotExperiment;
 import it.unisa.ocelot.genetic.StandardSettings;
 import it.unisa.ocelot.genetic.settings.SettingsFactory;
+import it.unisa.ocelot.suites.budget.BudgetManager;
+
 import jmetal.core.Algorithm;
+import jmetal.util.JMException;
 
-public class PathCoverageExperiment extends OcelotExperiment {
-	private CType[] parametersTypes;
-	private CFG cfg;
-	private ConfigManager config;
-	private List<LabeledEdge> targetPath;
+public final class PathCoverageExperiment extends OcelotExperiment<LabeledEdge> {
+	private final CFG cfg;
+	private final List<LabeledEdge> target;
 
-	public PathCoverageExperiment(CFG pCfg, ConfigManager pConfig, CType[] pTypes, List<LabeledEdge> targetPath) {
-		super(pConfig.getResultsFolder(), 1);
+	public PathCoverageExperiment(CFG pCfg, ConfigManager pConfigManager, BudgetManager pBudgetManager, List<LabeledEdge> pTarget) {
+		super(pConfigManager, pBudgetManager);
+
+		//TODO Use these parameters instead of refusing everything and putting dummy values in them.		
+		this.algorithmNameList_ = new String[] { pConfigManager.getAlgorithm() }; 
+		this.problemList_ = new String[] { SettingsFactory.PROBLEM_PATH_COVERAGE_SINGLE };
 		
 		this.cfg = pCfg;
-		this.config = pConfig;
-		this.parametersTypes = pTypes;
-		this.targetPath = targetPath;
+		this.target = pTarget;
+	}
+	
+	@Override
+	public Class<LabeledEdge> getTargetClass() {
+		return LabeledEdge.class;
 	}
 
 	@Override
-	public void algorithmSettings(Algorithm[] algorithm) {
-		try {
-			Range<Double>[] ranges = config.getTestRanges();
+	public void algorithmSettingsOcelot(Algorithm[] algorithm) throws JMException {
+		//gets input ranges
+		Range<Double>[] ranges = this.configManager.getTestRanges();
 
-			PathCoverageProblem problem;
-			if (ranges != null)
-				problem = new PathCoverageProblem(this.cfg, this.parametersTypes, ranges, this.config.getTestArraysSize());
-			else
-				problem = new PathCoverageProblem(this.cfg, this.parametersTypes, this.config.getTestArraysSize());
+		//makes the problem
+		ProblemTargetSinglePath problem = new ProblemTargetSinglePath(this.configManager.getDebug(), this.cfg, this.configManager.getTestArraysSize(), ranges, this.target);
 
-			problem.setDebug(config.getDebug());
-			problem.setTarget(this.targetPath);
+		//makes the settings
+		StandardSettings settings = SettingsFactory.getSettings(this.configManager, problem, this.cfg.getConstantsNumeric()); //TODO what about non-numeric constants?
+		this.algorithmSettings_[0] = settings; //TODO who should set this.algorithmSettings_ ?
 
-			StandardSettings settings = SettingsFactory.getSettings(config.getAlgorithm(), problem, config);
-			if (config.isMetaMutatorEnabled())
-				settings.useMetaMutator();
-			
-			settings.setNumericConstants(this.cfg.getConstantNumbers());
-			algorithm[0] = settings.configure();
-		} catch (Exception e) {
-			System.err.println("An error occurred while instantiating problem: " + e.getMessage());
-			return;
-		}
+		//configures the algorithm
+		algorithm[0] = settings.configure();
 	}
 }

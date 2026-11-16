@@ -11,9 +11,9 @@ import java.util.List;
  * @author simone
  *
  */
-public class SubGraph {
-	private List<CFGNode> input;
-	private List<CFGNode> output;
+public final class SubGraph {
+	private List<CFGNode> inputs;
+	private List<CFGNode> outputs;
 	private List<CFGNode> cases;
 	private List<CFGNode> breaks;
 	private List<CFGNode> continues;
@@ -22,11 +22,11 @@ public class SubGraph {
 	 * Creates an empty sub-graph
 	 */
 	public SubGraph() {
-		this.input = new ArrayList<CFGNode>();
-		this.output = new ArrayList<CFGNode>();
-		this.cases = new ArrayList<CFGNode>();
-		this.breaks = new ArrayList<CFGNode>();
-		this.continues = new ArrayList<CFGNode>();
+		this.inputs = new ArrayList<>();
+		this.outputs = new ArrayList<>();
+		this.cases = new ArrayList<>();
+		this.breaks = new ArrayList<>();
+		this.continues = new ArrayList<>();
 	}
 	
 	/**
@@ -34,7 +34,7 @@ public class SubGraph {
 	 * @param pNode Node to be added
 	 */
 	public void addInput(CFGNode pNode) {
-		this.input.add(pNode);
+		this.inputs.add(pNode);
 	}
 	
 	/**
@@ -42,7 +42,7 @@ public class SubGraph {
 	 * @param pNodes Nodes to be added
 	 */
 	public void addInput(List<CFGNode> pNodes) {
-		this.input.addAll(pNodes);
+		this.inputs.addAll(pNodes);
 	}
 	
 	/**
@@ -50,7 +50,7 @@ public class SubGraph {
 	 * @param pNode Sub-graph from which inherit the nodes.
 	 */
 	public void inheritInput(SubGraph pGraph) {
-		this.input.addAll(pGraph.getInput());
+		this.inputs.addAll(pGraph.getInputs());
 	}
 	
 	/**
@@ -58,7 +58,7 @@ public class SubGraph {
 	 * @param pNode Node to be added
 	 */
 	public void addOutput(CFGNode pNode) {
-		this.output.add(pNode);
+		this.outputs.add(pNode);
 	}
 	
 	/**
@@ -66,7 +66,7 @@ public class SubGraph {
 	 * @param pNodes Nodes to be added
 	 */
 	public void addOutput(List<CFGNode> pNodes) {
-		this.output.addAll(pNodes);
+		this.outputs.addAll(pNodes);
 	}
 	
 	/**
@@ -74,7 +74,7 @@ public class SubGraph {
 	 * @param pNode Sub-graph from which inherit the nodes.
 	 */
 	public void inheritOutput(SubGraph pGraph) {
-		this.output.addAll(pGraph.getOutput());
+		this.outputs.addAll(pGraph.getOutputs());
 	}
 	
 	/**
@@ -82,7 +82,7 @@ public class SubGraph {
 	 * @param pGraph
 	 */
 	public void resetOutput() {
-		this.output.clear();
+		this.outputs.clear();
 	}
 	
 	/**
@@ -183,16 +183,16 @@ public class SubGraph {
 	 * Returns the list of input nodes of the sub-graph
 	 * @return
 	 */
-	public List<CFGNode> getInput() {
-		return input;
+	public List<CFGNode> getInputs() {
+		return inputs;
 	}
 	
 	/**
 	 * Returns the list of output nodes of the sub-graph
 	 * @return
 	 */
-	public List<CFGNode> getOutput() {
-		return output;
+	public List<CFGNode> getOutputs() {
+		return outputs;
 	}
 	
 	/**

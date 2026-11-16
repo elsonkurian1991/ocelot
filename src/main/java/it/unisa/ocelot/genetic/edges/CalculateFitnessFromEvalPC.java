@@ -99,7 +99,7 @@ public class CalculateFitnessFromEvalPC {
 			if (!set.getValue().isTestGenerated()) {
 				if(set.getValue().isTestCovered()) {
 					System.out.println("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$");
-					ReadEFLfilesforPairCombination.CheckTCisCovered(ReadEFLfilesforPairCombination.pathTCfitness,arguments);//to update the combinations
+					ReadEFLFilesForPairCombination.CheckTCisCovered(ReadEFLFilesForPairCombination.pathTCfitness,arguments);//to update the combinations
 					return 0;
 				}
 				else {
@@ -118,7 +118,7 @@ public class CalculateFitnessFromEvalPC {
 
 	private static void FillPairWiseList(String fileNameWOepc, double currFitness) {
 		//ReadEFLfilesforPairCombination.pathTCfitness
-		for(Entry<String, EFLType> entry:ReadEFLfilesforPairCombination.pathTCfitness.entrySet()) {
+		for(Entry<String, EFLType> entry:ReadEFLFilesForPairCombination.pathTCfitness.entrySet()) {
 			if(!entry.getValue().isTCcovered()) { //update the new fitness only is not covered
 				for(FNameFitValType fnameVal: entry.getValue().getFname_Val()){
 					System.out.println(fnameVal.getfName()+"-"+fileNameWOepc);

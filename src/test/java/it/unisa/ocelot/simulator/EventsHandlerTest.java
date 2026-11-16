@@ -10,42 +10,44 @@ import static org.junit.Assert.*;
  * @author Giovanni Grano
  */
 public class EventsHandlerTest {
-
     private EventsHandler eventsHandler;
 
     @Before
     public void setUp() {
-        eventsHandler = new EventsHandler();
+        this.eventsHandler = new EventsHandler();
     }
 
     @Test
-    public void add() throws Exception {
-        int choice = 0;
-        double distanceTrue = 0.7571;
-        double distanceFalse = 0;
-        eventsHandler.add(choice, distanceTrue, distanceFalse);
-        ExecutionEvent events = eventsHandler.getEvents().get(0);
-        assertEquals(events.choice, 0);
-        assertEquals(events.distanceTrue, 0.7571, 0.0);
-        assertEquals(events.distanceFalse, 0.0, 0.0);
+    public void testGetEvents() throws Exception {
+    	this.eventsHandler.add(0, 0.12, 0);
+    	this.eventsHandler.addCase(0, 0.2323, false);
+        assertEquals(this.eventsHandler.getEvents().size(), 2);
+        IfExecutionEvent event0 = this.eventsHandler.getEvents().get(0);
+        assertEquals(0, event0.id);
+        assertEquals(0.12, event0.distanceThen, 0.0);
+        assertEquals(0, event0.distanceElse, 0.0);
+        assertEquals(CaseExecutionEvent.class, this.eventsHandler.getEvents().get(1).getClass());
+        CaseExecutionEvent event1 = (CaseExecutionEvent) this.eventsHandler.getEvents().get(1);
+        assertEquals(0, event1.id);
+        assertEquals(0.2323, event1.distanceThen, 0.0);
+        assertEquals(0, event1.distanceElse, 0.0);
     }
 
     @Test
-    public void addCase() throws Exception {
-        int choice = 0;
-        double distance = 0.7571;
-        boolean isChosen = false;
-        eventsHandler.addCase(choice, distance, isChosen);
-        CaseExecutionEvent event = (CaseExecutionEvent) eventsHandler.getEvents().get(0);
-        assertEquals(event.choice, 0);
-        assertEquals(event.distanceTrue, 0.7571, 0.0);
+    public void testAdd() throws Exception {
+        this.eventsHandler.add(0, 0.7571, 0);
+        IfExecutionEvent event = this.eventsHandler.getEvents().get(0);
+        assertEquals(event.id, 0);
+        assertEquals(event.distanceThen, 0.7571, 0.0);
+        assertEquals(event.distanceElse, 0.0, 0.0);
+    }
+
+    @Test
+    public void testAddCase() throws Exception {
+        this.eventsHandler.addCase(0, 0.7571, false);
+        CaseExecutionEvent event = (CaseExecutionEvent) this.eventsHandler.getEvents().get(0);
+        assertEquals(event.id, 0);
+        assertEquals(event.distanceThen, 0.7571, 0.0);
         assertEquals(event.chosen, false);
-    }
-
-    @Test
-    public void getEvents() throws Exception {
-        eventsHandler.add(0, 0.12, 0);
-        eventsHandler.addCase(0, 0.2323, false);
-        assertEquals(eventsHandler.getEvents().size(), 2);
     }
 }

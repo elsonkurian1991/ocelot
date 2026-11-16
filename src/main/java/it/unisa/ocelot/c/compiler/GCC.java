@@ -4,7 +4,9 @@ import it.unisa.ocelot.util.Utils;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.Set;
 
 import org.apache.commons.io.IOUtils;
 import org.eclipse.cdt.core.dom.ast.IASTTranslationUnit;
@@ -58,11 +60,11 @@ public class GCC implements Compiler {
 	 * @throws IOException
 	 * @throws CoreException
 	 */
-	public static IASTTranslationUnit getTranslationUnit(String pSourceFilename, String... pIncludePaths)
+	public static IASTTranslationUnit getTranslationUnit(String pSourceFilename, Set<String> pIncludePaths)
 	throws IOException, CoreException {
 		String sourceCode = Utils.readFile(pSourceFilename);
 		FileContent sourceFileContent = FileContent.create(pSourceFilename, sourceCode.toCharArray());
-		IScannerInfo scannerInfo = new ScannerInfo(new HashMap<>(), pIncludePaths);
+		IScannerInfo scannerInfo = new ScannerInfo(new HashMap<>(), pIncludePaths.toArray(new String[0]));
 		
 		return GCCLanguage.getDefault().getASTTranslationUnit(
 				sourceFileContent, scannerInfo, 
@@ -82,6 +84,6 @@ public class GCC implements Compiler {
 	 */
 	public static IASTTranslationUnit getTranslationUnit(String pSourceFilename)
 	throws IOException, CoreException {		
-		return getTranslationUnit(pSourceFilename, new String[0]);
+		return getTranslationUnit(pSourceFilename, Collections.emptySet());
 	}
 }

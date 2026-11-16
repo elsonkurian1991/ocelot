@@ -5,16 +5,19 @@ import it.unisa.ocelot.c.cfg.CFG;
 import it.unisa.ocelot.c.cfg.CFGBuilder;
 import it.unisa.ocelot.c.types.CTypeHandler;
 import it.unisa.ocelot.conf.ConfigManager;
+import it.unisa.ocelot.genetic.objectives.BranchManager;
 import it.unisa.ocelot.genetic.objectives.GenericObjective;
+import it.unisa.ocelot.genetic.objectives.PCPairObjective;
 import it.unisa.ocelot.genetic.objectives.PC_PairsManager;
 import it.unisa.ocelot.simulator.CBridge;
+import it.unisa.ocelot.simulator.GenericCoverageCalculator;
+import it.unisa.ocelot.suites.TestSuiteGenerationException;
 import it.unisa.ocelot.suites.benchmarks.BenchmarkCalculator;
-import it.unisa.ocelot.suites.benchmarks.BranchCoverageBenchmarkCalculator;
 import it.unisa.ocelot.suites.benchmarks.EvaluationBenchmarkCalculator;
-import it.unisa.ocelot.suites.benchmarks.TestSuiteSizeBenchmarkCalculator;
 import it.unisa.ocelot.suites.benchmarks.TimeBenchmarkCalculator;
-import it.unisa.ocelot.suites.generators.CascadeTestSuiteGenerator;
+import it.unisa.ocelot.suites.generators.CascadeableTestSuiteGenerator;
 import it.unisa.ocelot.suites.generators.TestSuiteGenerator;
+import it.unisa.ocelot.suites.generators.TestSuiteGeneratorCascade;
 import it.unisa.ocelot.suites.generators.TestSuiteGeneratorHandler;
 import it.unisa.ocelot.suites.minimization.TestSuiteMinimizer;
 import it.unisa.ocelot.suites.minimization.TestSuiteMinimizerHandler;
@@ -24,182 +27,206 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
 import java.util.Set;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
 import org.apache.commons.io.output.TeeOutputStream;
-import org.apache.commons.lang3.StringUtils;
+import org.eclipse.core.runtime.CoreException;
 
-public class ExecuteExperiment implements Runnable {
-	private static final String[] EXPERIMENT_GENERATORS = new String[] {
-		TestSuiteGeneratorHandler.MOSA_TEST_SUITE_GENERATOR,
-		TestSuiteGeneratorHandler.CDG_BASED_APPROACH_SUITE_GENERATOR,
-		TestSuiteGeneratorHandler.DYNAMIC_MCCABE_SUITE_GENERATOR
+public class ExecuteExperiment {
+	private static final String[] TEST_SUITE_GENERATORS = new String[] {
+			TestSuiteGeneratorHandler.MOSA_TEST_SUITE_GENERATOR,
+			TestSuiteGeneratorHandler.CDG_BASED_APPROACH_SUITE_GENERATOR,
+			TestSuiteGeneratorHandler.DYNAMIC_MCCABE_SUITE_GENERATOR
 	};
-	
+
+	private final String[] testSuiteGenerators;
 	private CFG cfg;
-	private ConfigManager config;
-	
-	private String[] experimentGenerators;
-	
-	public ExecuteExperiment() throws Exception {
-		this(EXPERIMENT_GENERATORS);
+
+	/**
+	 * Constructor (with default test suite generators).
+	 */
+	public ExecuteExperiment() {
+		this(TEST_SUITE_GENERATORS); //TODO why not from configuration file?
 	}
 
-	public ExecuteExperiment(String[] generators) throws Exception {
-		this.experimentGenerators = generators;
+	/**
+	 * Constructor (with user-specified test suite generators).
+	 * 
+	 * @param testSuiteGenerators a {@link String}{@code []}
+	 *        listing the names of all the generators that we
+	 *        want to use.
+	 */
+	public ExecuteExperiment(String[] testSuiteGenerators) { //TODO why not from configuration file?
+		this.testSuiteGenerators = testSuiteGenerators;
+		this.cfg = null;
 	}
-	
-	@Override
-	public void run() {
-		try {
-			config = ConfigManager.getInstance();
-	
-			// Sets up the output file
-			File outputDirectory = new File(config.getOutputFolder());
-			outputDirectory.mkdirs();
-			FileOutputStream fos = new FileOutputStream(config.getOutputFolder()
-					+ "exp_res.txt");
-			TeeOutputStream myOut = new TeeOutputStream(System.out, fos);
-			PrintStream ps = new PrintStream(myOut);
-			System.setOut(ps);
-	
-			// Builds the CFG and sets the target
-			cfg = CFGBuilder.build(config.getTestFilename(),
-					config.getTestFunction());
-			
-			int mcCabePaths = cfg.edgeSet().size() - cfg.vertexSet().size() + 1;
-			System.out.println("Cyclomatic complexity: " + mcCabePaths);
-			System.out.println("Number of branches: " + cfg.edgeSet().size());
-			System.out.println("Number of nodes: " + cfg.vertexSet().size());
-			
-			CTypeHandler typeHandler = new CTypeHandler(cfg.getParameterTypes());
-			CBridge.initialize(
-					typeHandler.getValues().size(), 
-					typeHandler.getPointers().size(),
-					typeHandler.getPointers().size());
-	
-			//LUCA: load list of objectives
-			List<GenericObjective> objectives = PC_PairsManager.loadObjectives();	
-			
-			for (int i = 0; i < config.getExperimentRuns(); i++) {
-				runOnce(i, objectives);
-			}
-		} catch (Exception e) {
-			e.printStackTrace();
-			throw new RuntimeException(e);
+
+	public void run() throws IOException, CoreException, TestSuiteGenerationException {
+		ConfigManager configManager = ConfigManager.getInstance();
+
+		// Sets up the output file
+		File outputDirectory = new File(configManager.getOutputFolder());
+		outputDirectory.mkdirs();
+		LocalDateTime now = LocalDateTime.now();
+		DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss");
+		String formattedDateTime = now.format(formatter);
+		FileOutputStream fos = new FileOutputStream(configManager.getOutputFolder() + "exp_res_" + formattedDateTime+".txt");
+		TeeOutputStream myOut = new TeeOutputStream(System.out, fos);
+		PrintStream ps = new PrintStream(myOut);
+		System.setOut(ps);
+
+		// Builds the CFG for the test function
+		this.cfg = CFGBuilder.build(configManager.getTestFilename(), configManager.getTestFunction());
+
+		// Emits some stats on the CFG
+		System.out.println();
+		System.out.println("===== CFG features =====");
+		int mcCabePaths = this.cfg.edgeSet().size() - this.cfg.vertexSet().size() + 1;
+		System.out.println("Cyclomatic complexity: " + mcCabePaths);
+		System.out.println("Number of edges: " + this.cfg.edgeSet().size());
+		System.out.println("Number of vertices: " + this.cfg.vertexSet().size());
+		System.out.println("========================");
+		System.out.println();
+
+		// Initializes the C bridge
+		CTypeHandler typeHandler = new CTypeHandler(this.cfg.getParameterTypes());
+		CBridge.initialize(
+				typeHandler.getValues().size(), 
+				typeHandler.getPointers().size(),
+				typeHandler.getPointers().size());
+
+		// Loads the objectives to optimize on
+		Set<? extends GenericObjective> objectives;	
+		if (configManager.getOptimizeFor().equals("Pairs")) {
+			objectives = PC_PairsManager.loadObjectives();	
+		} else if (configManager.getOptimizeFor().equals("Branches")) {
+			objectives = BranchManager.loadObjectives();
+		} else {
+			throw new RuntimeException("Don't know what you are optimizing for");
+		}
+
+		// Loads the objectives to evaluate on
+		Predicate<GenericObjective> notSynthetic = Predicate.not(obj -> (obj instanceof PCPairObjective && ((PCPairObjective) obj).isSynthetic));
+		Set<? extends GenericObjective> objectivesToEvaluate;
+		if (configManager.getEvaluateOn().equals("Pairs")) {
+			objectivesToEvaluate = PC_PairsManager.loadObjectives().stream().filter(notSynthetic).collect(Collectors.toSet());	
+		} else if (configManager.getEvaluateOn().equals("Branches")) {
+			objectivesToEvaluate = BranchManager.loadObjectives().stream().filter(notSynthetic).collect(Collectors.toSet());
+		} else {
+			throw new RuntimeException("Don't know what you are evaluating for");
+		}
+
+		// Runs the experiment the number of times
+		// specified by the configuration variable
+		// experiment.runs.
+		for (int i = 0; i < configManager.getExperimentRuns(); i++) {
+			runOnce(i, objectives, objectivesToEvaluate);
 		}
 	}
-	
-	@SuppressWarnings("rawtypes")
-	private void runOnce(int pTime, List<GenericObjective> objectives) throws Exception {
-		String folderPath = this.config.getResultsFolder() + "/" + config.getTestFunction() + "/";
+
+	private void runOnce(int pTime, Set<? extends GenericObjective> pObjectives, Set<? extends GenericObjective> pObjectivesToEvaluate) throws IOException, TestSuiteGenerationException {
+		ConfigManager config = ConfigManager.getInstance();
+
+		// Builds the output folder
+		String folderPath = config.getResultsFolder() + "/" + config.getTestFunction() + "/";
 		File folder = new File(folderPath);
 		folder.mkdirs();
-		
-		for (String generatorName : this.experimentGenerators) {
-			System.out.println("RUNNING " + generatorName);
 
-			TestSuiteGenerator generator = TestSuiteGeneratorHandler.getInstance(
-					generatorName, config, cfg, objectives);
-			
-			if (this.config.isExperimentMinimization()) {
-				CascadeTestSuiteGenerator realGenerator = new CascadeTestSuiteGenerator(config, cfg);
-				TestSuiteMinimizer minimizer = TestSuiteMinimizerHandler.getInstance(config);
-				realGenerator.addTestSuiteGenerator(generator);
+		// Runs all the test suite generators, in sequence
+		for (String generatorName : this.testSuiteGenerators) {
+			System.out.println("Running generator: " + generatorName);
+			TestSuiteGenerator generator = TestSuiteGeneratorHandler.getInstance(generatorName, config, this.cfg, pObjectives);
+
+			if (config.isExperimentMinimization()) {
+				GenericCoverageCalculator coverageCalculator = new GenericCoverageCalculator(pObjectives);
+				TestSuiteGeneratorCascade<GenericObjective> realGenerator = new TestSuiteGeneratorCascade<>(config, coverageCalculator);
+				TestSuiteMinimizer<?> minimizer = TestSuiteMinimizerHandler.getInstance(config, coverageCalculator);
+				realGenerator.addTestSuiteGenerator((CascadeableTestSuiteGenerator) generator);
 				realGenerator.addTestSuiteGenerator(minimizer);
-				
 				generator = realGenerator;
 			}
-//			TestSuiteMinimizer minimizer = TestSuiteMinimizerHandler
-//					.getInstance(config);
-	
-			BenchmarkCalculator<Integer> timeBenchmark = new TimeBenchmarkCalculator();
-			BenchmarkCalculator<Integer> evaluationsBenchmark = new EvaluationBenchmarkCalculator();
-			BenchmarkCalculator<Double> coverageBenchmark = new BranchCoverageBenchmarkCalculator(cfg);
-			BenchmarkCalculator<Integer> sizeBenchmark = new TestSuiteSizeBenchmarkCalculator(cfg);
-	
+
+			// Makes all the benchmarks for test suite generation
+			BenchmarkCalculator<?> timeBenchmark = new TimeBenchmarkCalculator();
+			//BenchmarkCalculator<?> coverageBenchmark = new BranchCoverageBenchmarkCalculator(cfg);
+			//BenchmarkCalculator<?> sizeBenchmark = new TestSuiteSizeBenchmarkCalculator(cfg);
+			BenchmarkCalculator<?> evaluationsBenchmark = new EvaluationBenchmarkCalculator();
+
 			generator.addBenchmark(timeBenchmark);
 			//generator.addBenchmark(coverageBenchmark);
 			//generator.addBenchmark(sizeBenchmark);
 			generator.addBenchmark(evaluationsBenchmark);
-	
-			Set<TestCase> suite = generator.generateTestSuite();
-			
-			List<BenchmarkCalculator> benchmarks = new ArrayList<BenchmarkCalculator>();
+
+			ArrayList<BenchmarkCalculator<?>> benchmarks = new ArrayList<>();
 			benchmarks.add(timeBenchmark);
-			benchmarks.add(sizeBenchmark);
-			benchmarks.add(coverageBenchmark);
+			//benchmarks.add(coverageBenchmark);
+			//benchmarks.add(sizeBenchmark);
 			benchmarks.add(evaluationsBenchmark);
-			
+
+			// Generates the test suite
+			Set<TestCase> suite = generator.generateTestSuite();		
+
+			// Exports the benchmarks to files
 			String[] parts = config.getTestFilename().split("[./]");
-			String preFilename = parts[parts.length-2]
+			String preFilename = parts[parts.length - 2]
 					+ "_" + config.getTestFunction() 
 					+ "_" + generatorName
 					+ "_" + pTime;
-			
-			exportCSV(folderPath + preFilename, benchmarks);
-			
-//			Set<TestCase> minimizedSuite = minimizer.minimize(suite);
-	
-			System.out
-					.println("-------------------------------------------------------");
-			System.out.println("Total test cases: " + suite.size());
-//			System.out.println("Minimized test cases: " + minimizedSuite.size());
-			System.out
-					.println("-------------------------------------------------------");
-			
-			System.out.println("Minimised test suite:");
+			Utils.exportBenchmarksCSV(folderPath + preFilename, benchmarks);
+
+			if (config.getPrintResults()) {
+				preFilename = config.getTestFunction() + "_" + config.getTestSuiteGenerator();
+
+				String cumulativeResult = "";
+				cumulativeResult += timeBenchmark.getPrintableCumulativeResults() + "\n";
+				//cumulativeResult += coverageBenchmark.getPrintableCumulativeResults() + "\n";
+				//cumulativeResult += sizeBenchmark.getPrintableCumulativeResults() + "\n";
+				cumulativeResult += evaluationsBenchmark.getPrintableCumulativeResults() + "\n";
+
+				Utils.writeFile(folderPath + "/" + preFilename + "_cumulative.txt", cumulativeResult);
+
+				String result = "";
+				result += timeBenchmark.getPrintableResults() + "\n";
+				//result += coverageBenchmark.getPrintableResults() + "\n";
+				//result += sizeBenchmark.getPrintableResults() + "\n";
+				result += evaluationsBenchmark.getPrintableResults() + "\n";
+				Utils.writeFile(folderPath + "/" + preFilename + "_normal.txt", result);
+			}
+
+			// Prints the benchmarks
+			System.out.println(timeBenchmark.getPrintableCumulativeResults());
+			//System.out.println(coverageBenchmark.getPrintableCumulativeResults());
+			//System.out.println(sizeBenchmark.getPrintableCumulativeResults());
+			System.out.println(evaluationsBenchmark.getPrintableCumulativeResults());
+
+			// Evaluates the coverage
+			GenericCoverageCalculator coverageCalculatorEvaluate = new GenericCoverageCalculator(pObjectivesToEvaluate);
+			coverageCalculatorEvaluate.updateCoverage(suite);
+
+			// Prints the test suite
+			System.out.println("-------------------------------------------------------");
+			System.out.println("Generated test cases: " + suite.size());
+			System.out.println("Objective coverage achieved: " + coverageCalculatorEvaluate.getCoverage());
+			System.out.print("Objectives still uncovered: ");			
+			System.out.println(coverageCalculatorEvaluate.getUncovered());
+			System.out.println("-------------------------------------------------------");		
+			System.out.println((config.isExperimentMinimization() ? "Minimized t" : "T") + "est suite:");
 			for (TestCase tc : suite) {
-				System.out.println(tc.getCoveredEdges());
-				System.out.println(Utils.printParameters(tc.getParameters()));
-				System.out.println("#########");
+				System.out.println("######### Test Case #########");
+				System.out.print("Covered objectives: ");
+				System.out.println(tc.getCoveredObjectives());
+				System.out.println("Test arguments: ");
+				System.out.println(Utils.printArguments(tc.getArguments()));
 			}
+			System.out.println("-----------------------------------------------------");
+
+			System.out.println();
+			System.out.println("Operation completed!");
 		}
-	}
-	
-	@SuppressWarnings({ "rawtypes", "unchecked" })
-	private static void exportCSV(String csvFilename, List<BenchmarkCalculator> benchmarks) throws IOException {
-		if (benchmarks.size() == 0)
-			return;
-		
-		List<String> labels = benchmarks.get(0).getLabels();
-		List<Map<String, Object>> cumulativeResults = new ArrayList<Map<String, Object>>();
-		List<Map<String, Object>> results = new ArrayList<Map<String, Object>>();
-		
-		String csv = "";
-		String csvCumulative = "";
-		
-		String[] row = new String[benchmarks.size()+1];
-		String[] rowCumulative = new String[benchmarks.size()+1];
-		
-		row[0] = "labels";
-		int i = 1;
-		for (BenchmarkCalculator benchmark : benchmarks) {
-			cumulativeResults.add(benchmark.getCumulativeResults());
-			results.add(benchmark.getResults());
-			row[i] = benchmark.getSignature();
-			i++;
-		}
-		
-		csv = StringUtils.join(row, ",") + "\n";
-		csvCumulative = StringUtils.join(row, ",") + "\n";
-		for (String label : labels) {
-			row[0] = label;
-			rowCumulative[0] = label;
-			
-			for (i = 0; i < results.size(); i++) {
-				row[i+1] = results.get(i).get(label).toString();
-				rowCumulative[i+1] = cumulativeResults.get(i).get(label).toString();
-			}
-			
-			csv += StringUtils.join(row, ",") + "\n";
-			csvCumulative += StringUtils.join(rowCumulative, ",") + "\n";
-		}
-		
-		Utils.writeFile(csvFilename+".csv", csv);
-		Utils.writeFile(csvFilename+"_cumulative.csv", csvCumulative);
 	}
 }

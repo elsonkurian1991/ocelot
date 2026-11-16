@@ -6,37 +6,43 @@ import it.unisa.ocelot.c.BuildingException;
 import it.unisa.ocelot.conf.ConfigManager;
 
 public class DynamicMakefileGenerator extends JNIMakefileGenerator {
-
-	private ConfigManager config;
+	private final ConfigManager config;
+	
+	/**
+	 * Which name do we want to give to the
+	 * platform library that will be the output
+	 * of compilation?
+	 */
 	private String libName;
 	
 	public DynamicMakefileGenerator(ConfigManager config) {
-		super("jni/makefile");
+		super("jni/Makefile"); //TODO fix path
 		this.config = config;
 
 		try {
-			this.libName = this.getLibraryNameFromOS();
+			this.libName = getLibraryNameFromOS();
 		} catch (BuildingException e) {
+			//TODO rethrow?
 			e.printStackTrace();
 		}
 	}
 	
 	private String getLibraryNameFromOS() throws BuildingException {
 		String os = System.getProperty("os.name");
-		if (os.contains("Win"))
+		if (os.contains("Win")) {
 			return "Test.dll";
-		else if (os.contains("Mac"))
+		} else if (os.contains("Mac")) {
 			return "libTest.jnilib";
-		else if (os.contains("nix") || os.contains("nux") || os.contains("aix"))
+		} else if (os.contains("nix") || os.contains("nux") || os.contains("aix")) {
 			return "libTest.so";
-		else {
-			throw new BuildingException("Your operative system \"" + os + "\" is not supported");
+		} else {
+			throw new BuildingException("Your operating system \"" + os + "\" is not supported");
 		}
 	}
 
 	@Override
 	public String getCCompiler() {
-		return "gcc";
+		return this.config.getCompilerCommand();
 	}
 
 	@Override
@@ -75,8 +81,7 @@ public class DynamicMakefileGenerator extends JNIMakefileGenerator {
 	}
 
 	@Override
-	public Process runCompiler() throws IOException {
+	public Process make() throws IOException {
 		return Runtime.getRuntime().exec(new String[] {this.config.getMakeCommand(), "--directory=jni"});
 	}
-
 }

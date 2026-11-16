@@ -1,9 +1,7 @@
 package it.unisa.ocelot.genetic.edges;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 
 public class EFLType {
@@ -86,7 +84,4 @@ public class EFLType {
 		return "EFLType [isTCcovered=" + isTCcovered + ", isGenerated=" + isGenerated + ", argumentList=" + argumentList
 				+ ", Fname_Val=" + Fname_Val + "]"+System.lineSeparator();
 	}
-
-
-
 }

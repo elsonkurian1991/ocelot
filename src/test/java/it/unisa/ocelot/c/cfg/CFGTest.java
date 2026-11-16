@@ -22,14 +22,14 @@ public class CFGTest {
 
         CFG cfg = CFGBuilder.build(testFile.getCanonicalPath(), "testFunc");
 
-        assertNotNull(cfg.getStart());
-        assertNotNull(cfg.getEnd());
-        assertEquals(Arrays.asList(1000.0, 1000.0), cfg.getConstantNumbers());
+        assertNotNull(cfg.getEntry());
+        assertNotNull(cfg.getExit());
+        assertEquals(Arrays.asList(1000.0, 1000.0), cfg.getConstantsNumeric());
 
-        assertTrue(cfg.getStart().navigate(cfg).goFlow().node().getNodes().get(0) instanceof CASTBinaryExpression);
-        assertTrue(cfg.getStart().navigate(cfg).goFlow().goTrue().node().getNodes().get(0) instanceof CASTBinaryExpression);
-        assertEquals(cfg.getStart().navigate(cfg).goFlow().goFalse().node().getNodes().get(0), cfg.getStart().navigate(cfg).goFlow().goTrue().goFlow().goFlow().node().getNodes().get(0));
-        assertEquals(cfg.getStart().navigate(cfg).goFlow().goFalse().goFlow().node(), cfg.getEnd());
+        assertTrue(cfg.getEntry().navigate(cfg).goFlow().node().getNodes().get(0) instanceof CASTBinaryExpression);
+        assertTrue(cfg.getEntry().navigate(cfg).goFlow().goTrue().node().getNodes().get(0) instanceof CASTBinaryExpression);
+        assertEquals(cfg.getEntry().navigate(cfg).goFlow().goFalse().node().getNodes().get(0), cfg.getEntry().navigate(cfg).goFlow().goTrue().goFlow().goFlow().node().getNodes().get(0));
+        assertEquals(cfg.getEntry().navigate(cfg).goFlow().goFalse().goFlow().node(), cfg.getExit());
 
         //TODO assert also on cfg.getParameterTypes(), but only when the new instrumentation is ready
         assertNotNull(cfg);

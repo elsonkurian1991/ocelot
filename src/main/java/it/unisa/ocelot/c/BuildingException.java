@@ -10,6 +10,10 @@ public class BuildingException extends Exception {
 		super(pMessage);
 	}
 	
+	public BuildingException(Throwable pThrowable) {
+		super(pThrowable);
+	}
+	
 	public BuildingException() {
 		super();
 	}

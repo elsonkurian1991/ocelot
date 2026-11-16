@@ -2,14 +2,13 @@ package it.unisa.ocelot.c.makefile;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.List;
 
 import it.unisa.ocelot.conf.ConfigManager;
 import it.unisa.ocelot.util.Utils;
 
 public abstract class JNIMakefileGenerator {
-	private String filename;
-	private List<String> linkLibs;
+	private final String filename;
+	private final ArrayList<String> linkLibs;
 	
 	public JNIMakefileGenerator(String pFilename) {
 		this.filename = pFilename;
@@ -73,7 +72,7 @@ public abstract class JNIMakefileGenerator {
 		String moreOptions = this.getMoreOptions();
 	
 		//String result = "CC = gcc-9 \n\n" +
-		String result = "CC ="+this.getCCompiler()+" \n\n" +
+		String result = "CC = " + this.getCCompiler()+" \n\n" +
 		"JAVA_HOME = " + this.getJavaHome() + "\n\n" +
 		"SYSTEM_INCLUDE = " + this.getSystemInclude() + "\n\n" +
 		"GLIB2_INCUDE = " + glib2paths + "\n" +
@@ -81,8 +80,8 @@ public abstract class JNIMakefileGenerator {
 		"CFLAGS = " + this.getCFlags() + "\n\n" + 
 		"INCLUDES = $(GLIB2_INCUDE) $(JAVA_INCLUDE)\n" +
 		"LIBS = " + libspath + "\n" +
-		"SRCS = lists.c ocelot.c EN_CBridge.c main.c "+supportFiles+" \n\n"
-				+"MOREOPTS = " + moreOptions + "\n\n"+
+		"SRCS = ocelot.c EN_CBridge.c main.c " + supportFiles+" \n\n" +
+		"MOREOPTS = " + moreOptions + "\n\n"+
 		"MAIN = ../" + this.getLibName() + "\n\n" +
 		".PHONY: clean all\n" +
 		"all:\n"+
@@ -95,22 +94,19 @@ public abstract class JNIMakefileGenerator {
 		//System.out.println(result);
 	}
 	
-
 	private String getSupportFiles() throws IOException {
-		List<String> fileNames = new ArrayList<>();
-		ConfigManager getConfInfo=ConfigManager.getInstance();		
-		String[] supportFiles= getConfInfo.getTestIncludePaths();
-		for(int i=0;i<supportFiles.length;i++) {
-			//System.out.println(supportFiles[i]);
-			if(supportFiles[i].endsWith(".c")) {
-				//System.out.println(supportFiles[i]);
-				int lastIndex=supportFiles[i].lastIndexOf('/');
-				fileNames.add(supportFiles[i].substring(lastIndex+1));
+		ConfigManager configManager = ConfigManager.getInstance();		
+		ArrayList<String> fileNames = new ArrayList<>();
+		String[] supportFiles = configManager.getTestIncludePaths();
+		for (int i = 0; i < supportFiles.length; i++) {
+			if (supportFiles[i].endsWith(".c")) {
+				int lastIndex = supportFiles[i].lastIndexOf('/');
+				fileNames.add(supportFiles[i].substring(lastIndex + 1));
 			}
 			
 		}	
 		return String.join(" ", fileNames);
 	}
 
-	public abstract Process runCompiler() throws IOException;
+	public abstract Process make() throws IOException;
 }

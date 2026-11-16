@@ -1,55 +1,51 @@
 package it.unisa.ocelot.genetic.nodes;
 
-
 import org.apache.commons.lang3.Range;
 
 import it.unisa.ocelot.c.cfg.CFG;
 import it.unisa.ocelot.c.cfg.nodes.CFGNode;
-import it.unisa.ocelot.c.types.CType;
 import it.unisa.ocelot.conf.ConfigManager;
 import it.unisa.ocelot.genetic.OcelotExperiment;
 import it.unisa.ocelot.genetic.StandardSettings;
 import it.unisa.ocelot.genetic.settings.SettingsFactory;
-import jmetal.core.Algorithm;
+import it.unisa.ocelot.suites.budget.BudgetManager;
 
-public class NodeCoverageExperiment extends OcelotExperiment {
-	private CType[] parametersTypes;
-	private CFG cfg;
-	private ConfigManager config;
-	private CFGNode target;
-	
-	public NodeCoverageExperiment(CFG pCfg, ConfigManager pConfig, CType[] pTypes, CFGNode pTarget) {
-		super(pConfig.getResultsFolder(), 1);
-		
+import jmetal.core.Algorithm;
+import jmetal.util.JMException;
+
+public final class NodeCoverageExperiment extends OcelotExperiment<CFGNode> {
+	private final CFG cfg;
+	private final CFGNode target;
+
+	public NodeCoverageExperiment(CFG pCfg, ConfigManager pConfigManager, BudgetManager pBudgetManager, CFGNode pTarget) {
+		super(pConfigManager, pBudgetManager);
+
+		this.algorithmNameList_ = new String[] { pConfigManager.getAlgorithm() }; 
+
 		this.cfg = pCfg;
-		this.config = pConfig;
-		this.parametersTypes = pTypes;
 		this.target = pTarget;
+		
+		//TODO is it necessary to set the algorithmNameList_ field? Why change it from PGGA (set in the superclass)? What about other jmetal parameters defined in superclass constructor?
 	}
 	
 	@Override
-	public void algorithmSettings(Algorithm[] algorithm) {		
-		try {
-			Range<Double>[] ranges = config.getTestRanges();
-			
-			NodeCoverageProblem problem;
-			if (ranges != null)
-				problem = new NodeCoverageProblem(this.cfg, this.parametersTypes, ranges, this.config.getTestArraysSize());
-			else
-				problem = new NodeCoverageProblem(this.cfg, this.parametersTypes, this.config.getTestArraysSize());
-			
-			problem.setDebug(config.getDebug());
-			problem.setTarget(this.target);
-			
-			StandardSettings settings = SettingsFactory.getSettings(config.getAlgorithm(), problem, config);
-			if (config.isMetaMutatorEnabled())
-				settings.useMetaMutator();
-			
-			settings.setNumericConstants(this.cfg.getConstantNumbers());
-			algorithm[0] = settings.configure();
-		} catch (Exception e) {
-			System.err.println("An error occurred while instantiating problem: " + e.getMessage());
-			return;
-		}
+	public Class<CFGNode> getTargetClass() {
+		return CFGNode.class;
+	}
+
+	@Override
+	public void algorithmSettingsOcelot(Algorithm[] algorithm) throws JMException {		
+		//gets input ranges
+		Range<Double>[] ranges = this.configManager.getTestRanges();
+
+		//makes the problem
+		ProblemTargetSingleNode problem = new ProblemTargetSingleNode(this.configManager.getDebug(), this.cfg, this.configManager.getTestArraysSize(), ranges, this.target);
+
+		//makes the settings
+		StandardSettings settings = SettingsFactory.getSettings(this.configManager, problem, this.cfg.getConstantsNumeric()); //TODO what about non-numeric constants?
+		this.algorithmSettings_[0] = settings; //TODO who should set this.algorithmSettings_ ?
+
+		//configures the algorithm
+		algorithm[0] = settings.configure();
 	}
 }

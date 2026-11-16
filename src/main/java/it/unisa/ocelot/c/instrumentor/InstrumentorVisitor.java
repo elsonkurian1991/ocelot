@@ -1,5 +1,6 @@
 package it.unisa.ocelot.c.instrumentor;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Stack;
@@ -45,20 +46,21 @@ import org.eclipse.cdt.internal.core.dom.parser.c.CASTLiteralExpression;
 import org.eclipse.cdt.internal.core.dom.parser.c.CASTName;
 import org.eclipse.cdt.internal.core.dom.parser.c.CTypedef;
 import org.eclipse.cdt.internal.core.dom.rewrite.astwriter.ASTWriter;
+import org.eclipse.core.runtime.CoreException;
 
-import it.unisa.ocelot.c.cfg.CFG;
-import it.unisa.ocelot.c.cfg.CFGVisitor;
+import it.unisa.ocelot.c.cfg.CFGBuilder;
 import it.unisa.ocelot.c.cfg.edges.CaseEdge;
 
 public class InstrumentorVisitor extends ASTVisitor {
 	private static final int op_invalid = -1;
 	
+	private String sourceFile;
 	private String functionName;
 	private Stack<List<IASTStatement>> switchExpressions;
 	private List<IASTNode> typedefs;
 	private List<IASTExpression> functionCallsInExpressions;
 	
-	public InstrumentorVisitor(String pInstrumentFunction) {
+	public InstrumentorVisitor(String pSourceFile, String pInstrumentFunction) {
 		this.shouldVisitExpressions = true;
 		this.shouldVisitStatements = true;
 		this.shouldVisitDeclarations = true;
@@ -67,6 +69,7 @@ public class InstrumentorVisitor extends ASTVisitor {
 		this.shouldVisitDeclSpecifiers = true;
 		this.shouldVisitPointerOperators = true;
 		
+		this.sourceFile = pSourceFile;
 		this.functionName = pInstrumentFunction;
 		this.switchExpressions = new Stack<>();
 		this.typedefs = new ArrayList<>();
@@ -79,10 +82,14 @@ public class InstrumentorVisitor extends ASTVisitor {
 	
 	@Override
 	public int visit(IASTTranslationUnit tu) {
-		// Simulates the generation of a CFG in order to correctly retrieve the "case" unique ids.
-		// The resulting CFG will never be used.
-		// TODO define a lightweight visitor able to initialize the "case" unique ids only correctly.
-		tu.accept(new CFGVisitor(new CFG(), this.functionName));
+		//Simulates the generation of a CFG in order to correctly retrieve the "case"
+		//unique ids. The resulting CFG will never be used.
+		//TODO does it work? Where are these unique id stored? Perhaps do it better; e.g., define a lightweight visitor able to initialize the "case" unique ids only correctly. See also class InstrumentorVisitor (duplicate).
+		try {
+			CFGBuilder.build(this.sourceFile, this.functionName);
+		} catch (IOException | CoreException e) {
+			throw new RuntimeException(e);
+		}
 		return super.visit(tu);
 	}
 	
@@ -462,8 +469,8 @@ public class InstrumentorVisitor extends ASTVisitor {
 			}
 			
 			IASTExpression[] arguments = new IASTExpression[3];
-			arguments[0] = new CASTLiteralExpression(CASTLiteralExpression.lk_integer_constant, String.valueOf(CaseEdge.retrieveUniqueId(label)).toCharArray());
-			arguments[1] = this.transformDistanceExpression(distanceCalculation, false, false);
+			arguments[0] = new CASTLiteralExpression(CASTLiteralExpression.lk_integer_constant, String.valueOf(CaseEdge.uniqueId(label)).toCharArray());
+			arguments[1] = transformDistanceExpression(distanceCalculation, false, false);
 			arguments[2] = distanceCalculation.copy();
 			
 			substitute.addStatement(new CASTExpressionStatement(makeFunctionCall("_f_ocelot_trace_case", arguments)));
@@ -474,8 +481,8 @@ public class InstrumentorVisitor extends ASTVisitor {
 			IASTExpression distanceCalculation = defaultExpression;
 			
 			IASTExpression[] arguments = new IASTExpression[3];
-			arguments[0] = new CASTLiteralExpression(CASTLiteralExpression.lk_integer_constant, String.valueOf(CaseEdge.retrieveUniqueId(label)).toCharArray());
-			arguments[1] = this.transformDistanceExpression(distanceCalculation, false, false);
+			arguments[0] = new CASTLiteralExpression(CASTLiteralExpression.lk_integer_constant, String.valueOf(CaseEdge.uniqueId(label)).toCharArray());
+			arguments[1] = transformDistanceExpression(distanceCalculation, false, false);
 			arguments[2] = distanceCalculation.copy();
 			
 			substitute.addStatement(new CASTExpressionStatement(makeFunctionCall("_f_ocelot_trace_case", arguments)));

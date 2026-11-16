@@ -1,56 +1,35 @@
 package it.unisa.ocelot.suites.benchmarks;
 
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
 import it.unisa.ocelot.TestCase;
 import it.unisa.ocelot.c.cfg.CFG;
 
-public class TestSuiteSizeBenchmarkCalculator extends BenchmarkCalculator<Integer> {
-	private List<Integer> sizes;
-
+public final class TestSuiteSizeBenchmarkCalculator extends BenchmarkCalculator<Integer> {
 	public TestSuiteSizeBenchmarkCalculator(CFG pCFG) {
 		super("Test suite size benchmark");
-
-		this.sizes = new ArrayList<Integer>();
-		this.labels = new ArrayList<String>();
 	}
 
+	//NB: pEvaluations is not used
 	@Override
-	public void start() {
-		this.sizes.add(0);
-		this.labels.add("Start 1");
-	}
-
-	@Override
-	public void measure(String pLabel, Set<TestCase> pSuite, Integer evaluations) {
-		this.labels.add(this.getRealLabel(pLabel));
-		this.sizes.add(pSuite.size());
-	}
-
-	@Override
-	public void removeLast() {
-		this.labels.remove(this.labels.size() - 1);
-		this.sizes.remove(this.sizes.size() - 1);
-	}
-
-	@Override
-	public String toString() {
-		return this.getSignature() + "\n" + this.getPrintableResults();
+	public void measure(String pLabel, Set<TestCase> pSuite, int pEvaluations) {
+		add(pLabel, pSuite.size());
 	}
 
 	@Override
 	public Map<String, Integer> getResults() {
-		Map<String, Integer> result = new HashMap<String, Integer>();
+		HashMap<String, Integer> result = new HashMap<>();
 
-		result.put(this.labels.get(0), this.sizes.get(0));
-		for (int i = 0; i < this.sizes.size() - 1; i++) {
-			int difference = this.sizes.get(i + 1) - this.sizes.get(i);
-
-			result.put(this.labels.get(i + 1), difference);
+		//values is cumulative
+		result.put(this.labels.get(0), 0);
+		int previous = this.values.get(0);
+		for (int i = 1; i < this.values.size(); i++) {
+			int current = this.values.get(i);
+			int difference = current - previous;
+			result.put(this.labels.get(i), difference);
+			previous = current;
 		}
 
 		return result;
@@ -58,17 +37,15 @@ public class TestSuiteSizeBenchmarkCalculator extends BenchmarkCalculator<Intege
 
 	@Override
 	public Map<String, Integer> getCumulativeResults() {
-		Map<String, Integer> result = new HashMap<String, Integer>();
+		HashMap<String, Integer> result = new HashMap<>();
 
-		for (int i = 0; i < this.sizes.size(); i++) {
-			result.put(this.labels.get(i), this.sizes.get(i));
+		//values is cumulative
+		int first = this.values.get(0);
+		for (int i = 0; i < this.values.size(); i++) {
+			int difference = this.values.get(i) - first;
+			result.put(this.labels.get(i), difference);
 		}
 
 		return result;
-	}
-
-	@Override
-	public List<String> getLabels() {
-		return this.labels;
 	}
 }

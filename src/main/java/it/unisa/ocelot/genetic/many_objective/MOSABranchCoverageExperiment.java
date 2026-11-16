@@ -1,92 +1,61 @@
 package it.unisa.ocelot.genetic.many_objective;
 
-import java.util.List;
-
-import org.apache.commons.lang3.Range;
+import java.util.Set;
 
 import it.unisa.ocelot.c.cfg.CFG;
 import it.unisa.ocelot.c.cfg.edges.LabeledEdge;
-import it.unisa.ocelot.c.types.CType;
 import it.unisa.ocelot.conf.ConfigManager;
 import it.unisa.ocelot.genetic.OcelotExperiment;
 import it.unisa.ocelot.genetic.StandardSettings;
-import it.unisa.ocelot.genetic.algorithms.MOSA;
-import it.unisa.ocelot.genetic.settings.MOSASettings;
 import it.unisa.ocelot.genetic.settings.SettingsFactory;
+import it.unisa.ocelot.suites.budget.BudgetManager;
+
 import jmetal.core.Algorithm;
-import jmetal.core.SolutionSet;
+import jmetal.util.JMException;
 
 /**
  * A Branch Coverage experiment performed with MOSA algorithm proposed by
- * Panichella et al. in
- * "Reformulating Branch Coverage as a Many-Objective Optimization Problem" ICST
- * 2015
+ * Panichella et al. in "Reformulating Branch Coverage as a Many-Objective 
+ * Optimization Problem" ICST 2015
  * 
  * @author giograno
- *
  */
-public class MOSABranchCoverageExperiment extends OcelotExperiment {
-	private CType[] parametersTypes;
-	private CFG cfg;
-	private ConfigManager config;
-	// all branches to cover (except FlowEdges)
-	private List<LabeledEdge> branches;
+public final class MOSABranchCoverageExperiment extends OcelotExperiment<LabeledEdge> {
+	private final CFG cfg;
+	private final Set<LabeledEdge> targets; // all the branches to cover (except FlowEdges)
 
-	public MOSABranchCoverageExperiment(CFG cfg, List<LabeledEdge> pBranches, ConfigManager configManager, CType[] types) {
-		super(configManager.getResultsFolder(), configManager.getExperimentRuns());
+	public MOSABranchCoverageExperiment(CFG pCfg, ConfigManager pConfigManager, BudgetManager pBudgetManager, Set<LabeledEdge> pTargets) {
+		super(pConfigManager, pBudgetManager);
 
-		this.cfg = cfg;
-		this.config = configManager;
-		this.parametersTypes = types;
+		if (!pConfigManager.getAlgorithm().equals(SettingsFactory.ALGORITHM_MOSA)) {
+			//overrides setting
+			System.err.println("Warning: A MOSA branch coverage experiment will always run with the MOSA algorithm: Your suite.generator.algorithm property value will be overridden");
+			pConfigManager.setAlgorithm(SettingsFactory.ALGORITHM_MOSA);
+		}
 
-		this.algorithmNameList_ = new String[] { "MOSA" };
-		// this.branches = getTargetsFromCFG();
-		this.branches = pBranches;
+		//TODO Use these parameters instead of refusing everything and putting dummy values in them.		
+		this.experimentName_ = "MOSA branch coverage experiment";
+		this.problemList_ = new String[] { SettingsFactory.PROBLEM_NODE_COVERAGE_MULTI };
+		
+		this.cfg = pCfg;
+		this.targets = pTargets;
+	}
+	
+	@Override
+	public Class<LabeledEdge> getTargetClass() {
+		return LabeledEdge.class;
 	}
 
 	@Override
-	public void algorithmSettings(Algorithm[] algorithm) {
-		try {
-			Range<Double>[] ranges = config.getTestRanges();
+	protected void algorithmSettingsOcelot(Algorithm[] algorithms) throws JMException {
+		// Makes the problem
+		MOSABranchCoverageProblem problem = new MOSABranchCoverageProblem(this.configManager.getDebug(), this.cfg, this.configManager.getTestArraysSize(), this.configManager.getTestRanges(), this.targets);
 
-			MOSABranchCoverageProblem problem = null;
-			if (ranges != null)
-				problem = new MOSABranchCoverageProblem(this.cfg, this.parametersTypes, config.getTestArraysSize(), 
-						ranges, branches);
-			else
-				throw new RuntimeException("Error: please, set the ranges for the parameters for MOSA algorithm");
-			
-			if (config.getAlgorithm().equals(SettingsFactory.AVM)) {
-				System.err.println("Warning: MOSA will run with its own algorithm (AVM ignored)!");
-			}
+		// Makes the settings
+		StandardSettings settings = SettingsFactory.getSettings(this.configManager, problem, this.cfg.getConstantsNumeric());
+		this.algorithmSettings_[0] = settings; //TODO who should set this.algorithmSettings_ ?
 
-			StandardSettings settings = new MOSASettings(problem, config, branches);
-			if (config.isMetaMutatorEnabled())
-				settings.useMetaMutator();
-			settings.setNumericConstants(this.cfg.getConstantNumbers());
-			problem.setDebug(config.getDebug());
-			algorithm[0] = settings.configure();
-		} catch (Exception e) {
-			System.err.println("An error occurred while instantiating problem: " + e.getMessage());
-			return;
-		}
-	}
-
-	public SolutionSet multiObjectiveRun() throws ClassNotFoundException, jmetal.util.JMException {
-		this.algorithmSettings(this.problemList_[0], 0, new Algorithm[1]);
-		
-		//this.algorithm.setInputParameter("maxEvaluations", this.budgetManager.getExperimentBudget(this));
-		
-		SolutionSet solutionSet = this.algorithm.execute();
-		// restore all branch as uncovered for next experiments
-		for (LabeledEdge edge : this.branches)
-			edge.setUncovered();
-		
-		this.budgetManager.reportConsumedBudget(this, this.algorithm.getStats().getEvaluations());
-		return solutionSet;
-	}
-
-	public List<Integer> getNumberOfEvaluations() {
-		return ((MOSA) this.algorithm).getEvaluations();
+		// Makes the algorithm
+		algorithms[0] = settings.configure();
 	}
 }

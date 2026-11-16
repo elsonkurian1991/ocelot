@@ -11,8 +11,8 @@ import java.util.List;
 import javax.swing.JFrame;
 
 import org.jgraph.JGraph;
-import org.jgraph.layout.JGraphLayoutAlgorithm;
-import org.jgraph.layout.SugiyamaLayoutAlgorithm;
+//import org.jgraph.layout.JGraphLayoutAlgorithm;
+//import org.jgraph.layout.SugiyamaLayoutAlgorithm;
 import org.jgrapht.ext.JGraphModelAdapter;
 
 public class CFGWindow extends JFrame {
@@ -50,7 +50,7 @@ public class CFGWindow extends JFrame {
 		    }
 		}
 		
-		JGraphLayoutAlgorithm layout = new SugiyamaLayoutAlgorithm();
+		//JGraphLayoutAlgorithm layout = new SugiyamaLayoutAlgorithm();
 		//JGraphLayoutAlgorithm.applyLayout(jgraph, roots.toArray(), layout);
 	}
 

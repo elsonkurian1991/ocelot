@@ -2,189 +2,183 @@ package it.unisa.ocelot.genetic.algorithms;
 
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+
+import it.unisa.ocelot.genetic.StandardProblem;
 
 import jmetal.core.Operator;
-import jmetal.core.Problem;
 import jmetal.core.Solution;
 import jmetal.core.SolutionSet;
 import jmetal.operators.localSearch.AlternativeVariableMethodSearch;
 import jmetal.util.JMException;
 import jmetal.util.comparators.ObjectiveComparator;
-import it.unisa.ocelot.c.cfg.edges.LabeledEdge;
-import it.unisa.ocelot.genetic.SerendipitousAlgorithm;
 
 /**
- * Memetic algorithm with include an AVM local search operator 
- * for the best candidate solution at the end of each 
+ * A general memetic algorithm. Uses an AVM local search operator.
+ *  
  * @author giograno
- *
  */
-public class MemeticAlgorithm extends GeneticAlgorithm implements
-		SerendipitousAlgorithm<LabeledEdge> {
+public final class MemeticAlgorithm extends AbstractGeneticMemeticAlgorithm {
 	private static final long serialVersionUID = -6964554472242168211L;
 
-	@SuppressWarnings("unused")
-	private int no_evaluation;
-
-	@SuppressWarnings("unused")
-	private Set<Solution> serendipitousSolutions;
-	@SuppressWarnings("unused")
-	private Set<LabeledEdge> serendipitousPotentials;
-
-	private SolutionSet lastPopulation;
-	private Problem problem;
-
 	/**
-	 * Constructor
+	 * Constructor.
 	 * 
-	 * @param problem
-	 *            Problem to solve
+	 * @param pProblem {@link StandardProblem} to solve.
 	 */
-	public MemeticAlgorithm(Problem problem) {
-		super(problem);
-
-		this.problem = problem;
-
-		this.serendipitousSolutions = new HashSet<Solution>();
-		this.serendipitousPotentials = new HashSet<LabeledEdge>();
-
-		this.lastPopulation = null;
-
-		no_evaluation = 0;
+	public MemeticAlgorithm(StandardProblem pProblem) {
+		super(pProblem);
 	}
-
+	
 	/**
-	 * Runs the Memetic Algorithm
+	 * Runs the algorithm.
 	 * 
-	 * @return a <code>SolutionSet</code>
+	 * @return a {@link SolutionSet} of non dominated solutions
+	 *         as result of the algorithm execution
+	 * @throws jmetal.util.JMException
 	 */
-	@SuppressWarnings({ "unused", "rawtypes" })
+	@SuppressWarnings("rawtypes")
 	public SolutionSet execute() throws JMException, ClassNotFoundException {
-		int populationSize;
-		int maxEvaluations;
-		int evaluations;
-		int numberOfThreads;
-
-		SolutionSet population;
-		SolutionSet offspringPopulation;
-		SolutionSet union;
-
-		Operator mutationOperator;
-		Operator crossoverOperator;
-		Operator selectionOperator;
-
-		Comparator comparator;
-		comparator = new ObjectiveComparator(0); // Single objective comparator
+		// Read the operators
+		Operator mutationOperator = this.operators_.get("mutation");
+		Operator crossoverOperator = this.operators_.get("crossover");
+		Operator selectionOperator = this.operators_.get("selection");
 
 		// Read the parameters
-		populationSize = ((Integer) getInputParameter("populationSize")).intValue();
-		maxEvaluations = ((Integer) getInputParameter("maxEvaluations")).intValue();
+		int populationSize = ((Integer) getInputParameter("populationSize")).intValue();
+		int maxEvaluations = ((Integer) getInputParameter("maxEvaluations")).intValue();
+		//TODO int numberOfThreads = ((Integer) getInputParameter("threads")).intValue();
 
-		// parallelEvaluator_.startEvaluator(problem_);
+		Comparator comparator = new ObjectiveComparator(0); // Single objective comparator
 
-		// Initialize the variables. If this is an extra execution, it keeps
-		// using the last population
-		if (lastPopulation == null)
+		// TODO parallelEvaluator_.startEvaluator(problem_); ???
+
+		// Create the initial population.
+		SolutionSet population;
+		if (this.lastPopulation == null && this.startingPopulation == null) {
+			// Random population.
 			population = new SolutionSet(populationSize);
-		else
-			population = lastPopulation;
-		offspringPopulation = new SolutionSet(populationSize);
-
-		evaluations = 0;
-
-		// Read the operators
-		mutationOperator = operators_.get("mutation");
-		crossoverOperator = operators_.get("crossover");
-		selectionOperator = operators_.get("selection");
-
-		// Create the initial solutionSet
-		Solution newSolution;
-		List<Solution> solutionList = new ArrayList<>();
-		for (int i = 0; i < populationSize; i++) {
-			newSolution = new Solution(problem_);
-			solutionList.add(newSolution);
+			for (int i = 0; i < population.size(); i++) {
+				Solution solution = new Solution(this.problem_);
+				population.add(solution);
+			}
+		} else if (this.lastPopulation != null) {
+			population = this.lastPopulation; //TODO ensure it has populationSize?
+		} else { //this.startingPopulation != null
+			population = this.startingPopulation; //TODO cut it to populationSize?
 		}
-
-		for (Solution solution : solutionList) {
-			prepareSerendipitous();
-			problem_.evaluate(solution);
-			checkSerendipitous(solution);
-
-			population.add(solution);
-			evaluations++;
-		}
-
-		population.sort(comparator);
 
 		boolean targetCovered = false;
-		// Generations
+		int evaluations = 0;
+
+		// Evaluate solutions in initial population and check serendipity.
+		for (int i = 0; i < population.size(); i++) {
+			Solution solution = population.get(i);
+			prepareSerendipitous();
+			this.problem_.evaluate(solution);
+			evaluations++;
+			checkSerendipitous(solution);
+			if (solution.getObjective(0) == 0.0) {
+				targetCovered = true;//we cover once we find the objective 0.
+				break;
+			}
+		}
+		
+		// Exit upon coverage.
+		if (targetCovered) {
+			// Sorts.
+			population.sort(comparator);
+			this.lastPopulation = population;
+			
+			// Set stats.
+			this.algorithmStats.addEvaluations(evaluations);
+			
+			// Return a population with the best individual.
+			SolutionSet result = new SolutionSet(1);
+			result.add(population.get(0));
+			return result;
+		}
+		
+		// Generations.
+		population.sort(comparator);
+		SolutionSet offspringPopulation = new SolutionSet(populationSize);
 		while (evaluations < maxEvaluations && !targetCovered) {
-			// Copy the best two individuals to the offspring population
+			// Copy the best two individuals to the offspring population.
 			offspringPopulation.add(new Solution(population.get(0)));
 			offspringPopulation.add(new Solution(population.get(1)));
 
+			// Make more offsprings.
 			Solution[] parents = new Solution[2];
-			List<Solution> solutions = new ArrayList<>();
+			ArrayList<Solution> solutions = new ArrayList<>();
 			for (int i = 0; i < (populationSize / 2) - 1; i++) {
-				if (evaluations < maxEvaluations) {
-					// obtain parents
-					parents[0] = (Solution) selectionOperator.execute(population);
-					parents[1] = (Solution) selectionOperator.execute(population);
-					Solution[] offSpring = (Solution[]) crossoverOperator.execute(parents);
-					mutationOperator.execute(offSpring[0]);
-					mutationOperator.execute(offSpring[1]);
-					solutions.add(offSpring[0]);
-					solutions.add(offSpring[1]);
-				} // if
-			} // for
+				// obtain parents
+				parents[0] = (Solution) selectionOperator.execute(population);
+				parents[1] = (Solution) selectionOperator.execute(population);
+				Solution[] offSpring = (Solution[]) crossoverOperator.execute(parents);
+				mutationOperator.execute(offSpring[0]);
+				mutationOperator.execute(offSpring[1]);
+				solutions.add(offSpring[0]);
+				solutions.add(offSpring[1]);
+			}
 
-			AlternativeVariableMethodSearch avmLocalOperator = new AlternativeVariableMethodSearch.AVMBuilder(
-					this.problem, maxEvaluations).consumedEvaluations(evaluations).build();
+			// Evaluate offsprings.
 			for (Solution solution : solutions) {
 				prepareSerendipitous();
-				problem_.evaluate(solution);
+				this.problem_.evaluate(solution);
 				evaluations++;
 				checkSerendipitous(solution);
-
-				if (solution.getObjective(0) == 0.0)
-					targetCovered = true;
-
 				offspringPopulation.add(solution);
+				if (solution.getObjective(0) == 0.0) {
+					targetCovered = true;
+					break;
+				}
+			}
+			
+			// Exit upon coverage (again).
+			//TODO perhaps the population here is broken (wrong size): this impacts only this.lastPopulation
+			if (targetCovered) {
+				// Add offsprings (the best individual is there).
+				population = population.union(offspringPopulation);
+				
+				// Sort.
+				population.sort(comparator);
+				this.lastPopulation = population;
+				
+				// Set stats.
+				this.algorithmStats.addEvaluations(evaluations);
+				
+				// Return a population with the best individual.
+				SolutionSet result = new SolutionSet(1);
+				result.add(population.get(0));
+				return result;
 			}
 
-			population.clear();
+			// Does local search.
+			AlternativeVariableMethodSearch avmLocalOperator = new AlternativeVariableMethodSearch.AVMBuilder((StandardProblem) this.problem_, maxEvaluations).consumedEvaluations(evaluations).build();
 			offspringPopulation.sort(comparator);
+			Solution bestCandidate = (Solution) avmLocalOperator.execute(offspringPopulation.get(0));
+			evaluations = avmLocalOperator.getEvaluations();
 
-			int i = !targetCovered ? 0 : 1;
-
-			if (!targetCovered) {
-				Solution bestCandidate = (Solution) avmLocalOperator.execute(offspringPopulation
-						.get(i));
-				int oldEvaluations = evaluations;
-				evaluations = avmLocalOperator.getEvaluations();
-//				System.out.println("Evaluations consumed during the AVM process = "
-//						+ (evaluations - oldEvaluations));
-				population.add(bestCandidate);
-			}
-
-			// The offspring becomes the new current population
-			for (; i < populationSize; i++)
+			// Make offspring become the new current population (plus best candidate).
+			population.clear();
+			population.add(bestCandidate);
+			for (int i = 0; i < populationSize; i++) { //TODO perhaps, due to the bestCandidate, we should have as upper bound populationSize - 1
 				population.add(offspringPopulation.get(i));
+			}
+			
+			// Reset offsprings.
 			offspringPopulation.clear();
+		}
 
-		} // end GA cycle!
-
-		// Return a population with the best individual
-		SolutionSet resultPopulation = new SolutionSet(1);
-		resultPopulation.add(population.get(0));
-
+		// Sorts.
+		population.sort(comparator);
 		this.lastPopulation = population;
+		
+		// Set stats.
+		this.algorithmStats.addEvaluations(evaluations);
 
-		this.algorithmStats.setEvaluations(evaluations);
-		this.no_evaluation = evaluations;
-		return resultPopulation;
+		// Return a population with the best individual.
+		SolutionSet result = new SolutionSet(1);
+		result.add(population.get(0));
+		return result;
 	}
 }

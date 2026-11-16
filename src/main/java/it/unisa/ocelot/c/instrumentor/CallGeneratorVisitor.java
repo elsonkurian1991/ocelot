@@ -14,20 +14,21 @@ import org.eclipse.cdt.core.dom.ast.ASTVisitor;
 import org.eclipse.cdt.core.dom.ast.IASTCompoundStatement;
 import org.eclipse.cdt.core.dom.ast.IASTDeclaration;
 import org.eclipse.cdt.core.dom.ast.IASTDeclarator;
+import org.eclipse.cdt.core.dom.ast.IASTFunctionDefinition;
 import org.eclipse.cdt.core.dom.ast.IASTName;
 import org.eclipse.cdt.core.dom.ast.IASTParameterDeclaration;
 import org.eclipse.cdt.core.dom.ast.IASTSimpleDeclaration;
+import org.eclipse.cdt.core.dom.ast.IASTStandardFunctionDeclarator;
 import org.eclipse.cdt.core.dom.ast.IASTStatement;
 import org.eclipse.cdt.core.dom.ast.IASTTranslationUnit;
 import org.eclipse.cdt.core.dom.ast.IBinding;
+import org.eclipse.cdt.core.dom.ast.ICompositeType;
 import org.eclipse.cdt.core.dom.ast.IParameter;
+import org.eclipse.cdt.core.dom.ast.IPointerType;
 import org.eclipse.cdt.core.dom.ast.IType;
-import org.eclipse.cdt.internal.core.dom.parser.c.CASTFunctionDeclarator;
-import org.eclipse.cdt.internal.core.dom.parser.c.CASTFunctionDefinition;
-import org.eclipse.cdt.internal.core.dom.parser.c.CASTKnRFunctionDeclarator;
-import org.eclipse.cdt.internal.core.dom.parser.c.CPointerType;
-import org.eclipse.cdt.internal.core.dom.parser.c.CStructure;
-import org.eclipse.cdt.internal.core.dom.parser.c.CTypedef;
+import org.eclipse.cdt.core.dom.ast.ITypedef;
+import org.eclipse.cdt.core.dom.ast.gnu.c.ICASTKnRFunctionDeclarator;
+import org.eclipse.cdt.core.model.IStructure;
 
 /**
  * Generates the macro that will contain the call. Besides, it removes all typedefs from the tree, putting them in the
@@ -61,12 +62,12 @@ public class CallGeneratorVisitor extends ASTVisitor {
 		
 		this.externalReferences = externalReferences;
 		
-		this.functionParameters = new ArrayList<IType>();
+		this.functionParameters = new ArrayList<>();
 		
-		this.parameters = new HashMap<String, IParameter>();
+		this.parameters = new HashMap<>();
 		
-		this.localVariables = new ArrayList<String>();
-		this.usedVariables = new ArrayList<String>();
+		this.localVariables = new ArrayList<>();
+		this.usedVariables = new ArrayList<>();
 		
 		this.call = "";
 		
@@ -82,9 +83,8 @@ public class CallGeneratorVisitor extends ASTVisitor {
 	}
 	
 	private IType getType(IType type) {
-		while (type instanceof CTypedef) {
-			CTypedef tdef = (CTypedef)type;
-			
+		while (type instanceof ITypedef) {
+			ITypedef tdef = (ITypedef) type;
 			type = tdef.getType();
 		}
 		
@@ -93,14 +93,14 @@ public class CallGeneratorVisitor extends ASTVisitor {
 	
 	@Override
 	public int visit(IASTDeclaration pDeclaration) {
-		if (pDeclaration instanceof CASTFunctionDefinition) {
-			CASTFunctionDefinition function = (CASTFunctionDefinition)pDeclaration;
+		if (pDeclaration instanceof IASTFunctionDefinition) {
+			IASTFunctionDefinition function = (IASTFunctionDefinition) pDeclaration;
 			
 			IASTName functionName;
 			String[] parametersTypes;
 			String[] parametersNames;
-			if (function.getDeclarator() instanceof CASTFunctionDeclarator) {
-				CASTFunctionDeclarator declarator = (CASTFunctionDeclarator)function.getDeclarator();
+			if (function.getDeclarator() instanceof IASTStandardFunctionDeclarator) {
+				IASTStandardFunctionDeclarator declarator = (IASTStandardFunctionDeclarator)function.getDeclarator();
 				
 				functionName = declarator.getName();
 				parametersTypes = new String[declarator.getParameters().length];
@@ -111,8 +111,8 @@ public class CallGeneratorVisitor extends ASTVisitor {
 					parametersNames[i] = declarator.getParameters()[i].getDeclarator().getRawSignature().replaceAll("\\*\\s*", "");
 				}
 				
-			} else if (function.getDeclarator() instanceof CASTKnRFunctionDeclarator) {
-				CASTKnRFunctionDeclarator declarator = (CASTKnRFunctionDeclarator)function.getDeclarator();
+			} else if (function.getDeclarator() instanceof ICASTKnRFunctionDeclarator) {
+				ICASTKnRFunctionDeclarator declarator = (ICASTKnRFunctionDeclarator)function.getDeclarator();
 				
 				functionName = declarator.getName();
 				parametersTypes = new String[declarator.getParameterNames().length];
@@ -156,14 +156,14 @@ public class CallGeneratorVisitor extends ASTVisitor {
 	public int leave(IASTDeclaration pDeclaration) {
 		
 		int result = super.leave(pDeclaration);
-		if (pDeclaration instanceof CASTFunctionDefinition) {
-			CASTFunctionDefinition function = (CASTFunctionDefinition)pDeclaration;
+		if (pDeclaration instanceof IASTFunctionDefinition) {
+			IASTFunctionDefinition function = (IASTFunctionDefinition)pDeclaration;
 			
 			IASTName functionName;
 			String[] parametersStringTypes;
 			String[] parametersStringNames;
-			if (function.getDeclarator() instanceof CASTFunctionDeclarator) {
-				CASTFunctionDeclarator declarator = (CASTFunctionDeclarator)function.getDeclarator();
+			if (function.getDeclarator() instanceof IASTStandardFunctionDeclarator) {
+				IASTStandardFunctionDeclarator declarator = (IASTStandardFunctionDeclarator)function.getDeclarator();
 				
 				functionName = declarator.getName();
 				parametersStringTypes = new String[declarator.getParameters().length];
@@ -174,8 +174,8 @@ public class CallGeneratorVisitor extends ASTVisitor {
 					parametersStringNames[i] = declarator.getParameters()[i].getDeclarator().getRawSignature();
 				}
 				
-			} else if (function.getDeclarator() instanceof CASTKnRFunctionDeclarator) {
-				CASTKnRFunctionDeclarator declarator = (CASTKnRFunctionDeclarator)function.getDeclarator();
+			} else if (function.getDeclarator() instanceof ICASTKnRFunctionDeclarator) {
+				ICASTKnRFunctionDeclarator declarator = (ICASTKnRFunctionDeclarator)function.getDeclarator();
 				
 				functionName = declarator.getName();
 				parametersStringTypes = new String[declarator.getParameterNames().length];
@@ -197,7 +197,7 @@ public class CallGeneratorVisitor extends ASTVisitor {
 				throw new RuntimeException("Unable to instrument this type of function: " + function.getDeclarator().getClass().toString());
 			}
 			
-			//Goes on only if 
+			//Goes on only if we are on the right function
 			if (!functionName.getRawSignature().equals(this.functionName))
 				return PROCESS_CONTINUE;
 
@@ -232,27 +232,25 @@ public class CallGeneratorVisitor extends ASTVisitor {
 				
 				int pointers = parametersStringNames[i].length() - parametersStringNames[i].replaceAll("\\*", "").length();
 				
-				if (type instanceof CStructure) {
+				if (type instanceof ICompositeType) {
 					callString += parameterStringType; //Type
-					callString += " __arg"+outputArgument+";\\\n";
-					VarStructTree tree = new VarStructTree("__arg"+outputArgument, (CStructure)type);
-					List<StructNode> basics = tree.getBasicVariables();
-					for (StructNode var : basics) {
-						this.functionParameters.add(var.type);
-						String fieldType = var.type.toString().replaceAll("\\*\\s*", "");
+					callString += " __arg" + outputArgument + ";\\\n";
+					Slot tree = Slot.make(type, "__arg" + outputArgument);
+					List<Slot> basics = tree.getLeaves();
+					for (Slot basic : basics) {
+						this.functionParameters.add(basic.type);
+						String fieldType = basic.type.toString().replaceAll("\\*\\s*", "");
 						
-						if (!var.isPointer()) {
-							callString += fieldType;
-							callString += " __str"+inputArgument;
-							callString += " = (" + fieldType +")__val" + inputArgument + ";\n"; //Assign
-							callString += var.getCompleteName() + " = __str" + inputArgument + ";\n";
-						
-							inputArgument++;
-						} else {
+						if (basic.isTypePointer()) {
 							String argcall = "__ptr" + pointerArgument;
-							callString += var.getCompleteName() + " = " + argcall + ";\n";
+							callString += basic.getParentAccessor() + " = " + argcall + ";\n";
 							pointerArgument++;
 							//TODO Test!
+						} else {
+							callString += fieldType;
+							callString += " __str" + inputArgument;
+							callString += " = (" + fieldType +")__val" + inputArgument + ";\n"; //Assign
+							inputArgument++;
 						}
 					}
 					callParameters[outputArgument] = StringUtils.repeat('&', pointers) + "__arg" + outputArgument;
@@ -282,30 +280,29 @@ public class CallGeneratorVisitor extends ASTVisitor {
 				
 				int pointers = 0;
 				
-				while (realType instanceof CPointerType) {
-					realType = ((CPointerType)realType).getType();
+				while (realType instanceof IPointerType) {
+					realType = ((IPointerType)realType).getType();
 					pointers++;
 				}
 				
-				if (realType instanceof CStructure) {
-					VarStructTree tree = new VarStructTree(variableName, (CStructure)type);
-					List<StructNode> basics = tree.getBasicVariables();
-					for (StructNode var : basics) {
+				if (realType instanceof IStructure) {
+					Slot tree = Slot.make(type, variableName);
+					List<Slot> basics = tree.getLeaves();
+					for (Slot var : basics) {
 						this.functionParameters.add(var.type);
 						String fieldType = var.type.toString().replaceAll("\\*\\s*", "");
 						
-						if (!var.isPointer()) {
+						if (var.isTypePointer()) {
+							String argcall = "__ptr" + pointerArgument;
+							callString += var.getParentAccessor() + " = " + argcall + ";\n";
+							pointerArgument++;
+							//TODO Test!
+						} else {
 							callString += fieldType;
 							callString += " __str"+inputArgument;
 							callString += " = (" + fieldType +")__val" + inputArgument + ";\n"; //Assign
-							callString += var.getCompleteName() + " = __str" + inputArgument + ";\\\n";
-						
+							callString += var.getParentAccessor() + " = __str" + inputArgument + ";\\\n";
 							inputArgument++;
-						} else {
-							String argcall = "__ptr" + pointerArgument;
-							callString += var.getCompleteName() + " = " + argcall + ";\n";
-							pointerArgument++;
-							//TODO Test!
 						}
 					}
 				} else {
@@ -313,7 +310,6 @@ public class CallGeneratorVisitor extends ASTVisitor {
 					
 					if (pointers == 0) {
 						callString += variableName + " = __val" + inputArgument + ";\n"; //Assign
-						
 						inputArgument++;
 					} else {
 						String argcall = "__ptr" + pointerArgument;
@@ -333,15 +329,16 @@ public class CallGeneratorVisitor extends ASTVisitor {
 	@Override
 	public int visit(IASTStatement statement) {
 		if (statement instanceof IASTCompoundStatement &&
-				statement.getParent() instanceof CASTFunctionDefinition) {
-			CASTFunctionDefinition function = (CASTFunctionDefinition)statement.getParent();
+				statement.getParent() instanceof IASTFunctionDefinition) {
+			IASTFunctionDefinition function = (IASTFunctionDefinition)statement.getParent();
 			if (function.getDeclarator().getName().getRawSignature().equals(this.functionName)) {
 				for (String parameterName : this.neededParameters) {
 					IBinding[] binds = ((IASTCompoundStatement) statement).getScope().find(parameterName);
-					if (binds.length > 0)
+					if (binds.length > 0) {
 						this.parameters.put(parameterName, (IParameter)binds[0]);
-					else
+					} else {
 						System.err.println("An error is going to occur. I couldn't find the parameter in the scope, sorry.");
+					}
 				}
 			}
 		}

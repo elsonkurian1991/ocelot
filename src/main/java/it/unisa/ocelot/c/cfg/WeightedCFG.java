@@ -5,30 +5,31 @@ import it.unisa.ocelot.c.cfg.nodes.CFGNode;
 
 import org.jgrapht.graph.ListenableDirectedWeightedGraph;
 
-public class WeightedCFG extends ListenableDirectedWeightedGraph<CFGNode, LabeledEdge> {
-	private static final long serialVersionUID = 1L;
+public final class WeightedCFG extends ListenableDirectedWeightedGraph<CFGNode, LabeledEdge> {
+	private static final long serialVersionUID = -6271487203259467525L;
 	
-	private CFG cfg;
+	private final CFG cfg;
 	
-	public WeightedCFG(CFG pCFG) {
+	public WeightedCFG(CFG pCfg) {
 		super(LabeledEdge.class);
 		
-		for (CFGNode node : pCFG.vertexSet())
-			this.addVertex(node);
-		
-		for (LabeledEdge edge : pCFG.edgeSet()) {
-			this.addEdge(pCFG.getEdgeSource(edge), pCFG.getEdgeTarget(edge), edge);
-			this.setEdgeWeight(edge, 0);
+		for (CFGNode node : pCfg.vertexSet()) {
+			addVertex(node);
 		}
 		
-		this.cfg = pCFG;
+		for (LabeledEdge edge : pCfg.edgeSet()) {
+			addEdge(pCfg.getEdgeSource(edge), pCfg.getEdgeTarget(edge), edge);
+			setEdgeWeight(edge, 0);
+		}
+		
+		this.cfg = pCfg;
 	}
 	
-	public CFGNode getStart() {
-		return this.cfg.getStart();
+	public CFGNode getEntry() {
+		return this.cfg.getEntry();
 	}
 	
-	public CFGNode getEnd() {
-		return this.cfg.getEnd();
+	public CFGNode getExit() {
+		return this.cfg.getExit();
 	}
 }

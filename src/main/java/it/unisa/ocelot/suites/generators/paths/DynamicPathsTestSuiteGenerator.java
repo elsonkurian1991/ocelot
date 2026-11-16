@@ -6,84 +6,98 @@ import java.util.Set;
 
 import it.unisa.ocelot.TestCase;
 import it.unisa.ocelot.c.cfg.CFG;
-import it.unisa.ocelot.c.cfg.TooManyInfeasiblePathsException;
-import it.unisa.ocelot.c.cfg.WeightedCFG;
+import it.unisa.ocelot.c.cfg.TooManyFailedPathsException;
 import it.unisa.ocelot.c.cfg.edges.LabeledEdge;
-import it.unisa.ocelot.c.cfg.paths.DynamicPathsFinder;
+import it.unisa.ocelot.c.cfg.paths.DynamicPathFinder;
 import it.unisa.ocelot.conf.ConfigManager;
-import it.unisa.ocelot.genetic.VariableTranslator;
 import it.unisa.ocelot.genetic.paths.PathCoverageExperiment;
+import it.unisa.ocelot.simulator.CoverageCalculatorBranches;
 import it.unisa.ocelot.suites.TestSuiteGenerationException;
-import it.unisa.ocelot.suites.generators.TestSuiteGenerator;
-import it.unisa.ocelot.util.Utils;
+import it.unisa.ocelot.suites.generators.AbstractTestSuiteGeneratorCFG;
+
+import jmetal.core.Solution;
 import jmetal.util.JMException;
 
 /**
  * Do not use. NP-Hard problem, not quite easy to solve.
+ * 
  * @author simone
- *
  */
+//TODO notice that the budget *per iteration* is bounded, but the *total* budget is unlimited.
 @Deprecated
-public class DynamicPathsTestSuiteGenerator extends TestSuiteGenerator {	
-	public DynamicPathsTestSuiteGenerator(ConfigManager pConfigManager, CFG pCFG) {
-		super(pCFG,null);
-		this.config = pConfigManager;
+public final class DynamicPathsTestSuiteGenerator extends AbstractTestSuiteGeneratorCFG<LabeledEdge> {
+	@Deprecated
+	public DynamicPathsTestSuiteGenerator(ConfigManager pConfigManager, CFG pCfg) {
+		super(pConfigManager, new CoverageCalculatorBranches(pCfg), pCfg); //TODO our choice of branch coverage is quite arbitrary. Look at old Ocelot code and align the objective of genetic search.
 	}
 	
 	@Override
-	public Set<TestCase> generateTestSuite(Set<TestCase> pSuite) throws TestSuiteGenerationException {
-		WeightedCFG weighted = new WeightedCFG(this.cfg);
-		Set<TestCase> suite = new HashSet<TestCase>(pSuite);
-		
-		DynamicPathsFinder pathFinder = new DynamicPathsFinder(weighted);
-		
-		while (this.calculator.getObjectiveCoverage() < this.config.getRequiredCoverage()) {
-			List<LabeledEdge> targetPath = pathFinder.getMaxCoveragePath();
-		
-			PathCoverageExperiment exp = new PathCoverageExperiment(cfg, config, cfg.getParameterTypes(), targetPath);
+	@Deprecated
+	protected Set<TestCase> doGenerateTestSuite(Set<TestCase> pSuite) throws TestSuiteGenerationException {		
+		HashSet<TestCase> suite = new HashSet<>(pSuite);
+		coverAllPaths(suite);
+
+		return suite;
+	}
 	
-			this.print("Current target: ");
-			this.println(targetPath);
+	private void coverAllPaths(Set<TestCase> suite) throws TestSuiteGenerationException {
+		// Makes the targets calculator
+		DynamicPathFinder pathFinder = new DynamicPathFinder(this.cfg);
+		
+		// Sets the initial budget
+		setupBudgetManager(1);
+		if (insufficientBudget()) {
+			println("Insufficient budget, please adjust configuration");
+			return;
+		}
+
+		List<LabeledEdge> target = pathFinder.getMaxCoveragePath();
+		while (target != null && this.coverageCalculator.getCoverage() < this.configManager.getRequiredCoverage()) {
+			// Prints current target
+			printSeparator();
+			print("Current target: ");
+			println(target);
 			
+			// Makes the experiment
+			PathCoverageExperiment exp = new PathCoverageExperiment(this.cfg, this.configManager, this.budgetManager, target);
 			exp.initExperiment();
+
+			// Runs the experiment
+			Solution solution = null;
 			try {
-				exp.basicRun();
+				print("Running... ");
+				solution = exp.basicRun();
+				println("Done!");
 			} catch (JMException | ClassNotFoundException e) {
 				throw new TestSuiteGenerationException(e.getMessage());
 			}
 	
-			double fitnessValue = exp.getFitnessValue();
-			VariableTranslator translator = new VariableTranslator(exp.getSolution());
-	
-			Object[][][] numericParams = translator.translateArray(cfg.getParameterTypes());
-	
-			TestCase testCase = this.createTestCase(numericParams, suite.size());
-	
-			this.println("Fitness function: " + fitnessValue + ". ");
-			if (fitnessValue == 0.0) {
-				pathFinder.setExecutedPath(targetPath);
-				suite.add(testCase);
-				this.println("Path covered!");
+			// Possibly adds a new test case to the suite
+			addTestCaseSingleObjective(exp, solution, suite);
+			
+			// Gives feedback on coverage
+			print("Current coverage: ");
+			println(this.coverageCalculator.getCoverage());
+			
+			// Further updates on coverage
+			if (solution.getObjective(0) == 0.0) {
+				pathFinder.markPathAsCovered(target);
 			} else {
-				this.println("Path not covered...");
 				try {
-					pathFinder.notifyInfeasiblePath();
-				} catch (TooManyInfeasiblePathsException e) {
+					pathFinder.notifyFailedPath();
+				} catch (TooManyFailedPathsException e) {
 					break;
 				}
 			}
-			this.println("Parameters found: " + Utils.printParameters(numericParams));
-			this.printSeparator();
-	
-			this.measureBenchmarks("Dynamic Path", suite, exp.getNumberOfEvaluation());
+
+			// Updates the total number of evaluations
+			this.evaluations += exp.getStats().getEvaluations();
+			
+			// Replenishes the budget manager for the next iteration
+			setupBudgetManager(1);
+			
+			// Gets next target
+			target = pathFinder.getMaxCoveragePath();
 		}
-
-		return suite;
-	}
-
-	@Override
-	public int getNumberOfEvaluations() {
-		// TODO Auto-generated method stub
-		return 0;
 	}
 }

@@ -20,7 +20,7 @@ public class JNIMakefileGeneratorTest {
         if (!makefile.exists())
             assertTrue(makefile.delete());
 
-        JNIMakefileGenerator generator = new LinuxMakefileGenerator();
+        JNIMakefileGenerator generator = new POSIXMakefileGenerator();
         generator.generate();
 
         assertTrue(makefile.exists());

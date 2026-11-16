@@ -13,6 +13,8 @@ import it.unisa.ocelot.c.cfg.nodes.CFGNode;
 import it.unisa.ocelot.c.cfg.nodes.CFGNodeNavigator;
 import it.unisa.ocelot.conf.ConfigManager;
 import it.unisa.ocelot.genetic.nodes.NodeCoverageExperiment;
+import it.unisa.ocelot.suites.budget.BudgetManager;
+import it.unisa.ocelot.suites.budget.BudgetManagerHandler;
 import it.unisa.ocelot.util.Utils;
 import jmetal.experiments.Settings;
 
@@ -24,6 +26,7 @@ public class Execute {
 		System.loadLibrary("Test");
 	}
 
+	@Deprecated
 	public static void main(String[] args) throws Exception {
 		ConfigManager.setFilename(CONFIG_FILENAME);
 		ConfigManager config = ConfigManager.getInstance();
@@ -41,23 +44,18 @@ public class Execute {
 		CFG cfg = CFGBuilder.build(config.getTestFilename(), config.getTestFunction());
 		CFGNode target = config.getTestTarget(cfg);
 
+		BudgetManager budgetManager = BudgetManagerHandler.getInstance(config.getBudgetManager(), config.getEvaluationsMax(), 1);
 		NodeCoverageExperiment exp = new NodeCoverageExperiment(cfg,
-				config, cfg.getParameterTypes(), target);
-
+				config, budgetManager, target);
+		
 		exp.experimentName_ = "TargetCoverage";
 		exp.algorithmNameList_ = new String[] { "PGGA" };
 		exp.problemList_ = new String[] { "TestCoverage" };
-
 		exp.paretoFrontFile_ = new String[2];
-
 		exp.indicatorList_ = new String[] { "HV", "SPREAD", "EPSILON" };
-
-		int numberOfAlgorithms = exp.algorithmNameList_.length;
-
 		exp.experimentBaseDirectory_ = config.getResultsFolder();
-
+		int numberOfAlgorithms = exp.algorithmNameList_.length;
 		exp.algorithmSettings_ = new Settings[numberOfAlgorithms];
-
 		exp.independentRuns_ = config.getExperimentRuns();
 
 		exp.initExperiment();
@@ -69,16 +67,18 @@ public class Execute {
 			String params = Utils.readFile(path + "VAR.0").trim();
 
 			System.out.print("Fitness function: " + fun + ". ");
-			if (fun.equals("0.0"))
+			if (fun.equals("0.0")) {
 				System.out.println("Target covered!");
-			else
+			} else {
 				System.out.println("Target not covered...");
+			}
 			System.out.println("Parameters found: " + params);
 		}
 	}
 
+	@Deprecated
 	public static CFGNode getTarget(CFG pCfg, String pTarget) {
-		CFGNodeNavigator navigator = pCfg.getStart().navigate(pCfg);
+		CFGNodeNavigator navigator = pCfg.getEntry().navigate(pCfg);
 
 		String[] targets = StringUtils.split(pTarget, ",");
 		for (String target : targets) {

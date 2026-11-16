@@ -4,7 +4,8 @@ import it.unisa.ocelot.c.cfg.CFG;
 import it.unisa.ocelot.c.cfg.edges.FlowEdge;
 import it.unisa.ocelot.c.cfg.edges.LabeledEdge;
 import it.unisa.ocelot.c.cfg.nodes.CFGNode;
-import it.unisa.ocelot.simulator.ExecutionEvent;
+import it.unisa.ocelot.simulator.CaseExecutionEvent;
+import it.unisa.ocelot.simulator.IfExecutionEvent;
 import it.unisa.ocelot.simulator.SimulatorListener;
 
 import java.util.ArrayList;
@@ -12,79 +13,71 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-public class CoverageCalculatorListener implements SimulatorListener {
-	private CFG cfg;
-	private List<LabeledEdge> coveredEdges;
-	private List<CFGNode> coveredNodes;
+public final class CoverageCalculatorListener implements SimulatorListener {
+	private final CFG cfg;
+	private final HashSet<LabeledEdge> coveredBranches;
+	private final HashSet<CFGNode> coveredNodes;
+	private final ArrayList<LabeledEdge> coveredPath;
 
 	public CoverageCalculatorListener(CFG pCFG) {
 		this.cfg = pCFG;
-		this.coveredEdges = new ArrayList<LabeledEdge>();
-		this.coveredNodes = new ArrayList<CFGNode>();
+		this.coveredBranches = new HashSet<>();
+		this.coveredNodes = new HashSet<>();
+		this.coveredPath = new ArrayList<>();
 	}
 
 	@Override
 	public void onEdgeVisit(LabeledEdge pEdge) {
-		if (!this.coveredEdges.contains(pEdge))
-			this.coveredEdges.add(pEdge);
+		this.coveredPath.add(pEdge);
+		if (pEdge.isBranch()) {
+			this.coveredBranches.add(pEdge);
+		}
 	}
 
 	@Override
-	public void onEdgeVisit(LabeledEdge pEdge, ExecutionEvent pEvent) {
-		this.onEdgeVisit(pEdge);
+	public void onEdgeVisit(LabeledEdge pEdge, IfExecutionEvent pEvent) {
+		onEdgeVisit(pEdge);
 	}
 
 	@Override
-	public void onEdgeVisit(LabeledEdge pEdge, ExecutionEvent pEvent, List<ExecutionEvent> pCases) {
-		this.onEdgeVisit(pEdge);
+	public void onEdgeVisit(LabeledEdge pEdge, CaseExecutionEvent pEvent, List<CaseExecutionEvent> pCases) {
+		onEdgeVisit(pEdge);
 	}
 
 	@Override
 	public void onNodeVisit(CFGNode pNode) {
-		if (!this.coveredNodes.contains(pNode))
-			this.coveredNodes.add(pNode);
+		this.coveredNodes.add(pNode);
+	}
+	
+	public Set<LabeledEdge> getCoveredBranches() {
+		return new HashSet<>(this.coveredBranches);
 	}
 
+	public Set<CFGNode> getCoveredBlocks() {
+		return new HashSet<>(this.coveredNodes);
+	}
+	
 	public Set<LabeledEdge> getCoveredEdges() {
-		return new HashSet<LabeledEdge>(this.coveredEdges);
+		return new HashSet<>(this.coveredPath);
 	}
 	
 	public List<LabeledEdge> getCoveredPath() {
-		return this.coveredEdges;
-	}
-
-	public Set<LabeledEdge> getUncoveredEdges() {
-		Set<LabeledEdge> allEdges = new HashSet<LabeledEdge>(this.cfg.edgeSet());
-		allEdges.removeAll(this.coveredEdges);
-		return allEdges;
+		return new ArrayList<>(this.coveredPath);
 	}
 
 	public double getBranchCoverage() {
 		Set<LabeledEdge> branches = new HashSet<>();
-		for (LabeledEdge branch : this.cfg.edgeSet()) {
-			if (!(branch instanceof FlowEdge))
-				branches.add(branch);
+		for (LabeledEdge edge : this.cfg.edgeSet()) {
+			if (!(edge instanceof FlowEdge)) {
+				branches.add(edge);
+			}
 		}
-		return this.getCoveredBranches().size() / (double) branches.size();
+		
+		return getCoveredBranches().size() / (double) branches.size();
 	}
 
 	public double getBlockCoverage() {
-		Set<CFGNode> nodes = cfg.vertexSet();
+		Set<CFGNode> nodes = this.cfg.vertexSet();
 		return (this.coveredNodes.size() + 1) / (double) nodes.size();
 	}
-
-	/**
-	 * Returns a list of covered branches (not include FlowEdges)
-	 * 
-	 * @return a list of branches
-	 */
-	public List<LabeledEdge> getCoveredBranches() {
-		List<LabeledEdge> coveredBranches = new ArrayList<>();
-		for (LabeledEdge coveredEdge : this.getCoveredEdges()) {
-			if (!(coveredEdge instanceof FlowEdge))
-				coveredBranches.add(coveredEdge);
-		}
-		return coveredBranches;
-	}
-
 }

@@ -2,12 +2,13 @@ package it.unisa.ocelot.simulator.listeners;
 
 import it.unisa.ocelot.c.cfg.edges.LabeledEdge;
 import it.unisa.ocelot.c.cfg.nodes.CFGNode;
-import it.unisa.ocelot.simulator.ExecutionEvent;
+import it.unisa.ocelot.simulator.CaseExecutionEvent;
+import it.unisa.ocelot.simulator.IfExecutionEvent;
 import it.unisa.ocelot.simulator.SimulatorListener;
 
 import java.util.List;
 
-public class NodePrinterListener implements SimulatorListener {
+public final class NodePrinterListener implements SimulatorListener {
 
 	@Override
 	public void onEdgeVisit(LabeledEdge pEdge) {
@@ -16,17 +17,17 @@ public class NodePrinterListener implements SimulatorListener {
 	}
 
 	@Override
-	public void onEdgeVisit(LabeledEdge pEdge, ExecutionEvent pEvent) {
+	public void onEdgeVisit(LabeledEdge pEdge, IfExecutionEvent pEvent) {
 		System.out.println("--> Condition visiting " + pEdge.toString() + 
-				"\n\tDistanceT:" + pEvent.distanceTrue +
-				"\n\tDistanceF:" + pEvent.distanceFalse);
+				"\n\tDistanceT:" + pEvent.getDistanceThen() +
+				"\n\tDistanceF:" + pEvent.getDistanceElse());
 	}
 
 	@Override
-	public void onEdgeVisit(LabeledEdge pEdge, ExecutionEvent pEvent, List<ExecutionEvent> pCases) {
+	public void onEdgeVisit(LabeledEdge pEdge, CaseExecutionEvent pEvent, List<CaseExecutionEvent> pCases) {
 		System.out.println("--> Case choice " + pEdge.toString());
-		for (ExecutionEvent pCase : pCases) {
-			System.out.println("\t" + pCase.choice + ", distance:" + pCase.distanceTrue);
+		for (CaseExecutionEvent pCase : pCases) {
+			System.out.println("\t" + pCase.getId() + ", distance:" + pCase.getDistance());
 		}
 	}
 

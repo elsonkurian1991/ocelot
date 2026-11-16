@@ -6,93 +6,99 @@ import it.unisa.ocelot.c.cfg.nodes.CFGNode;
 import it.unisa.ocelot.c.types.CType;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.jgrapht.graph.ListenableDirectedGraph;
 
 /**
- * Control Flow Graph, a graph which nodes are CFGNode and which edges are LabeledEdge, so edges
- * that has an object as a label to identify the condition in which the the control flows from a
- * vertex to another one. For instance, a condition will have two edges: an edge labeled true and
- * an edge labeled false.
+ * A control flow graph for a (exactly one) C function. It is a 
+ * graph whose nodes are {@link CFGNode}s and whose edges are 
+ * {@link LabeledEdge}s. Labeled edges identify conditional
+ * flow of control, and their label is the logical condition 
+ * guarding the flow of control through them. Unlabeled edges 
+ * represent unconditional flow of control.
+ * 
  * @see LabeledEdge
  * @author simone
- *
  */
 public class CFG extends ListenableDirectedGraph<CFGNode, LabeledEdge> {
 	private static final long serialVersionUID = 6995672951065896769L;
 	
-	private CFGNode start;
-	private CFGNode end;
-	private CFGNode target;
+	private final List<Double> constantsNumeric;
+	private final List<String> constantsString;
 	
-	private List<Double> constantNumbers;
-	private List<String> constantStrings;
-	
-	private CType[] parameterTypes;
+	private CFGNode entry; //the entry point
+	private CFGNode exit;   //the exit point
+	private CType[] parameterTypes; //the C types of the function's parameters
 	
 	/**
 	 * Creates an empty CFG
 	 */
 	public CFG() {
 		super(LabeledEdge.class);
-		
-		this.constantNumbers = new ArrayList<Double>();
-		this.constantStrings = new ArrayList<String>();
+		this.constantsNumeric = new ArrayList<>();
+		this.constantsString = new ArrayList<>();
 	}
 	
 	/**
-	 * Sets the starting node
-	 * @param pStartNode
+	 * Adds the entry point node. The
+	 * entry point cannot have incoming
+	 * edges.
+	 * 
+	 * @param pEntry a {@link CFGNode}.
 	 */
-	public void setStart(CFGNode pStartNode) {
-		this.start = pStartNode;
+	public void addVertexEntry(CFGNode pEntry) {
+		addVertex(pEntry);
+		this.entry = pEntry;
 	}
 	
 	/**
-	 * Sets the ending node
-	 * @param pEndNode
+	 * Adds the exit point node. The
+	 * exit point cannot have outgoing
+	 * edges.
+	 * 
+	 * @param pExit a {@link CFGNode}.
 	 */
-	public void setEnd(CFGNode pEndNode) {
-		this.end = pEndNode;
+	public void addVertexExit(CFGNode pExit) {
+		addVertex(pExit);
+		this.exit = pExit;
 	}
 	
 	/**
-	 * Returns the starting node
-	 * @return
+	 * Returns the entry node.
+	 * 
+	 * @return a {@link CFGNode}.
 	 */
-	public CFGNode getStart() {
-		return start;
+	public CFGNode getEntry() {
+		return this.entry;
 	}
 	
 	/**
-	 * Returns the ending node
-	 * @return
+	 * Returns the exit node.
+	 * 
+	 * @return a {@link CFGNode}.
 	 */
-	public CFGNode getEnd() {
-		return end;
+	public CFGNode getExit() {
+		return this.exit;
 	}
 	
-	@Deprecated
-	public void setTarget(CFGNode target) {
-		this.target = target;
-	}
-	
-	@Deprecated
-	public CFGNode getTarget() {
-		return target;
-	}
-
 	/**
 	 * Returns the types of the parameters
-	 * @return
+	 * of the function this CFG was generated for.
+	 * 
+	 * @return a {@link CType}{@code []}.
 	 */
 	public CType[] getParameterTypes() {
-		return parameterTypes;
+		return this.parameterTypes;
 	}
 
 	/**
 	 * Sets the types of the parameters
+	 * of the function this CFG was generated for.
+	 * 
 	 * @param parameterTypes
 	 */
 	public void setParameterTypes(CType[] parameterTypes) {
@@ -100,71 +106,82 @@ public class CFG extends ListenableDirectedGraph<CFGNode, LabeledEdge> {
 	}
 
 	/**
-	 * Returns a list of constant numbers (literals) found in the source code
-	 * @return
+	 * Returns a list of the (literals for) numbers 
+	 * found in the C source code.
+	 * 
+	 * @return a {@link List}{@code <}{@link Double}{@code >}.
 	 */
-	public List<Double> getConstantNumbers() {
-		return constantNumbers;
+	public List<Double> getConstantsNumeric() {
+		return this.constantsNumeric;
 	}
 
 	/**
-	 * Sets the list of constant numbers
-	 * @param constantNumbers
+	 * Adds a numeric constant.
+	 * 
+	 * @param constant a {@link Double}, the 
+	 *        constant to add.
 	 */
-	public void setConstantNumbers(List<Double> constantNumbers) {
-		this.constantNumbers = constantNumbers;
+	public void addConstantNumeric(Double constant) {
+		this.constantsNumeric.add(constant);
 	}
 
 	/**
-	 * Returns a list of constant strings found in the source code
-	 * @return
+	 * Returns a list of {@link String} constants found 
+	 * in the source code.
+	 * 
+	 * @return a {@link List}{@code <}{@link String}{@code >}.
 	 */
-	public List<String> getConstantStrings() {
-		return constantStrings;
+	//TODO not used at the moment.
+	public List<String> getConstantsString() {
+		return this.constantsString;
 	}
 
 	/**
-	 * Sets the list of constant strings
-	 * @param constantStrings
+	 * Adds a {@link String} constant.
+	 * 
+	 * @param constant a {@link String}, the 
+	 *        constant to add.
 	 */
-	public void setConstantStrings(List<String> constantStrings) {
-		this.constantStrings = constantStrings;
-	}
-	
-	/**
-	 * Returns all branches of this control flow graph 
-	 * (we intend for branch all edges except FlowEdges)
-	 * @return a list of LabeledEdges
-	 */
-	public List<LabeledEdge> getBranchesFromCFG() {
-		List<LabeledEdge> targets = new ArrayList<>();
-
-		for (LabeledEdge edge : this.edgeSet()) {
-			if (!(edge instanceof FlowEdge)) {
-				// objectID correspond to the ID in multiple objective function 
-				targets.add(edge);
-			}
-		} // edges terminated
-		return targets;
+	public void addConstantString(String constant) {
+		this.constantsString.add(constant);
 	}
 	
 	/**
-	 * Returns all branches of this control flow graph 
-	 * (we intend for branch all edges except FlowEdges)
-	 * @return a list of LabeledEdges
+	 * Like {@link #getDecisionEdges()} but without setting
+	 * the object id of the edges.
+	 * 
+	 * @return a {@link Set}{@code <}{@link LabeledEdge}{@code >}.
 	 */
-	public List<LabeledEdge> getIdBranchesFromCFG() {
-		List<LabeledEdge> targets = new ArrayList<>();
-
-		int branchID = 0;
-		for (LabeledEdge edge : this.edgeSet()) {
+	public Set<LabeledEdge> edgeSetBranch() {
+		Set<LabeledEdge> result = edgeSet().stream().filter(LabeledEdge::isBranch).collect(Collectors.toSet());
+		return result;
+	}
+	
+	/**
+	 * Returns all the decision edges in this control flow graph.
+	 * A decision edge is any edge in the graph except 
+	 * {@link FlowEdge}s. Also, gives to each decision edge
+	 * a progressive identification number by setting their
+	 * objective id.
+	 * 
+	 * @return a {@link Set}{@code <}{@link LabeledEdge}{@code >}
+	 *         containing all the decision edges of the current
+	 *         control flow graph.
+	 */
+	//TODO shouldn't we pick the ids from GenericObjectives???
+	//TODO remove it!!!
+	public Set<LabeledEdge> getDecisionEdges() {
+		HashSet<LabeledEdge> result = new HashSet<>();
+		int nextAvailableObjectiveId = 0;
+		for (LabeledEdge edge : edgeSet()) {
 			if (!(edge instanceof FlowEdge)) {
-				// objectID correspond to the ID in multiple objective function 
-				edge.setObjectiveID(branchID);
-				targets.add(edge);
-				branchID++;
+				// It is a decision edge: sets its objectiveId 
+				// and adds it to the result
+				edge.setObjectiveId(nextAvailableObjectiveId);
+				result.add(edge);
+				nextAvailableObjectiveId++;
 			}
-		} // edges terminated
-		return targets;
+		}
+		return result;
 	}
 }

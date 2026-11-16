@@ -7,67 +7,58 @@ import java.util.List;
 import jmetal.core.Solution;
 
 /**
- * This class implements a <code>Comparator</code> (a method for comparing
- * <code>Solution</code> based on the concept of Pareto Dominance, as proposed
+ * This class implements a {@link Comparator}{@code <}{@link Solution}{@code >} 
+ * based on the concept of Pareto Dominance, as proposed
  * by Panichella et al. in "Reformulating Branch Coverage as a Many-Objective
  * Optimization Problem", considering only the non-dominance relation for the
- * uncovered branches in an <code>MOSABranchCoverageProblem</code>
+ * uncovered objectives.
  * 
  * @author giograno
- *
  */
-@SuppressWarnings("rawtypes")
-public class MOSADominanceComparator_Generic implements Comparator {
-
-	private final List<GenericObjective> target;
+public class MOSADominanceComparator_Generic implements Comparator<Solution> {
+	private final ArrayList<GenericObjective> objectives;
 
 	/**
-	 * Constructor of MOSADominanceComparator class
+	 * Constructor.
 	 * 
-	 * @param uncoveredBranches
+	 * @param objectives
 	 */
-	public MOSADominanceComparator_Generic(List<GenericObjective> uncoveredBranches) {
-		this.target = new ArrayList<>(uncoveredBranches);
+	public MOSADominanceComparator_Generic(List<GenericObjective> objectives) {
+		this.objectives = new ArrayList<>(objectives);
 	}
 
 	/**
 	 * Compares two solutions.
 	 * 
-	 * @param object1
-	 *            Object representing the first <code>Solution</code>.
-	 * @param object2
-	 *            Object representing the second <code>Solution</code>.
-	 * @return -1, or 0, or 1 if solution1 dominates solution2, both are
-	 *         non-dominated, or solution1 is dominated by solution22,
-	 *         respectively.
+	 * @param solution1 the first {@link Solution}.
+	 * @param solution2 the second {@link Solution}.
+	 * @return -1, or 0, or 1 if {@code solution1} dominates {@code solution2}, 
+	 *         neither one dominates the other, or {@code solution1} is 
+	 *         dominated by {@code solution2}, respectively.
 	 */
-	public int compare(Object o1, Object o2) {
-		if (o1 == null)
+	public int compare(Solution solution1, Solution solution2) {
+		if (solution1 == null) {
 			return 1;
-		else if (o2 == null)
+		} else if (solution2 == null) {
 			return -1;
+		}
 
-		Solution solution1 = (Solution) o1;
-		Solution solution2 = (Solution) o2;
-
-		int dominate1; // dominate1 indicates if some objective of solution1
-						// dominates the same objective in solution2. dominate2
-		int dominate2; // is the complementary of dominate1.
-
-		dominate1 = 0;
-		dominate2 = 0;
+		boolean dominate1 = false; // dominate1 indicates if some objective of solution1
+						           // dominates the same objective in solution2. dominate2
+		boolean dominate2 = false; // is the complementary of dominate1.
 
 		int flag; // stores the result of the comparison
 
 		// Equal number of violated constraints. Applying a dominance Test then
 		double value1, value2;
 
-		for (GenericObjective uncoveredBranch : target) {
-			if (uncoveredBranch.isCovered() || !uncoveredBranch.isActive())
-				continue; //branch covered
+		for (GenericObjective objective : this.objectives) {
+			if (!objective.isActive()) {
+				continue; //not relevant
+			}
 			
-			value1 = solution1.getObjective(uncoveredBranch.getObjectiveID());
-			value2 = solution2.getObjective(uncoveredBranch.getObjectiveID());
+			value1 = solution1.getObjective(objective.getId());
+			value2 = solution2.getObjective(objective.getId());
 
 			if (value1 < value2) {
 				flag = -1;
@@ -78,21 +69,20 @@ public class MOSADominanceComparator_Generic implements Comparator {
 			}
 
 			if (flag == -1) {
-				dominate1 = 1;
+				dominate1 = true;
 			}
 
 			if (flag == 1) {
-				dominate2 = 1;
+				dominate2 = true;
 			}
 		}
 
 		if (dominate1 == dominate2) {
-			return 0; // No one dominate the other
+			return 0; // No one dominates the other
 		}
-		if (dominate1 == 1) {
-			return -1; // solution1 dominate
+		if (dominate1) {
+			return -1; // solution1 dominates
 		}
-		return 1; // solution2 dominate
+		return 1; // solution2 dominates
 	}
-
 }

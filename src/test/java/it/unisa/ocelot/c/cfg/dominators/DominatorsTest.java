@@ -62,7 +62,7 @@ public class DominatorsTest {
 
     @Test
     public void dominates() throws Exception {
-        Dominators<CFGNode, LabeledEdge> dominators = new Dominators<>(cfg, cfg.getStart());
+        DominanceCalculatorVertices<CFGNode, LabeledEdge> dominators = new DominanceCalculatorVertices<>(cfg, cfg.getEntry());
 
         assertTrue(dominators.dominates(start, n1));
         assertTrue(dominators.dominates(n1, n2));
@@ -88,7 +88,7 @@ public class DominatorsTest {
 
     @Test
     public void getStrictDominators() throws Exception {
-        Dominators<CFGNode, LabeledEdge> dominators = new Dominators<>(cfg, cfg.getStart());
+        DominanceCalculatorVertices<CFGNode, LabeledEdge> dominators = new DominanceCalculatorVertices<>(cfg, cfg.getEntry());
 
         Set<CFGNode> dominatorsEnd = dominators.getStrictDominators(end);
         Set<CFGNode> oracleDominatorsEnd = new HashSet<>(Arrays.asList(n5, end, start, n1));
@@ -101,7 +101,7 @@ public class DominatorsTest {
 
     @Test
     public void getNonDominators() throws Exception {
-        Dominators<CFGNode, LabeledEdge> dominators = new Dominators<>(cfg, cfg.getStart());
+        DominanceCalculatorVertices<CFGNode, LabeledEdge> dominators = new DominanceCalculatorVertices<>(cfg, cfg.getEntry());
 
         assertTrue(dominators.getNonDominators().contains(n3));
         assertTrue(dominators.getNonDominators().contains(n4));
@@ -110,7 +110,7 @@ public class DominatorsTest {
 
     @Test
     public void autoTest() throws Exception {
-        Dominators<CFGNode, LabeledEdge> dominators = new Dominators<>(cfg, cfg.getStart());
+        DominanceCalculatorVertices<CFGNode, LabeledEdge> dominators = new DominanceCalculatorVertices<>(cfg, cfg.getEntry());
 
         for (CFGNode cfgNode : cfg.vertexSet()) {
             if (dominators.getNonDominators().contains(cfgNode)) {

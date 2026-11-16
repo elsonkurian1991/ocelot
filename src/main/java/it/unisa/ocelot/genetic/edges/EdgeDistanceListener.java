@@ -1,201 +1,205 @@
 package it.unisa.ocelot.genetic.edges;
 
+import static org.jgrapht.alg.DijkstraShortestPath.findPathBetween;
+
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import org.jgrapht.alg.DijkstraShortestPath;
-
 import it.unisa.ocelot.c.cfg.CFG;
 import it.unisa.ocelot.c.cfg.edges.LabeledEdge;
 import it.unisa.ocelot.c.cfg.nodes.CFGNode;
+import it.unisa.ocelot.simulator.CaseExecutionEvent;
 import it.unisa.ocelot.simulator.ExecutionEvent;
+import it.unisa.ocelot.simulator.IfExecutionEvent;
 import it.unisa.ocelot.simulator.SimulatorListener;
+import it.unisa.ocelot.util.Utils;
 
 /**
  * A listener class used to calculate distances about edges
  * 
  * @author giograno
- *
  */
-public class EdgeDistanceListener implements SimulatorListener {
-
-	private CFG cfg;
+public final class EdgeDistanceListener implements SimulatorListener {
+	private final CFG cfg;
+	private final LabeledEdge targetEdge; // the target edge (the one we want to cover)
+	private final CFGNode targetSource; // the source node of targetEdge
+	private final HashSet<CFGNode> dominators;
+	private final HashSet<LabeledEdge> serendipitousPotentials;
+	
 	private CFGNode nearestNode;
-	// the edge target
-	private LabeledEdge targetEdge;
-	// the node targeted by edge target
-	private CFGNode targetFather;
 	private List<ExecutionEvent> nearestEvents;
-	
-	private Set<CFGNode> dominators;
-	
 	private boolean forceCovered;
-	private Set<LabeledEdge> serendipitousPotentials;
 	private Set<LabeledEdge> serendipitousCovered;
-	
 	private Set<List<ExecutionEvent>> pairEventSets;
 
 	/**
-	 * Constructor of EdgeDistanceListener class
+	 * Constructor.
 	 * 
-	 * @param cfg
-	 *            the control flow graph
-	 * @param target
-	 *            the edge target
+	 * @param pCfg the {@link CFG}.
+	 * @param pTarget the {@link LabeledEdge} of {@code pCfg} that 
+	 *        we want to cover.
+	 * @param pDominators the {@link Set}{@code <}{@link CFGNode}{@code >}
+	 *        containing all the dominators of 
 	 */
-	public EdgeDistanceListener(CFG cfg, LabeledEdge target, Set<CFGNode> pDominators) {
-		this.cfg = cfg;
-		this.targetEdge = target;
-		this.targetFather = this.cfg.getEdgeSource(targetEdge);
-
-		this.nearestEvents = new ArrayList<ExecutionEvent>();
+	public EdgeDistanceListener(CFG pCfg, LabeledEdge pTarget, Set<CFGNode> pDominators, Set<LabeledEdge> pSerendipitousPotentials) {
+		this.cfg = pCfg;
+		this.targetEdge = pTarget;
+		this.targetSource = this.cfg.getEdgeSource(this.targetEdge);
+		this.dominators = new HashSet<>(pDominators);
+		this.serendipitousPotentials = new HashSet<>(pSerendipitousPotentials);
 		
-		this.dominators = new HashSet<CFGNode>(pDominators);
+		this.nearestNode = null;
+		this.nearestEvents = new ArrayList<>();
 		this.forceCovered = false;
-		
 		this.serendipitousCovered = new HashSet<>();
-		this.serendipitousPotentials = new HashSet<>();
-				
 		this.pairEventSets = new HashSet<>();
 	}
 
 	@Override
 	public void onEdgeVisit(LabeledEdge pEdge) {
-		if (pEdge.equals(targetEdge))
-			forceCovered = true;
+		if (pEdge.equals(this.targetEdge)) {
+			this.forceCovered = true;
+		}
 		
-		if (this.serendipitousPotentials.contains(pEdge))
+		if (this.serendipitousPotentials.contains(pEdge)) {
 			this.serendipitousCovered.add(pEdge);
+		}
 	}
 
 	@Override
-	public void onEdgeVisit(LabeledEdge pEdge, ExecutionEvent pEvent) {
-		if (pEdge.equals(targetEdge))
-			forceCovered = true;
+	public void onEdgeVisit(LabeledEdge pEdge, IfExecutionEvent pEvent) {
+		onEdgeVisit(pEdge);
 		
-		if (this.serendipitousPotentials.contains(pEdge))
-			this.serendipitousCovered.add(pEdge);
-		
-		if (forceCovered)
+		if (this.forceCovered) {
 			return;
+		}
 		
 		CFGNode node = this.cfg.getEdgeSource(pEdge);
-
 		if (node.equals(this.nearestNode)) {
-			nearestEvents.clear();
-			nearestEvents.add(pEvent);
-			this.pairEventSets.add(new ArrayList<>(nearestEvents));
+			this.nearestEvents.clear();
+			this.nearestEvents.add(pEvent);
+			this.pairEventSets.add(new ArrayList<>(this.nearestEvents)); //TODO are we sure we want to put in pairEventSets an alias to the *mutable* this.nearestEvents List? Shouldn't we make a copy? 
 		}
-
 	}
 
 	@Override
-	public void onEdgeVisit(LabeledEdge pEdge, ExecutionEvent pEvent,
-			List<ExecutionEvent> pCases) {
-		if (pEdge.equals(targetEdge)) {
-			forceCovered = true;
-		}
+	public void onEdgeVisit(LabeledEdge pEdge, CaseExecutionEvent pEvent, List<CaseExecutionEvent> pCases) {
+		onEdgeVisit(pEdge);
 		
-		if (this.serendipitousPotentials.contains(pEdge))
-			this.serendipitousCovered.add(pEdge);
-		
-		if (forceCovered)
+		if (this.forceCovered) {
 			return;
+		}
 
 		CFGNode node = this.cfg.getEdgeSource(pEdge);
-
 		if (node.equals(this.nearestNode)) {
-			nearestEvents.clear();
-			nearestEvents.addAll(pCases);
-			this.pairEventSets.add(new ArrayList<>(nearestEvents));
+			this.nearestEvents.clear();
+			this.nearestEvents.addAll(pCases);
+			this.pairEventSets.add(new ArrayList<>(this.nearestEvents)); //TODO are we sure we want to put in pairEventSets an alias to the *mutable* this.nearestEvents List? Shouldn't we make a copy?
+		}
+	}
+
+	@Override
+	public void onNodeVisit(CFGNode node) {
+		if (this.dominators.contains(node)) {
+			this.dominators.remove(node);
+			this.nearestNode = node;
+			this.pairEventSets.clear();
 		}
 	}
 
 	/**
 	 * Calculates the approach level
 	 * 
-	 * @return an approach level int value
+	 * @return an approach level {@code int} value.
 	 */
-	public int getApproachLevel() {
-		if (forceCovered)
+	private int getApproachLevel() {
+		if (this.forceCovered) {
 			return 0;
-		
+		}
 		return this.dominators.size();
 	}
-
-	@Override
-	public void onNodeVisit(CFGNode node) {
-		if (this.dominators.contains(node)) {
-			dominators.remove(node);
-			this.nearestNode = node;
-			this.pairEventSets.clear();
-		}
-	}
 	
+	/**
+	 * Calculates the branch distance.
+	 * 
+	 * @return a {@code double} value of branch distance.
+	 */
+	//TODO we want it private, but unfortunately this method is used outside this class...
 	public double getBranchDistance() {
-		if (forceCovered)
-			return 0;
+		if (this.forceCovered) {
+			return 0.0d;
+		}
 		
+		//TODO tHis is surely WRONG!!!!!
 		double minDistance = Double.MAX_VALUE;
-		if (this.getApproachLevel() == 0) {
+		if (getApproachLevel() == 0) {
 			for (List<ExecutionEvent> nearestEvents : this.pairEventSets) {
-				// execution has reached the parent node of edge target
 				if (nearestEvents.size() == 1) {
+					// Execution has reached the source node of the target edge
 					ExecutionEvent event = nearestEvents.get(0);
 					
-					if (event.getEdge().equals(this.targetEdge))
+					if (event.getEdge().equals(this.targetEdge)) {
 						return 0;
-					else {
-						double distance = Math.max(event.distanceTrue, event.distanceFalse); 
-						if (distance < minDistance)
+					} else {
+						//TODO is this cast ok?
+						IfExecutionEvent eventIf = (IfExecutionEvent) event;
+						double distance = Math.max(eventIf.getDistanceThen(), eventIf.getDistanceElse()); 
+						if (distance < minDistance) {
 							minDistance = distance;
+						}
 					}
 				} else {
 					for (ExecutionEvent event : nearestEvents) {
 						if (event.getEdge().equals(this.targetEdge)) {
-							double distance = event.distanceTrue; 
-							if (distance < minDistance)
+							//TODO is this cast ok?
+							CaseExecutionEvent eventCase = (CaseExecutionEvent) event;
+							double distance = eventCase.getDistance(); 
+							if (distance < minDistance) {
 								minDistance = distance;
+							}
 						}
 					}
 				}
-				
-//				System.err.println("Something went wrong in EdgeDistanceListener...");
-//				assert false: "Something went wrong in EdgeDistanceListener...";
-//				return 10000.0;
 			}
 		}
+		
+		//TODO shouldn't go an "else" here? (for approach level > 0)?
 
 		for (List<ExecutionEvent> nearestEvents : this.pairEventSets) {
 			// approach level more than 0
 			if (nearestEvents.size() == 1) {
-				// single condition
+				// (as before)
 				ExecutionEvent event = nearestEvents.get(0);
-				double distance = Math.max(event.distanceTrue, event.distanceFalse); 
-				if (distance < minDistance)
-					minDistance = distance;
-			} else {
-				List<LabeledEdge> path = DijkstraShortestPath.findPathBetween(this.cfg, nearestNode, this.targetFather);
-				LabeledEdge nearestEdge; 
 				
-				if (path.size() > 0)
-					nearestEdge = path.get(0);
-				else
+				//TODO is this cast ok?
+				IfExecutionEvent eventIf = (IfExecutionEvent) event;
+				double distance = Math.max(eventIf.getDistanceThen(), eventIf.getDistanceElse()); 
+				if (distance < minDistance) {
+					minDistance = distance;
+				}
+			} else {
+				List<LabeledEdge> pathShortestNearestToTarget = findPathBetween(this.cfg, this.nearestNode, this.targetSource);
+
+				LabeledEdge nearestEdge;
+				if (pathShortestNearestToTarget.size() > 0) {
+					nearestEdge = pathShortestNearestToTarget.get(0);
+				} else {
+					// Zero-length path: this.nearestNode is this.targetSource!
 					nearestEdge = this.targetEdge;
+				}
 				
 				for (ExecutionEvent event : nearestEvents) {
 					if (event.getEdge().equals(nearestEdge)) {
-						double distance = Math.max(event.distanceTrue, event.distanceFalse);
-						if (distance < minDistance)
+						//TODO is this cast ok?
+						CaseExecutionEvent eventCase = (CaseExecutionEvent) event;
+						double distance = eventCase.getDistance();
+						if (distance < minDistance) {
 							minDistance = distance;
+						}
 					}
 				}
-				
-//				System.err.println("Something went wrong in EdgeDistanceListener...");
-//				assert false: "Something went wrong in EdgeDistanceListener...";
-//				return 10000.0;
 			}
 		}
 		
@@ -203,33 +207,23 @@ public class EdgeDistanceListener implements SimulatorListener {
 	}
 
 	/**
-	 * Calculates the branch distance normalized as proposed by Arcuri in
-	 * "It does matter how you normalize the branch distance in search based software testing"
+	 * Return the value of the edge distance.
 	 * 
-	 * @return a double value of normalized branch distance
+	 * @return a {@code double} value of edge distance.
 	 */
-	public double getNormalizedBranchDistance() {
-		double distance = this.getBranchDistance();
-
-		return distance / (distance + 1);
+	public double getDistance() {
+		return getApproachLevel() + Utils.normalize(getBranchDistance());
 	}
 
 	/**
-	 * Return the value of the fitness function, scored by branch distance plus
-	 * approach level
+	 * Returns the serendipitous potentials that 
+	 * have been covered.
 	 * 
-	 * @return the fitness value
+	 * @return a {@link Set}{@code <}{@link LabeledEdge}{@code >},
+	 *         subset of the set of serendipitous potentials 
+	 *         passed upon creation.
 	 */
-	public double getFitness() {
-		return this.getApproachLevel() + this.getNormalizedBranchDistance();
-	}
-
-	public void setSerendipitousPotentials(
-			Set<LabeledEdge> serendipitousPotentials) {
-		this.serendipitousPotentials = serendipitousPotentials;
-	}
-	
 	public Set<LabeledEdge> getSerendipitousCovered() {
-		return serendipitousCovered;
+		return this.serendipitousCovered;
 	}
 }

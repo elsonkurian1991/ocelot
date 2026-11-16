@@ -1,6 +1,5 @@
 package it.unisa.ocelot.conf;
 
-import it.unisa.ocelot.util.Utils;
 import org.apache.commons.lang3.Range;
 import org.junit.Before;
 import org.junit.Test;
@@ -32,7 +31,7 @@ public class ConfigManagerTest {
 
     @Test
     public void getMaxEvaluations() throws Exception {
-        int max = config.getMaxEvaluations();
+        int max = config.getEvaluationsMax();
         assertNotNull(max);
         assertEquals(200000, max);
     }
@@ -223,7 +222,7 @@ public class ConfigManagerTest {
 
     @Test
     public void getSerendipitousCoverage() throws Exception {
-        boolean serendipitous = config.getSerendipitousCoverage();
+        boolean serendipitous = config.isSerendipitous();
         assertNotNull(serendipitous);
         assertEquals(false, serendipitous);
     }
@@ -256,7 +255,7 @@ public class ConfigManagerTest {
     }
 
     @Test
-    public void getTestLink() throws Exception {
+    public void getProperty() throws Exception {
         String[] link = config.getTestLink();
 
         assertEquals(0, link.length);

@@ -7,13 +7,13 @@ import java.util.Set;
 import it.unisa.ocelot.TestCase;
 import it.unisa.ocelot.c.cfg.CFG;
 import it.unisa.ocelot.conf.ConfigManager;
-import it.unisa.ocelot.genetic.VariableTranslator;
 import it.unisa.ocelot.genetic.many_objective.MOSAGenericCoverageExperiment;
 import it.unisa.ocelot.genetic.objectives.GenericObjective;
+import it.unisa.ocelot.simulator.GenericCoverageCalculator;
 import it.unisa.ocelot.suites.TestSuiteGenerationException;
-import it.unisa.ocelot.suites.budget.BasicBudgetManager;
-import it.unisa.ocelot.suites.generators.CascadeableGenerator;
-import it.unisa.ocelot.suites.generators.TestSuiteGenerator;
+import it.unisa.ocelot.suites.budget.BudgetManagerHandler;
+import it.unisa.ocelot.suites.generators.CascadeableTestSuiteGenerator;
+import it.unisa.ocelot.suites.generators.AbstractTestSuiteGenerator;
 import jmetal.core.Solution;
 import jmetal.core.SolutionSet;
 import jmetal.util.JMException;
@@ -25,109 +25,63 @@ import jmetal.util.JMException;
  * @author simone
  *
  */
-public class GenericMOSATestSuiteGenerator extends TestSuiteGenerator implements CascadeableGenerator {
-	private boolean satisfied;
-
-	private int evaluations;
-
-	private List<GenericObjective> objectives;
-
-	public GenericMOSATestSuiteGenerator(ConfigManager config, CFG cfg, List<GenericObjective> objectives) {
-		super(cfg, objectives);
-		this.config = config;
-		this.objectives = objectives;
+//TODO decide whether to make AbstractTestSuiteGeneratorCFG a class that also supports multi-objective generation, and make this class one of its subclasses; or just factor common stuff with MOSATestSuiteGenerator
+//TODO is it *really* cascadeable?
+public final class GenericMOSATestSuiteGenerator extends AbstractTestSuiteGenerator<GenericObjective> implements CascadeableTestSuiteGenerator {
+	private final CFG cfg;
+	
+	public GenericMOSATestSuiteGenerator(ConfigManager pConfigManager, CFG pCfg, Set<? extends GenericObjective> pObjectives) {
+		super(pConfigManager, new GenericCoverageCalculator(pObjectives));
+		this.cfg = pCfg;
+		
+		if (!BudgetManagerHandler.BASIC_MANAGER.equals(this.configManager.getBudgetManager())) {
+			//overrides setting
+			System.err.println("Warning: A generic MOSA test suite generator will always run with a BasicManager budget manager: Your suite.generator.algorithm property value will be overridden");
+			this.configManager.setBudgetManager(BudgetManagerHandler.BASIC_MANAGER);
+		}
 	}
 
 	@Override
-	public Set<TestCase> generateTestSuite(Set<TestCase> pSuite) throws TestSuiteGenerationException {
-
-		Set<TestCase> suite = new HashSet<TestCase>(pSuite);
-		this.startBenchmarks();
-
-		coverMultiObjective(suite, objectives);
-
-		double coverage = calculateCoverage();
-		System.out.println("Coverage of MOSA test suite = " + coverage);
-
-		/*
-		calculator.calculateCoverage(suite);
-		System.out.println("Coverage of MOSA test suite = " + calculator.getObjectiveCoverage());
-
-		if (calculator.getObjectiveCoverage() >= this.config.getRequiredCoverage()) {
-			this.satisfied = true;
-		}
-		*/
+	protected Set<TestCase> doGenerateTestSuite(Set<TestCase> pSuite) throws TestSuiteGenerationException {
+		HashSet<TestCase> suite = new HashSet<>(pSuite);
+		coverMultiObjective(suite);
 		
 		return suite;
 	}
 
-	private double calculateCoverage() {
-		double covered = 0;
-		int total = 0;
-		for (GenericObjective objective : objectives) {
-			if (objective.isCovered())
-				covered++;
-			else {
-			}
-			total++;
+	private void coverMultiObjective(Set<TestCase> suite) throws TestSuiteGenerationException {
+		// Sets the total budget
+		setupBudgetManager(1);
+		if (insufficientBudget()) {
+			println("Insufficient budget, please adjust configuration");
+			return;
 		}
 
-		double coverage = covered / total;
-		System.out.println("Covered objectives: " + covered);
-		System.out.println("Total objectives: " + total);
-		return coverage;
-	}
-
-	public boolean isSatisfied() {
-		return satisfied;
-	}
-
-	protected void coverMultiObjective(Set<TestCase> suite, List<GenericObjective> pTargets)
-			throws TestSuiteGenerationException {
-
-		SolutionSet archiveSolutions = new SolutionSet();
-
-		MOSAGenericCoverageExperiment mosaExperiment = new MOSAGenericCoverageExperiment(cfg, pTargets, config,
-				cfg.getParameterTypes());
-
-		this.setupBudgetManager(1);
+		// Makes the experiment
+		MOSAGenericCoverageExperiment exp = new MOSAGenericCoverageExperiment(this.cfg, this.coverageCalculator.getUncovered(), 
+				this.configManager, this.budgetManager);
+		exp.initExperiment();
+		
+		// Runs the experiments
+		SolutionSet solutions = new SolutionSet();
 		try {
-			this.budgetManager = this.budgetManager.changeTo(BasicBudgetManager.class);
-		} catch (InstantiationException e) {
-			throw new TestSuiteGenerationException(e.getMessage());
-		}
-
-		mosaExperiment.initExperiment(this.budgetManager);
-		try {
-			archiveSolutions = mosaExperiment.multiObjectiveRun();
-			System.out.println(mosaExperiment.getAlgorithmStats().getLog());
-			this.evaluations = mosaExperiment.getNumberOfEvaluation();
+			print("Running... ");
+			solutions = exp.multiObjectiveRun();
+			println("Done!");
 		} catch (JMException | ClassNotFoundException e) {
-			e.printStackTrace();
 			throw new TestSuiteGenerationException(e.getMessage());
 		}
 
-		Solution currentSolution;
-		List<Integer> numberOfEvaluations = mosaExperiment.getNumberOfEvaluations();
-		for (int i = 0; i < archiveSolutions.size(); i++) {
-			currentSolution = archiveSolutions.get(i);
-			if (currentSolution.getFitness() == 0) {
-				VariableTranslator translator = new VariableTranslator(currentSolution);
-
-				Object[][][] numericParams = translator.translateArray(cfg.getParameterTypes());
-
-				// System.out.println("Creating test case: " + Arrays.toString(numericParams));
-				TestCase testCase = this.createTestCase(numericParams, suite.size());
-				suite.add(testCase);
-
-				this.measureBenchmarks("MOSA Target", suite, numberOfEvaluations.get(i));
-			}
+		// Adds new test cases to the suite
+		List<Integer> evaluationsHistory = exp.getNumberOfEvaluations();
+		for (int i = 0; i < solutions.size(); i++) {
+			measureBenchmarks("Target", suite, evaluationsHistory.get(i));
+			Solution currentSolution = solutions.get(i);
+			TestCase testCase = new TestCase(suite.size(), currentSolution, this.cfg.getParameterTypes());
+			suite.add(testCase);
 		}
-		System.out.println("Testsuite size: " + suite.size());
-	}
 
-	@Override
-	public int getNumberOfEvaluations() {
-		return this.evaluations;
+		// Gets the total number of evaluations
+		this.evaluations = exp.getStats().getEvaluations();
 	}
 }

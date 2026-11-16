@@ -16,32 +16,26 @@ public class XParam {
 
 	/**
 	 * Constructor
-	 */
-	public XParam() {
-	} // Constructor
-
-	/**
-	 * Constructor
-	 * @param solution
+	 * 
+	 * @param solution a {@link Solution}.
 	 */
 	public XParam(Solution solution) {
-		this() ;
-		type_ = solution.getType() ;
-		solution_ = solution ;
+		this.solution_ = solution ;
+		this.type_ = solution.getType();
 	}
 
 	/**
 	 * Gets value of a encodings.variable
+	 * 
 	 * @param index Index of the encodings.variable
 	 * @return The value of the encodings.variable
-	 * @throws JMException
 	 */
-	public double getValue(int index) throws JMException {
-		if (type_.getClass() == ArrayParametersSolutionType.class) {
-			return ((ArrayParameters)(solution_.getDecisionVariables()[0])).array_[index];
+	public double getValue(int index) {
+		if (this.type_.getClass() == ArrayParametersSolutionType.class) {
+			return ((ArrayParameters)(this.solution_.getDecisionVariables()[0])).array_[index];
 		} else {
 			Configuration.logger_.severe("jmetal.util.wrapper.XParam.getValue, solution type " +
-					type_ + "+ invalid") ;		
+					this.type_ + "+ invalid") ;		
 		}
 		return 0.0 ;
 	}
@@ -50,32 +44,31 @@ public class XParam {
 	 * Sets the value of a encodings.variable
 	 * @param index Index of the encodings.variable
 	 * @param value Value to be assigned
-	 * @throws JMException
 	 */
-	public void setValue(int index, double value) throws JMException {
-		if (type_.getClass() == ArrayParametersSolutionType.class) {
-			((ArrayParameters)(solution_.getDecisionVariables()[0])).array_[index]=value;
-		} else
+	public void setValue(int index, double value) {
+		if (this.type_.getClass() == ArrayParametersSolutionType.class) {
+			((ArrayParameters)(this.solution_.getDecisionVariables()[0])).array_[index] = value;
+		} else {
 			Configuration.logger_.severe("jmetal.util.wrapper.XParam.setValue, solution type " +
-					type_ + "+ invalid") ;		
-	} // setValue	
+					this.type_ + "+ invalid") ;
+		}
+	}	
 
 	/**
 	 * Gets the lower bound of a encodings.variable
 	 * @param index Index of the encodings.variable
 	 * @return The lower bound of the encodings.variable
-	 * @throws JMException
+	 * @throws JMException 
 	 */
 	public double getLowerBound(int index) throws JMException {
-		if (type_.getClass() == ArrayParametersSolutionType.class) {
-			return ((ArrayParameters)(solution_.getDecisionVariables()[0])).getLowerBound(index);
+		if (this.type_.getClass() == ArrayParametersSolutionType.class) {
+			return ((ArrayParameters)(this.solution_.getDecisionVariables()[0])).getLowerBound(index);
 		} else {
 			Configuration.logger_.severe("jmetal.util.wrapper.XParam.getLowerBound, solution type " +
-					type_ + "+ invalid") ;		
-
+					this.type_ + "+ invalid") ;		
 		}
 		return 0.0 ;
-	} // getLowerBound
+	}
 
 	/**
 	 * Gets the upper bound of a encodings.variable
@@ -84,13 +77,14 @@ public class XParam {
 	 * @throws JMException
 	 */
 	public double getUpperBound(int index) throws JMException {
-		if (type_.getClass() == ArrayParametersSolutionType.class) {
-			return ((ArrayParameters)(solution_.getDecisionVariables()[0])).getUpperBound(index);
-		} else
+		if (this.type_.getClass() == ArrayParametersSolutionType.class) {
+			return ((ArrayParameters)(this.solution_.getDecisionVariables()[0])).getUpperBound(index);
+		} else {
 			Configuration.logger_.severe("jmetal.util.wrapper.XParam.getUpperBound, solution type " +
-					type_ + "+ invalid") ;		
+					this.type_ + "+ invalid") ;
+		}
 
-		return 0.0 ;
+		return 0.0;
 	} // getUpperBound
 
 	/**
@@ -99,13 +93,14 @@ public class XParam {
 	 */
 	public int getNumberOfDecisionVariables() {
 		if (type_.getClass() == ArrayParametersSolutionType.class) {
-			return ((ArrayParameters)(solution_.getDecisionVariables()[0])).getLength() ;
-		} else
+			return ((ArrayParameters)(this.solution_.getDecisionVariables()[0])).getLength() ;
+		} else {
 			Configuration.logger_.severe("jmetal.util.wrapper.XParam.size, solution type " +
-					type_ + "+ invalid") ;		
-		return 0 ;
+					type_ + "+ invalid") ;
+		}
+		return 0;
 	} // getNumberOfDecisionVariables
-	
+
 	/**
 	 * Returns the number of variables of the solution
 	 * @return

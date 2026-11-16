@@ -53,9 +53,9 @@ public class CFGNodeTest {
         );
 
         CFGNode cfgNodeWithDefault = new CFGNode(switchWithDefault);
-        cfgNodeWithDefault.setSwitch(true);
+        cfgNodeWithDefault.setSwitch();
         CFGNode cfgNodeWithoutDefault = new CFGNode(switchWithoutDefault);
-        cfgNodeWithoutDefault.setSwitch(true);
+        cfgNodeWithoutDefault.setSwitch();
 
         assertFalse(cfgNodeWithDefault.isBreak());
         assertFalse(cfgNodeWithDefault.isCase());

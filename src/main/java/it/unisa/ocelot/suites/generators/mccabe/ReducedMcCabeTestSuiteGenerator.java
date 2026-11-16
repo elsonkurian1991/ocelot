@@ -10,128 +10,101 @@ import it.unisa.ocelot.c.cfg.McCabeCalculator;
 import it.unisa.ocelot.c.cfg.edges.LabeledEdge;
 import it.unisa.ocelot.c.cfg.paths.PathSearchSimplex;
 import it.unisa.ocelot.conf.ConfigManager;
-import it.unisa.ocelot.genetic.VariableTranslator;
 import it.unisa.ocelot.genetic.paths.PathCoverageExperiment;
+import it.unisa.ocelot.simulator.CoverageCalculatorBranches;
 import it.unisa.ocelot.suites.TestSuiteGenerationException;
-import it.unisa.ocelot.suites.generators.CascadeableGenerator;
-import it.unisa.ocelot.suites.generators.TestSuiteGenerator;
-import it.unisa.ocelot.util.Utils;
+import it.unisa.ocelot.suites.generators.CascadeableTestSuiteGenerator;
+import it.unisa.ocelot.suites.generators.AbstractTestSuiteGeneratorCFG;
+
+import jmetal.core.Solution;
 import jmetal.util.JMException;
 
 /**
  * Generates statically the smallest set of path that can achieve the full branch coverage and tries to cover each of
  * them.
+ * 
  * @author simone
- *
  */
-public class ReducedMcCabeTestSuiteGenerator extends TestSuiteGenerator implements CascadeableGenerator {
-	private boolean satisfied;
+//TODO this class is embarassingly similar to McCabeTestSuiteGenerator and ReducedMcCabePartialsTestSuiteGenerator; unify them!
+//TODO is it really cascadeable???
+public final class ReducedMcCabeTestSuiteGenerator extends AbstractTestSuiteGeneratorCFG<LabeledEdge> implements CascadeableTestSuiteGenerator {
+	private static final int MAX_IMPROVEMENTS = 3;
 
-	public ReducedMcCabeTestSuiteGenerator(ConfigManager pConfigManager, CFG pCFG) {
-		super(pCFG, null);
-		this.config = pConfigManager;
+	public ReducedMcCabeTestSuiteGenerator(ConfigManager pConfigManager, CFG pCfg) {
+		super(pConfigManager, new CoverageCalculatorBranches(pCfg), pCfg);
 	}
 
 	@Override
-	public Set<TestCase> generateTestSuite(Set<TestCase> pSuite)
-			throws TestSuiteGenerationException {
-		Set<TestCase> suite = new HashSet<TestCase>(pSuite);
-
-		this.startBenchmarks();
-
+	protected Set<TestCase> doGenerateTestSuite(Set<TestCase> pSuite) throws TestSuiteGenerationException {		
+		HashSet<TestCase> suite = new HashSet<>(pSuite);
 		coverMcCabePaths(suite);
-
-		calculator.calculateCoverage(suite);
-		if (calculator.getObjectiveCoverage() >= this.config.getRequiredCoverage()) {
-			this.satisfied = true;
-		}
 
 		return suite;
 	}
-	
-	public boolean isSatisfied() {
-		return satisfied;
-	}
 
-	private void coverMcCabePaths(Set<TestCase> suite)
-			throws TestSuiteGenerationException {
-		McCabeCalculator mcCabeCalculator = new McCabeCalculator(cfg);
-		mcCabeCalculator.calculateMcCabePaths();
+	private void coverMcCabePaths(Set<TestCase> suite) throws TestSuiteGenerationException {
+		//TODO this method is especially critical, because the targets of genetic search (paths) are *not* the members of the coverage domain (branches in this case)!
 		
-		List<List<LabeledEdge>> mcCabePaths;
-		PathSearchSimplex searchPath = new PathSearchSimplex(
+		// Makes the targets calculator
+		McCabeCalculator mcCabeCalculator = new McCabeCalculator(this.cfg);
+		
+		// Gets the targets for the first iteration
+		PathSearchSimplex pathSearch = new PathSearchSimplex(
 				this.cfg, 
 				mcCabeCalculator.getMcCabeVectorPaths(), 
-				config.getReducedMcCabeCoverageTimes());
+				this.configManager.getReducedMcCabeCoverageTimes());
+		pathSearch.solve(this.coverageCalculator.getUncovered());
+		List<List<LabeledEdge>> targets = pathSearch.getChosenPaths();
 		
-		searchPath.solve(this.getUncoveredEdges(suite));
-		mcCabePaths = searchPath.getChosenPaths();
+		// Sets the total budget
+		setupBudgetManager(targets.size() * MAX_IMPROVEMENTS);
+		if (insufficientBudget()) {
+			println("Insufficient budget, please adjust configuration");
+			return;
+		}
 		
-		this.setupBudgetManager(mcCabePaths.size() * 3);
-		
-		boolean improvement = true;
-		
-		double lastCoverage = 0;
-		while (improvement && lastCoverage < this.config.getRequiredCoverage()) {
-			try { 
-				lastCoverage = calculator.getObjectiveCoverage();
-			} catch (NullPointerException e) {
-				lastCoverage = 0;
-			}
-			this.println("### Starting an iteration... ###");
-			Set<TestCase> lastIterationTestCases = new HashSet<TestCase>();
-			for (List<LabeledEdge> aMcCabePath : mcCabePaths) {
-				PathCoverageExperiment exp = new PathCoverageExperiment(cfg,
-						config, cfg.getParameterTypes(), aMcCabePath);
-	
-				this.printSeparator();
-				this.print("Current target: ");
-				this.println(aMcCabePath);
+		boolean coverageImproved = true;	
+		while (coverageImproved && this.coverageCalculator.getCoverage() < this.configManager.getRequiredCoverage()) {
+			println("### Improvement iteration ###");
+			double previousCoverage = this.coverageCalculator.getCoverage(); //TODO this is edge coverage! Is it ok?
+			for (List<LabeledEdge> target : targets) {
+				// Prints current target
+				printSeparator();
+				print("Current target: ");
+				println(target);
 				
-				exp.initExperiment(this.budgetManager);
+				// Makes the experiment
+				PathCoverageExperiment exp = new PathCoverageExperiment(this.cfg, this.configManager, this.budgetManager, target);
+				exp.initExperiment();
+				
+				// Runs the experiment
+				Solution solution = null;
 				try {
-					exp.basicRun();
+					print("Running...");
+					solution = exp.basicRun();
+					println("Done!");
 				} catch (JMException | ClassNotFoundException e) {
 					throw new TestSuiteGenerationException(e.getMessage());
 				}
-	
-				double fitnessValue = exp.getFitnessValue();
-				VariableTranslator translator = new VariableTranslator(exp.getSolution());
-	
-				Object[][][] numericParams = translator.translateArray(cfg.getParameterTypes());
-	
-				TestCase testCase = this.createTestCase(numericParams, suite.size());
-				suite.add(testCase);
 				
-				//TODO: Fix with number of evaluations!
-				this.measureBenchmarks("McCabe", suite, 0);
-				lastIterationTestCases.add(testCase);
-				
-				this.println("Fitness function: " + fitnessValue + ". ");
-				if (fitnessValue == 0.0)
-					this.println("Path covered!");
-				else
-					this.println("Path not covered...");
-				this.println("Parameters found: ");
-				this.println(Utils.printParameters(numericParams));
+				// Possibly adds a new test case to the suite
+				addTestCaseSingleObjective(exp, solution, suite);
+
+				// Gives feedback on coverage
+				print("Current coverage: ");
+				println(this.coverageCalculator.getCoverage());
+
+				// Updates the total number of evaluations
+				this.evaluations += exp.getStats().getEvaluations();
 			}
-			calculator.calculateCoverage(suite);
-			improvement = calculator.getObjectiveCoverage() > lastCoverage;
-			lastCoverage = calculator.getObjectiveCoverage();
-			this.println("### Iteration ended! ###");
-			if (improvement) {
-				searchPath.solve(this.getUncoveredEdges(suite));
-				mcCabePaths = searchPath.getChosenPaths();
-			} else {
-				this.removeLastBenchmark();
-				suite.removeAll(lastIterationTestCases);
+			
+			// Gets the targets for the next iteration (if performed)
+			double currentCoverage = this.coverageCalculator.getCoverage();
+			coverageImproved = previousCoverage < currentCoverage;
+			if (coverageImproved) {
+				pathSearch.solve(this.coverageCalculator.getUncovered());
+				targets = pathSearch.getChosenPaths();
 			}
 		}
-	}
-	
-	@Override
-	public int getNumberOfEvaluations() {
-		// TODO Auto-generated method stub
-		return 0;
 	}
 }

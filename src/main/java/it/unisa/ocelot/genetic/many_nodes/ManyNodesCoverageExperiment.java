@@ -2,55 +2,47 @@ package it.unisa.ocelot.genetic.many_nodes;
 
 import java.util.List;
 
-import org.apache.commons.lang3.Range;
-
 import it.unisa.ocelot.c.cfg.CFG;
+import it.unisa.ocelot.c.cfg.edges.LabeledEdge;
 import it.unisa.ocelot.c.cfg.nodes.CFGNode;
-import it.unisa.ocelot.c.types.CType;
 import it.unisa.ocelot.conf.ConfigManager;
 import it.unisa.ocelot.genetic.OcelotExperiment;
 import it.unisa.ocelot.genetic.StandardSettings;
 import it.unisa.ocelot.genetic.settings.SettingsFactory;
+import it.unisa.ocelot.suites.budget.BudgetManager;
+
 import jmetal.core.Algorithm;
+import jmetal.util.JMException;
 
-public class ManyNodesCoverageExperiment extends OcelotExperiment {
-	private CType[] parametersTypes;
-	private CFG cfg;
-	private ConfigManager config;
-	private List<CFGNode> targetNodes;
+public final class ManyNodesCoverageExperiment extends OcelotExperiment<LabeledEdge> {
+	private final CFG cfg;
+	private final List<CFGNode> targets;
 
-	public ManyNodesCoverageExperiment(CFG pCfg, ConfigManager pConfig, CType[] pTypes, List<CFGNode> targetNodes) {
-		super(pConfig.getResultsFolder(), 1);
+	public ManyNodesCoverageExperiment(CFG pCfg, ConfigManager pConfigManager, BudgetManager pBudgetManager, List<CFGNode> pTargets) {
+		super(pConfigManager, pBudgetManager);
+		//TODO Use these parameters instead of refusing everything and putting dummy values in them.		
+		this.experimentName_ = "Many nodes coverage experiment";
+		this.problemList_ = new String[] { SettingsFactory.PROBLEM_NODE_COVERAGE_MULTI };
 		
 		this.cfg = pCfg;
-		this.config = pConfig;
-		this.parametersTypes = pTypes;
-		this.targetNodes = targetNodes;
+		this.targets = pTargets;
+	}
+	
+	@Override
+	public Class<LabeledEdge> getTargetClass() {
+		return LabeledEdge.class;
 	}
 
 	@Override
-	public void algorithmSettings(Algorithm[] algorithm) {
-		try {
-			Range<Double>[] ranges = config.getTestRanges();
+	public void algorithmSettingsOcelot(Algorithm[] algorithm) throws JMException {
+		// Makes the problem
+		ProblemTargetManyNodes problem = new ProblemTargetManyNodes(this.configManager.getDebug(), this.cfg, this.configManager.getTestArraysSize(), this.targets, this.configManager.getTestRanges());
 
-			ManyNodesCoverageProblem problem;
-			if (ranges != null)
-				problem = new ManyNodesCoverageProblem(this.cfg, this.parametersTypes, ranges, this.config.getTestArraysSize());
-			else
-				problem = new ManyNodesCoverageProblem(this.cfg, this.parametersTypes, this.config.getTestArraysSize());
+		// Makes the settings
+		StandardSettings settings = SettingsFactory.getSettings(this.configManager, problem, this.cfg.getConstantsNumeric());
+		this.algorithmSettings_[0] = settings; //TODO who should set this.algorithmSettings_ ?
 
-			problem.setDebug(config.getDebug());
-			problem.setTarget(this.targetNodes);
-
-			StandardSettings settings = SettingsFactory.getSettings(config.getAlgorithm(), problem, config);
-			if (config.isMetaMutatorEnabled())
-				settings.useMetaMutator();
-			
-			settings.setNumericConstants(this.cfg.getConstantNumbers());
-			algorithm[0] = settings.configure();
-		} catch (Exception e) {
-			System.err.println("An error occurred while instantiating problem: " + e.getMessage());
-			return;
-		}
+		// Makes the algorithm
+		algorithm[0] = settings.configure();
 	}
 }

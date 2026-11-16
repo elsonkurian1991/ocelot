@@ -8,101 +8,85 @@ import java.util.Set;
 
 import it.unisa.ocelot.TestCase;
 import it.unisa.ocelot.c.cfg.CFG;
+import it.unisa.ocelot.c.cfg.edges.EdgeComparator;
 import it.unisa.ocelot.c.cfg.edges.LabeledEdge;
 import it.unisa.ocelot.c.cfg.nodes.CFGNode;
 import it.unisa.ocelot.conf.ConfigManager;
-import it.unisa.ocelot.genetic.VariableTranslator;
-import it.unisa.ocelot.genetic.edges.EdgeCoverageExperiment;
+import it.unisa.ocelot.genetic.edges.PlainEdgeCoverageExperiment;
+import it.unisa.ocelot.simulator.CoverageCalculatorBranches;
 import it.unisa.ocelot.suites.TestSuiteGenerationException;
-import it.unisa.ocelot.suites.generators.CascadeableGenerator;
-import it.unisa.ocelot.suites.generators.TestSuiteGenerator;
-import it.unisa.ocelot.util.Utils;
+import it.unisa.ocelot.suites.generators.CascadeableTestSuiteGenerator;
+import it.unisa.ocelot.suites.generators.AbstractTestSuiteGeneratorCFG;
+
+import jmetal.core.Solution;
 import jmetal.util.JMException;
 
 /**
  * Test suite generators which selects, in turn, each single branch and tries to cover it.
+ * 
  * @author simone
- *
  */
-public class SingleTargetTestSuiteGenerator extends TestSuiteGenerator implements CascadeableGenerator {
-	private boolean satisfied;
-	
-	public SingleTargetTestSuiteGenerator(ConfigManager pConfigManager, CFG pCFG) {
-		super(pCFG, null);
-		
-		satisfied = false;
-		
-		this.config = pConfigManager;
+public final class SingleTargetTestSuiteGenerator extends AbstractTestSuiteGeneratorCFG<LabeledEdge> implements CascadeableTestSuiteGenerator {
+	public SingleTargetTestSuiteGenerator(ConfigManager pConfigManager, CFG pCfg) {
+		super(pConfigManager, new CoverageCalculatorBranches(pCfg), pCfg);
+		this.evaluations = 0;
 	}
 	
 	@Override
-	public Set<TestCase> generateTestSuite(Set<TestCase> pSuite) throws TestSuiteGenerationException {
-		Set<TestCase> suite = new HashSet<TestCase>(pSuite);
+	protected Set<TestCase> doGenerateTestSuite(Set<TestCase> pSuite) throws TestSuiteGenerationException {
+		HashSet<TestCase> suite = new HashSet<>(pSuite);		
+		coverTargets(suite);
 		
-		this.startBenchmarks();
-		
-		coverSingleTargets(suite);
-		
-		calculator.calculateCoverage(suite);
-		if (calculator.getObjectiveCoverage() >= this.config.getRequiredCoverage()) {
-			this.satisfied = true;
-		}
-				
 		return suite;
 	}
 	
-	@Override
-	public boolean isSatisfied() {
-		return satisfied;
-	}
-	
-	private void coverSingleTargets(Set<TestCase> suite) throws TestSuiteGenerationException {		
-		List<LabeledEdge> edgesToCover = new ArrayList<LabeledEdge>(cfg.edgeSet());
+	private void coverTargets(Set<TestCase> suite) throws TestSuiteGenerationException {		
+		List<LabeledEdge> targets = new ArrayList<>(this.cfg.edgeSet()); //TODO these are all edges, not branches! Is it ok?
+		Collections.sort(targets, new EdgeComparator(this.cfg));
 		
-		this.setupBudgetManager(edgesToCover.size());
+		setupBudgetManager(targets.size());
+		if (insufficientBudget()) {
+			println("Insufficient budget, please adjust configuration");
+			return;
+		}
 		
-		Collections.shuffle(edgesToCover);
-		while (!edgesToCover.isEmpty()) {
-			LabeledEdge targetEdge = edgesToCover.remove(0); //avoids infinite loop
+		LabeledEdge target = (targets.size() == 0 ? null : targets.remove(0));
+		while (target != null && this.coverageCalculator.getCoverage() < this.configManager.getRequiredCoverage()) { //TODO this is edge coverage! Is it ok?
+			// Prints current target
+			printSeparator();
+			print("Current target: ");
+			print(target);
+			print(" (departing from node ");
+			CFGNode departingNode = this.cfg.getEdgeSource(target);
+			print(departingNode);
+			print(")");
 			
-			EdgeCoverageExperiment exp = new EdgeCoverageExperiment(cfg, config, cfg.getParameterTypes(), targetEdge);
+			// Makes the experiment
+			PlainEdgeCoverageExperiment exp = new PlainEdgeCoverageExperiment(this.configManager, this.budgetManager, this.cfg, target);			
+			exp.initExperiment();
 			
-			exp.initExperiment(this.budgetManager);
-			
-			CFGNode departingNode = cfg.getEdgeSource(targetEdge);
-			this.printSeparator();
-			this.println("Current target: branch " + targetEdge.toString() + " of node " + departingNode);
-			
+			// Runs the experiment
+			Solution solution = null;
 			try {
-				this.print("Running... ");
-				exp.basicRun();
-				this.println("Done!");
+				print("Running... ");
+				solution = exp.basicRun();
+				println("Done!");
 			} catch (JMException | ClassNotFoundException e) {
 				throw new TestSuiteGenerationException(e.getMessage());
 			}
 			
-			double fitnessValue = exp.getFitnessValue();
-			VariableTranslator translator = new VariableTranslator(exp.getSolution());
-				
-			this.print("Fitness function: " + fitnessValue + ". ");
-			if (fitnessValue == 0.0)
-				this.println("Target covered!");
-			else
-				this.println("Target not covered...");
+			// Updates the total number of evaluations
+			this.evaluations += exp.getStats().getEvaluations();
 			
-			Object[][][] numericParams = translator.translateArray(cfg.getParameterTypes());
-			TestCase testCase = this.createTestCase(numericParams, suite.size());
-			suite.add(testCase);
+			// Possibly adds a new test case to the suite
+			addTestCaseSingleObjective(exp, solution, suite);
 			
-			this.measureBenchmarks("Target", suite, 0);
+			// Gives feedback on current coverage
+			print("Current coverage: ");
+			println(this.coverageCalculator.getCoverage()); //TODO this is edge coverage! Is it ok?
 			
-			this.println("Parameters found: " + Utils.printParameters(numericParams));
+			// Gets next target
+			target = (targets.size() == 0 ? null : targets.remove(0));
 		}
-	}
-	
-	@Override
-	public int getNumberOfEvaluations() {
-		// TODO Auto-generated method stub
-		return 0;
 	}
 }

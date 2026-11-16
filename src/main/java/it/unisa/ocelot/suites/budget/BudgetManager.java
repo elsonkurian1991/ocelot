@@ -4,68 +4,125 @@ import it.unisa.ocelot.genetic.OcelotExperiment;
 import jmetal.core.Solution;
 
 public abstract class BudgetManager {
-	protected int budget;
-	private int totalBudget;
-	protected int numberOfExperiments;
+	protected final int initialBudget;
+	protected final int initialNumberOfExperiments;
+	protected int currentBudget;
+	protected int currentNumberOfExperiments;
 	
-	public BudgetManager(int pTotalBudget, int pNumberOfTargets) {
-		this.setupBudget(pTotalBudget);
-		this.numberOfExperiments = pNumberOfTargets;
+	protected BudgetManager(int pTotalBudget, int pNumberOfExperiments) {
+		this.initialBudget = pTotalBudget;
+		this.initialNumberOfExperiments = pNumberOfExperiments;
+		this.currentBudget = this.initialBudget;
+		this.currentNumberOfExperiments = this.initialNumberOfExperiments;
+	}
+	
+	public BudgetManager(BudgetManager pOther) {
+		this.initialBudget = pOther.initialBudget;
+		this.initialNumberOfExperiments = pOther.initialNumberOfExperiments;
+		this.currentBudget = pOther.currentBudget;
+		this.currentNumberOfExperiments = pOther.currentNumberOfExperiments;
 	}
 	
 	/**
-	 * This method is called automatically when performing a changeTo operation. Do not call manually!
+	 * Returns the current budget of this manager.
+	 * 
+	 * @return the remaining total budget that can be assigned
+	 *         to the remaining experiments.
 	 */
-	@Deprecated
-	protected BudgetManager() {
+	public final int getCurrentBudget() {
+		return this.currentBudget;
+	}
+	
+	/**
+	 * Returns the consumed budget of this manager.
+	 * 
+	 * @return the total budget that has been assigned until
+	 *         now to the experiments.
+	 */
+	public final int getConsumedBudget() {
+		return this.initialBudget - this.currentBudget;
 	}
 	
 	/**
 	 * Returns the budget allocated for a given experiment.
-	 * @param pExperiment
-	 * @return
+	 * 
+	 * @param pExperiment the {@link OcelotExperiment} asking for the budget.
+	 * @return an {@code int} greater or equal to zero, the granted budget.
 	 */
-	public abstract int getExperimentBudget(OcelotExperiment pExperiment);
+	public abstract int getExperimentBudget(OcelotExperiment<?> pExperiment);
 	
 	/**
-	 * Asks for an extra budget. If the handler allows it, this method returns the amount of extra
-	 * iterations allowed. Otherwise, returns 0.
-	 * @param pExperiment Current experiment.
-	 * @param pSolution Solution found
-	 * @return 0 if no more budget can be allocated, the number of extra evaluations otherwise.
+	 * Returns the budget allocated for a given experiment (for 
+	 * cascading test generators).
+	 * 
+	 * @return an {@code int} greater or equal to zero, the granted budget.
 	 */
-	public abstract int askForMoreBudget(OcelotExperiment pExperiment, Solution pSolution);
+	public final int getExperimentBudget() {
+		return getExperimentBudget(null);
+	}
 	
 	/**
-	 * Reports the amount of budget actually consumed by an experiment.
-	 * @param pExperiment Experiment
-	 * @param pConsumed Budget consumed
+	 * Asks for an extra budget for a given experiment/solution combination. 
+	 * If the handler allows it, this method returns the amount of extra
+	 * evaluations allowed. Otherwise, returns 0.
+	 * 
+	 * @param pExperiment the {@link OcelotExperiment} asking for the extra budget.
+	 * @param pSolution the {@link Solution} for which the extra budget is necessary.
+	 * @return an {@code int} greater or equal to zero, the granted extra budget.
 	 */
-	public abstract void reportConsumedBudget(OcelotExperiment pExperiment, int pConsumed);
+	public abstract int askForMoreBudget(OcelotExperiment<?> pExperiment, Solution pSolution);
 	
-	public abstract void updateTargets(int pNumberOfExperiments);
+	/**
+	 * Used to report the amount 
+	 * of budget consumed by an experiment
+	 * execution.
+	 * 
+	 * @param pExperiment an {@link OcelotExperiment}.
+	 * @param pConsumedBudget an {@code int}, the consumed budget w.r.t. the 
+	 *        total budget received by the client.
+	 */
+	public abstract void reportConsumedBudget(OcelotExperiment<?> pExperiment, int pConsumedBudget);
 	
-	public BudgetManager changeTo(Class<? extends BudgetManager> pClass) throws InstantiationException {
-		try {
-			BudgetManager instance = pClass.newInstance();
-			instance.setupBudget(this.budget);
-			instance.numberOfExperiments = this.numberOfExperiments;
-			return instance;
-		} catch (IllegalAccessException e) {
-			throw new InstantiationException(e.getMessage());
-		}
+	/**
+	 * Used to report the amount 
+	 * of budget consumed by an experiment
+	 * execution (for cascading test generators).
+	 * 
+	 * @param pConsumedBudget an {@code int}, the consumed budget w.r.t. the 
+	 *        total budget received by the client.
+	 */
+	public final void reportConsumedBudget(int pConsumedBudget) {
+		reportConsumedBudget(null, pConsumedBudget);
 	}
 	
-	public int getConsumedBudget() {
-		return totalBudget-budget;
+	/**
+	 * Used to report the end of an experiment.
+	 * 
+	 * @param pExperiment an {@link OcelotExperiment} that ended.
+	 */
+	public abstract void reportConclusion(OcelotExperiment<?> pExperiment);
+	
+	/**
+	 * Used to report the end of an invocation of a
+	 * cascading test generator.
+	 */
+	public final void reportConclusion() {
+		reportConclusion(null);
 	}
 	
-	protected void setupBudget(int pBudget) {
-		this.budget = pBudget;
-		this.totalBudget = pBudget;
-	}
+	/**
+	 * Sets the total budget. Used by the cascading test
+	 * suite generator to distribute budget to the 
+	 * generators in cascade. 
+	 * 
+	 * @param pTotalBudget the new total budget.
+	 */
+	public abstract void setTotalBudget(int pTotalBudget);
 	
-	public int getBudget() {
-		return this.budget;
-	}
+	/**
+	 * Sets the total number of experiments.
+	 * 
+	 * @param pNumberOfExperiments the new number of experiments.
+	 */
+	public abstract void setNumberOfExperiments(int pNumberOfExperiments);
 }

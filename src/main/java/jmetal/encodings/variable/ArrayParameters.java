@@ -21,196 +21,109 @@
 
 package jmetal.encodings.variable;
 
+import static jmetal.util.PseudoRandom.randDouble;
+
 import it.unisa.ocelot.genetic.StandardProblem;
-import jmetal.core.Problem;
+
 import jmetal.core.Variable;
 import jmetal.util.Configuration;
 import jmetal.util.JMException;
-import jmetal.util.PseudoRandom;
 
 /**
  * Class implementing a decision encodings.variable representing an array of
  * real values. The real values of the array have their own bounds.
  */
-@SuppressWarnings("serial")
-public class ArrayParameters extends ArrayReal {
-	/**
-	 * Problem using the type
-	 */
-	private StandardProblem problem_;
-
-	/**
-	 * Stores the length of the array
-	 */
-	private int size_;
+public final class ArrayParameters extends ArrayReal {
+	private static final long serialVersionUID = 5439330919895497946L;
 	
-	private int id;
+	private final int id;
+	private final StandardProblem standardProblem; //same as the inherited this._problem, but with more precise type
 
 	/**
-	 * Constructor
+	 * Constructor.
+	 * 
+	 * @param pId an {@code int} id for this object.
+	 * @param pSize size of the array.
+	 * @param pStandardProblem a {@link StandardProblem}.
 	 */
-	public ArrayParameters() {
-		problem_ = null;
-		size_ = 0;
-		array_ = null;
-	} // Constructor
+	public ArrayParameters(int pId, int pSize, StandardProblem pStandardProblem) {
+		super(pSize, pStandardProblem);
+		this.id = pId;
+		this.standardProblem = pStandardProblem;		
+
+		// Initializes the array with (pseudo)random values
+		// within the limits
+		for (int i = 0; i < pSize; i++) {
+			this.array_[i] = randDouble()
+					* (this.standardProblem.getUpperLimit(i) - this.standardProblem.getLowerLimit(i))
+					+ this.standardProblem.getLowerLimit(i);
+		}
+	}
 
 	/**
-	 * Constructor
+	 * Copy constructor.
 	 *
-	 * @param size
-	 *            Size of the array
+	 * @param other the ArrayParameters to copy.
 	 */
-	public ArrayParameters(int size, Problem problem, int id) {
-		if (problem instanceof StandardProblem)
-			problem_ = (StandardProblem)problem;
-		else
-			throw new RuntimeException("Invalid problem type!");
-		
-		size_ = size;
-		array_ = new Double[size_];
-		
-		this.id = id;
-
-		for (int i = 0; i < size_; i++) {
-			//array_[i] = (double) PseudoRandom.randInt((int)problem_.getLowerLimit(id,i),(int)problem_.getUpperLimit(id, i));
-			array_[i] = PseudoRandom.randDouble()
-					* (problem_.getUpperLimit(id, i) - problem_.getLowerLimit(id, i))
-					+ problem_.getLowerLimit(id, i);
-		} // for
-	} // Constructor
-
-	/**
-	 * Copy Constructor
-	 *
-	 * @param arrayReal
-	 *            The arrayReal to copy
-	 */
-	private ArrayParameters(ArrayParameters arrayReal) {
-		problem_ = arrayReal.problem_;
-		size_ = arrayReal.size_;
-		array_ = new Double[size_];
-		id = arrayReal.id;
-
-		System.arraycopy(arrayReal.array_, 0, array_, 0, size_);
-	} // Copy Constructor
+	private ArrayParameters(ArrayParameters other) {
+		this(other.id, other.array_.length, other.standardProblem.setLimits(other.id));
+		System.arraycopy(other.array_, 0, this.array_, 0, other.array_.length);
+	}
 
 	@Override
 	public Variable deepCopy() {
 		return new ArrayParameters(this);
-	} // deepCopy
+	}
 
 	/**
-	 * Returns the length of the arrayReal.
+	 * Gets the lower bound of a value.
 	 *
-	 * @return The length
-	 */
-	public int getLength() {
-		return size_;
-	} // getLength
-
-	/**
-	 * getValue
-	 *
-	 * @param index
-	 *            Index of value to be returned
-	 * @return the value in position index
-	 */
-	public double getValue(int index) throws JMException {
-		if ((index >= 0) && (index < size_))
-			return array_[index];
-		else {
-			Configuration.logger_
-					.severe(jmetal.encodings.variable.ArrayReal.class
-							+ ".getValue(): index value (" + index
-							+ ") invalid");
-			throw new JMException(jmetal.encodings.variable.ArrayReal.class
-					+ ".ArrayReal: index value (" + index + ") invalid");
-		} // if
-	} // getValue
-
-	/**
-	 * setValue
-	 *
-	 * @param index
-	 *            Index of value to be returned
-	 * @param value
-	 *            The value to be set in position index
-	 */
-	public void setValue(int index, double value) throws JMException {
-		if ((index >= 0) && (index < size_))
-			array_[index] = value;
-		else {
-			Configuration.logger_
-					.severe(jmetal.encodings.variable.ArrayReal.class
-							+ ".setValue(): index value (" + index
-							+ ") invalid");
-			throw new JMException(jmetal.encodings.variable.ArrayReal.class
-					+ ": index value (" + index + ") invalid");
-		} // else
-	} // setValue
-
-	/**
-	 * Get the lower bound of a value
-	 *
-	 * @param index
-	 *            The index of the value
+	 * @param index The index of the value
 	 * @return the lower bound
 	 */
+	@Override
 	public double getLowerBound(int index) throws JMException {
-		if ((index >= 0) && (index < size_))
-			return problem_.getLowerLimit(id, index);
-		else {
-			Configuration.logger_
-					.severe(jmetal.encodings.variable.ArrayReal.class
-							+ ".getLowerBound(): index value (" + index
-							+ ") invalid");
-			throw new JMException(jmetal.encodings.variable.ArrayReal.class
-					+ ".getLowerBound: index value (" + index + ") invalid");
-		} // else
-	} // getLowerBound
+		int size = getLength();
+		if ((index >= 0) && (index < size)) {
+			return this.standardProblem.getLowerBound(this.id, index);
+		} else {
+			String message = ArrayParameters.class
+					+ ".getLowerBound(): index value (" + index
+					+ ") invalid";
+			Configuration.logger_.severe(message);
+			throw new JMException(message);
+		}
+	}
 
 	/**
-	 * Get the upper bound of a value
+	 * Gets the upper bound of a value.
 	 *
-	 * @param index
-	 *            The index of the value
+	 * @param index the index of the value.
 	 * @return the upper bound
 	 */
+	@Override
 	public double getUpperBound(int index) throws JMException {
-		if ((index >= 0) && (index < size_))
-			return problem_.getUpperLimit(id, index);
-		else {
-			Configuration.logger_
-					.severe(jmetal.encodings.variable.ArrayReal.class
-							+ ".getUpperBound(): index value (" + index
-							+ ") invalid");
-			throw new JMException(jmetal.encodings.variable.ArrayReal.class
-					+ ".getUpperBound: index value (" + index + ") invalid");
-		} // else
-	} // getLowerBound
+		int size = getLength();
+		if (index >= 0 && index < size) {
+			return this.standardProblem.getUpperBound(this.id, index);
+		} else {
+			String message = ArrayParameters.class
+					+ ".getUpperBound(): index value (" + index
+					+ ") invalid";
+			Configuration.logger_.severe(message);
+			throw new JMException(message);
+		}
+	}
 
-	/**
-	 * Returns a string representing the object
-	 *
-	 * @return The string
-	 */
+	@Override
 	public String toString() {
-		String string;
-
-		string = "";
-		for (int i = 0; i < (size_ - 1); i++)
-			string += array_[i] + " ";
-
-		string += array_[size_ - 1];
-		return string;
-	} // toString
-
-	public int getId() {
-		return id;
+		StringBuilder result = new StringBuilder();
+		int size = getLength();
+		for (int i = 0; i < size - 1; i++) {
+			result.append(this.array_[i].toString());
+			result.append(' ');
+		}
+		result.append(this.array_[size - 1].toString());
+		return result.toString();
 	}
-
-	public void setId(int id) {
-		this.id = id;
-	}
-} // ArrayReal
+}

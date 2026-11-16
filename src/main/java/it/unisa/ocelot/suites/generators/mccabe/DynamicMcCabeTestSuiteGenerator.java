@@ -1,9 +1,5 @@
 package it.unisa.ocelot.suites.generators.mccabe;
 
-import java.io.File;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map.Entry;
@@ -11,23 +7,23 @@ import java.util.Set;
 
 import it.unisa.ocelot.TestCase;
 import it.unisa.ocelot.c.cfg.CFG;
-import it.unisa.ocelot.c.cfg.DynamicMcCabeCalculator;
+import it.unisa.ocelot.c.cfg.LIPSCalculator;
 import it.unisa.ocelot.c.cfg.edges.LabeledEdge;
 import it.unisa.ocelot.c.cfg.nodes.CFGNode;
 import it.unisa.ocelot.conf.ConfigManager;
-import it.unisa.ocelot.genetic.VariableTranslator;
-import it.unisa.ocelot.genetic.edges.CalculateFitnessFromEvalPC2;
 import it.unisa.ocelot.genetic.edges.CalculateFitnessFromEvalPC4;
-import it.unisa.ocelot.genetic.edges.DMCExperiment;
+import it.unisa.ocelot.genetic.edges.DynamicMcCabeExperiment;
 import it.unisa.ocelot.genetic.edges.FitType;
-import it.unisa.ocelot.genetic.edges.ReadEFLfilesforPairCombination;
-import it.unisa.ocelot.genetic.edges.ReadEFLfilesforPairCombination_V2;
+import it.unisa.ocelot.genetic.edges.ReadEFLFilesForPairCombination;
+import it.unisa.ocelot.genetic.edges.ReadEFLFilesForPairCombinationV2;
 import it.unisa.ocelot.genetic.edges.TestObjStateMachine;
 import it.unisa.ocelot.runnable.Run;
+import it.unisa.ocelot.simulator.CoverageCalculatorBranches;
 import it.unisa.ocelot.suites.TestSuiteGenerationException;
-import it.unisa.ocelot.suites.generators.CascadeableGenerator;
-import it.unisa.ocelot.suites.generators.TestSuiteGenerator;
+import it.unisa.ocelot.suites.generators.CascadeableTestSuiteGenerator;
 import it.unisa.ocelot.util.Utils;
+import it.unisa.ocelot.suites.generators.AbstractTestSuiteGeneratorCFG;
+
 import jmetal.core.Solution;
 import jmetal.core.SolutionSet;
 import jmetal.util.JMException;
@@ -40,301 +36,132 @@ import jmetal.util.JMException;
  * @author simone
  *
  */
-public class DynamicMcCabeTestSuiteGenerator extends TestSuiteGenerator implements CascadeableGenerator {
-	private boolean satisfied;
-
-	private int evaluations;
-
-	public DynamicMcCabeTestSuiteGenerator(ConfigManager pConfigManager, CFG pCFG) {
-		super(pCFG, null);
-		this.config = pConfigManager;
+//TODO this DOES NOT WORK!!!!! Needs to be fixed, and compared against McCabeTestSuiteGenerator
+//TODO notice that the budget *per iteration* is bounded, but the *total* budget is unlimited.
+public final class DynamicMcCabeTestSuiteGenerator extends AbstractTestSuiteGeneratorCFG<LabeledEdge> implements CascadeableTestSuiteGenerator {
+	public DynamicMcCabeTestSuiteGenerator(ConfigManager pConfigManager, CFG pCfg) {
+		super(pConfigManager, new CoverageCalculatorBranches(pCfg), pCfg); //TODO is it *really* branch coverage our metrics? Well, it is the same metrics as for all the McCabe generators.
 	}
 
 	@Override
-	public Set<TestCase> generateTestSuite(Set<TestCase> pSuite) throws TestSuiteGenerationException {
-		Set<TestCase> suite = new HashSet<TestCase>(pSuite);
-
-		this.startBenchmarks();
-
+	protected Set<TestCase> doGenerateTestSuite(Set<TestCase> pSuite) throws TestSuiteGenerationException {		
+		HashSet<TestCase> suite = new HashSet<>(pSuite);
 		coverMcCabePaths(suite);
-
-		calculator.calculateCoverage(suite);
-		if (calculator.getObjectiveCoverage() >= this.config.getRequiredCoverage()) {
-			this.satisfied = true;
-		}
 
 		return suite;
 	}
 
-	public boolean isSatisfied() {
-		return satisfied;
-	}
-
 	private void coverMcCabePaths(Set<TestCase> suite) throws TestSuiteGenerationException {
-		DynamicMcCabeCalculator mcCabeCalculator = new DynamicMcCabeCalculator(cfg);
-
-		LabeledEdge currentTarget = cfg.getStart().navigate(cfg).goFlow().edge();
-
-		//System.out.println("Number of experiments: " + config.getMaxEvaluations() / (config.getPopulationSize() * 10));
-		//this.setupBudgetManager(config.getMaxEvaluations() / (config.getPopulationSize() * 10));
-		this.setupBudgetManager(1);
+		//TODO this method is especially critical, because the targets of genetic search (paths) are *not* the members of the coverage domain (branches)!
 		
-		// this.setupBudgetManager(mcCabeCalculator.extimateMissingTargets());
+		// Makes the targets calculator
+		LIPSCalculator mcCabeCalculator = new LIPSCalculator(this.cfg, this.coverageCalculator.getCovered());
+		
+		// Sets the initial budget
+		setupBudgetManager(1);
+		if (insufficientBudget()) {
+			println("Insufficient budget, please adjust configuration");
+			return;
+		}
 
-		SolutionSet seedPopulation = null;
+		// Gets the initial seed
+		SolutionSet seedPopulation = null; //TODO should we set it in some way?
+		
+		LabeledEdge target = this.cfg.getEntry().navigate(this.cfg).goFlow().edge();
+		boolean shallContinue = Run.isExpWithEvalFun ? true : this.coverageCalculator.getCoverage() < this.configManager.getRequiredCoverage();
+		while (target != null && shallContinue) {
+			// Prints current target
+			printSeparator();
+			print("Current target: ");
+			print(target); 
+			print(" (departing from node ");
+			CFGNode departingNode = this.cfg.getEdgeSource(target);
+			print(departingNode);
+			print(")");
 
-		// while (currentTarget != null && calculator.getBranchCoverage() <
-		// config.getRequiredCoverage()) {
+			// Makes the experiment
+			DynamicMcCabeExperiment exp = new DynamicMcCabeExperiment(this.configManager, this.budgetManager, seedPopulation, this.configManager.getDMCSeedSize(), this.cfg, target);
+			exp.initExperiment();
 
-		// here we read a file, list of all epc file names. or combination of list
+			// Inits serendipity
+			if (this.configManager.isSerendipitous()) {
+				exp.setSerendipitousPotentials(mcCabeCalculator.getCurrentlyMissingTargets());
+			}
 
-		boolean finish = false;
-		int i = 0;
-		String tempString = "";
-		if (Run.isExpWithEvalFun) {
-			while (currentTarget != null && !finish)// !finish calculator.getBranchCoverage() <
-													// config.getRequiredCoverage()
-			{
-				DMCExperiment exp = new DMCExperiment(cfg, config, cfg.getParameterTypes(), currentTarget,
-						seedPopulation, this.config.getDMCSeedSize());
+			// Runs the experiment
+			Solution solution = null;
+			try {
+				print("Running... ");
+				solution = exp.basicRun();
+				println("Done!");
+			} catch (JMException | ClassNotFoundException e) {
+				throw new TestSuiteGenerationException(e.getMessage());
+			}
 
-				exp.initExperiment(this.budgetManager);
+			// Possibly adds a new test case to the suite
+			addTestCaseSingleObjective(exp, solution, suite);
 
-				exp.setSerendipitousPotentials(new HashSet<>(this.getUncoveredEdges(suite)));
+			// Adds new serendipitous test cases to the suite
+			addSerendipitousTestCases(exp, suite);
 
-				CFGNode departingNode = cfg.getEdgeSource(currentTarget);
-				this.printSeparator();
-				this.println("Current target: branch " + currentTarget.toString() + " of node " + departingNode);
-				try {
-					this.print("Running... ");
-					exp.basicRun(); // population and Ftype should come
-					this.evaluations += exp.getNumberOfEvaluation();
+			// Gives feedback on coverage
+			print("Current coverage: ");
+			println(this.coverageCalculator.getCoverage());
 
-					if (this.config.isDMCSeed())
-						seedPopulation = exp.getLastPopulation();
-					this.println("Done!");
-				} catch (JMException | ClassNotFoundException e) {
-					e.printStackTrace();
-					throw new TestSuiteGenerationException(e.getMessage());
-				}
+			// Updates the total number of evaluations
+			this.evaluations += exp.getStats().getEvaluations();
 
-				this.addSerendipitousTestCases(exp, suite);
+			// Updates seed
+			if (this.configManager.isDMCSeed()) {
+				seedPopulation = exp.getLastPopulation();
+			}
 
-				double fitnessValue = exp.getFitnessValue();
-				VariableTranslator translator = new VariableTranslator(exp.getSolution());
-				tempString += i + ":" + translator + "\n";
-				if (config.getSerendipitousCoverage())
-					for (Solution solution : exp.getSerendipitousSolutions()) {
-						VariableTranslator currentTranslator = new VariableTranslator(solution);
-						Object[][][] serendipitousParameters = currentTranslator
-								.translateArray(cfg.getParameterTypes());
-						calculator.calculateCoverage(serendipitousParameters);
-						//mcCabeCalculator.addPath(calculator.getCoveredPath());
-					}
+			// Replenishes the budget manager for the next iteration
+			setupBudgetManager(1);
 
-				Object[][][] numericParams = translator.translateArray(cfg.getParameterTypes());
+			// Gets next target
+			target = mcCabeCalculator.getNextTarget();
 
-				TestCase testCase = this.createTestCase(numericParams, suite.size());
-
-				this.println("Fitness function: " + fitnessValue + ". ");
-				if (fitnessValue == 0.0) {
-					this.println("Target covered!");
-					calculator.calculateCoverage(numericParams);
-					//mcCabeCalculator.addPath(calculator.getCoveredPath());
-					suite.add(testCase);
-					this.measureBenchmarks("McCabe target", suite, exp.getNumberOfEvaluation());
-
-					for (Entry<String, FitType> entry : ReadEFLfilesforPairCombination.files_PC_PairCom_FitnessVals
-							.entrySet()) {
-						// String key = entry.getKey();
-						// boolean isCovered= entry.getValue().isTestCovered() &&
-						// entry.getValue().isFirst();
-						String params = CalculateFitnessFromEvalPC4.GetArguInString(numericParams);
-						boolean foundTCParams = false;
-						if (entry.getValue().getArgumentList().contains(params)) {
-							foundTCParams = true;
-						}
-						if (!entry.getValue().isTestGenerated() && foundTCParams) {
+			// Calculates whether it shall continue or finish looping
+			if (Run.isExpWithEvalFun) {
+				String argumentsString = CalculateFitnessFromEvalPC4.argumentsToString(Utils.getArguments(solution, this.cfg.getParameterTypes()));
+				
+				//TODO what is the purpose of the next block of code??? Seems useless...
+				if (solution.getObjective(0) == 0.0) {
+					for (Entry<String, FitType> entry : ReadEFLFilesForPairCombination.filesPCPairComFitnessVals.entrySet()) {
+						boolean foundArguments = entry.getValue().getArgumentList().contains(argumentsString);
+						if (!entry.getValue().isTestGenerated() && foundArguments) {
 							entry.getValue().setTestCovered(false);
 							entry.getValue().setTestGenerated(true);
 							entry.getValue().setFirst(false);
 						}
 					}
-
-					/*
-					 * for(Entry<String, FType> fitnessGenVal :
-					 * CalculateFitnessFromEvalPC.filesWithFitnessVals.entrySet()){ String key =
-					 * fitnessGenVal.getKey(); boolean isCovered=
-					 * fitnessGenVal.getValue().isTestCovered() &&
-					 * fitnessGenVal.getValue().isFirst();
-					 * if(!fitnessGenVal.getValue().isTestGenerated()) {
-					 * CalculateFitnessFromEvalPC.filesWithFitnessVals.put(key, new
-					 * FType(Double.MAX_VALUE, false, isCovered,false)); }
-					 * 
-					 * 
-					 * }
-					 */
-
-				} else {
-					this.println("Target not covered...");
-					this.println("Useless test case. Discarded.");
 				}
-
-				this.println("Parameters found: " + Utils.printParameters(numericParams));
-
-				/*
-				 * currentTarget = mcCabeCalculator.getNextTarget(); if (currentTarget != null
-				 * && !getUncoveredEdges(suite).contains(currentTarget)) {
-				 * System.out.println(this.cfg.getEdgeSource(currentTarget));
-				 * System.out.println("ERRORE"); }
-				 */
-				calculator.calculateCoverage(suite);
-
-				this.println("Partial coverage: " + calculator.getObjectiveCoverage());
-				this.budgetManager.updateTargets(mcCabeCalculator.extimateMissingTargets());
 				
-				for (List<TestObjStateMachine> smList : ReadEFLfilesforPairCombination_V2.ListOfSMs) {
+				shallContinue = false;
+				for (List<TestObjStateMachine> smList : ReadEFLFilesForPairCombinationV2.listOfSMs) { //TODO why this is V2 and the previous one has no version indication?
 					for (TestObjStateMachine sm : smList) {
-						String params=CalculateFitnessFromEvalPC4.GetArguInString(numericParams);
-						boolean foundTCParams=false;
-						if(sm.getArgumentList().contains(params)) {
-							foundTCParams=true;
+						boolean foundArguments = sm.getArgumentList().contains(argumentsString);
+						if (foundArguments) {
+							sm.setGenerated();
 						}
-						if(!sm.isGenerated() && foundTCParams) {
-							sm.setGenerated(true);
-						}
+						shallContinue = shallContinue || !sm.isGenerated();
 					}
 				}
-					
-				/*for(Entry<String, FType> fitnessGenVal : CalculateFitnessFromEvalPC.filesWithFitnessVals.entrySet()){
-					String key = fitnessGenVal.getKey();
-					boolean isCovered= fitnessGenVal.getValue().isTestCovered() && fitnessGenVal.getValue().isFirst();
-					if(!fitnessGenVal.getValue().isTestGenerated()) {
-						CalculateFitnessFromEvalPC.filesWithFitnessVals.put(key, new FType(Double.MAX_VALUE, false, isCovered,false));
-					}
-					
-					
-				}*/
-				finish = true;
-				for (List<TestObjStateMachine> smList : ReadEFLfilesforPairCombination_V2.ListOfSMs) {
-					for (TestObjStateMachine sm : smList) {
-						finish=finish && sm.isGenerated();
-					}
-				}
-				/*
-				 * for(FType fitnessCovered :
-				 * CalculateFitnessFromEvalPC.filesWithFitnessVals.values()){ finish=finish &&
-				 * fitnessCovered.isTestGenerated(); }
-				 */
-				// int maxEvaluations = this.getMaxEvaluations; ((Integer)
-				// getInputParameter("maxEvaluations")).intValue();
-				if (finish) {
-					// hope we reach all targets from the start!
-					currentTarget = mcCabeCalculator.getNextTarget();
-					if (currentTarget != null && !getUncoveredEdges(suite).contains(currentTarget)) {
-						System.out.println(this.cfg.getEdgeSource(currentTarget));
-						System.out.println("ERRORE");
-					}
-					System.out.println("reached finish for next target");
-				}
-				i++;
-				/*
-				System.out.println(
-						"Number of experiments: " + (((config.getMaxEvaluations() - budgetManager.getConsumedBudget())
-								/ (config.getPopulationSize() * 10)) + 1));
-				this.budgetManager.updateTargets(((config.getMaxEvaluations() - budgetManager.getConsumedBudget())
-						/ (config.getPopulationSize() * 10)) + 1);
-				*/
-				System.out.println(
-						"Number of experiments: 1");
-				this.budgetManager.updateTargets(1);
-
-				int no = budgetManager.getConsumedBudget();
-				int nos = budgetManager.getExperimentBudget(exp);
-				System.out.println("ALLOCATED:" + nos + " --------- CONSUMED:" + no);
-				// this.setupBudgetManager(--nosExperiments);//200
-				// System.out.println(nosExperiments+"of nosExperiments
-				// CONSUMED");//---------OUT OF:"+nos);//nosExperiments=nosExperiments-10;
-				System.out.println("Remaining budget: " + budgetManager.getBudget());
-				if (budgetManager.getBudget() <= 0) {
-					System.out.println("Budget finshed.");
-					finish = true;// to stop the execution if not able to find the fitness.
-				}
-			}
-		} else {
-			while (currentTarget != null && calculator.getObjectiveCoverage() < config.getRequiredCoverage()) {
-				DMCExperiment exp = new DMCExperiment(cfg, config, cfg.getParameterTypes(), currentTarget,
-						seedPopulation, this.config.getDMCSeedSize());
-
-				exp.initExperiment(this.budgetManager);
-
-				exp.setSerendipitousPotentials(new HashSet<>(this.getUncoveredEdges(suite)));
-
-				CFGNode departingNode = cfg.getEdgeSource(currentTarget);
-				this.printSeparator();
-				this.println("Current target: branch " + currentTarget.toString() + " of node " + departingNode);
-				try {
-					this.print("Running... ");
-					exp.basicRun();
-					this.evaluations += exp.getNumberOfEvaluation();
-
-					if (this.config.isDMCSeed())
-						seedPopulation = exp.getLastPopulation();
-					this.println("Done!");
-				} catch (JMException | ClassNotFoundException e) {
-					e.printStackTrace();
-					throw new TestSuiteGenerationException(e.getMessage());
-				}
-
-				this.addSerendipitousTestCases(exp, suite);
-
-				double fitnessValue = exp.getFitnessValue();
-				VariableTranslator translator = new VariableTranslator(exp.getSolution());
-
-				if (config.getSerendipitousCoverage())
-					for (Solution solution : exp.getSerendipitousSolutions()) {
-						VariableTranslator currentTranslator = new VariableTranslator(solution);
-						Object[][][] serendipitousParameters = currentTranslator
-								.translateArray(cfg.getParameterTypes());
-						calculator.calculateCoverage(serendipitousParameters);
-						//mcCabeCalculator.addPath(calculator.getCoveredPath());
-					}
-
-				Object[][][] numericParams = translator.translateArray(cfg.getParameterTypes());
-
-				TestCase testCase = this.createTestCase(numericParams, suite.size());
-
-				this.println("Fitness function: " + fitnessValue + ". ");
-				if (fitnessValue == 0.0) {
-					this.println("Target covered!");
-					calculator.calculateCoverage(numericParams);
-					//mcCabeCalculator.addPath(calculator.getCoveredPath());
-					suite.add(testCase);
-					this.measureBenchmarks("McCabe target", suite, exp.getNumberOfEvaluation());
-				} else {
-					this.println("Target not covered...");
-					this.println("Useless test case. Discarded.");
-				}
-
-				this.println("Parameters found: " + Utils.printParameters(numericParams));
-
-				currentTarget = mcCabeCalculator.getNextTarget();
-				if (currentTarget != null && !getUncoveredEdges(suite).contains(currentTarget)) {
-					System.out.println(this.cfg.getEdgeSource(currentTarget));
-					System.out.println("ERRORE");
-				}
-
-				calculator.calculateCoverage(suite);
-				this.println("Partial coverage: " + calculator.getObjectiveCoverage());
-				this.budgetManager.updateTargets(mcCabeCalculator.extimateMissingTargets());
+			} else {
+				shallContinue = this.coverageCalculator.getCoverage() < this.configManager.getRequiredCoverage();
 			}
 		}
-
-		// System.out.println(tempString);
-	}
-
-	@Override
-	public int getNumberOfEvaluations() {
-		return this.evaluations;
+		
+		// Does a final check
+		if (Run.isExpWithEvalFun && shallContinue) {
+			// at the end of the while loop we hope to have reached 
+			// all targets (edges) from the start!
+			target = mcCabeCalculator.getNextTarget();
+			if (target != null && this.coverageCalculator.getUncovered().contains(target)) {
+				print("ERROR! McCabe path calculator emitted a target edge after the end that is not yet covered; edge: ");
+				println(target.toString());
+			}
+		}
 	}
 }

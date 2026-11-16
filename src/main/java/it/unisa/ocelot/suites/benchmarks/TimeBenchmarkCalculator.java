@@ -2,79 +2,52 @@ package it.unisa.ocelot.suites.benchmarks;
 
 import it.unisa.ocelot.TestCase;
 
-import java.util.ArrayList;
-import java.util.Date;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-public class TimeBenchmarkCalculator extends BenchmarkCalculator<Integer> {
-	private List<Long> times;
-	
+public final class TimeBenchmarkCalculator extends BenchmarkCalculator<Long> {
+	//N.B. times are stored in milliseconds, but are emitted in seconds!
 	public TimeBenchmarkCalculator() {
 		super("Time benchmark");
+	}
+	
+	//NB: pSuite and pEvaluations are not used
+	@Override
+	public void measure(String pLabel, Set<TestCase> pSuite, int pEvaluations) {
+		add(pLabel, System.currentTimeMillis());
+	}
+	
+	@Override
+	public Map<String, Long> getResults() {
+		HashMap<String, Long> result = new HashMap<>();
 		
-		this.times = new ArrayList<Long>();
-		this.labels = new ArrayList<String>();
-	}
-	
-	@Override
-	public void start() {
-		this.measure("Start", null, null);
-	}
-	
-	@Override
-	public void measure(String pLabel, Set<TestCase> pSuite, Integer evaluations) {
-		this.labels.add(this.getRealLabel(pLabel));
-		this.times.add(new Date().getTime());
-	}
-	
-	@Override
-	public void removeLast() {
-		this.labels.remove(this.labels.size()-1);
-		this.times.remove(this.times.size()-1);
-	}
-	
-	@Override
-	public String toString() {
-		return this.getSignature()+"\n"+this.getPrintableResults();
-	}
-	
-	@Override
-	public Map<String, Integer> getResults() {
-		Map<String, Integer> result = new HashMap<String, Integer>();
-		
-		result.put(this.labels.get(0), 0);
-		for (int i = 0; i < this.times.size()-1; i++) {
-			long difference = this.times.get(i+1) - this.times.get(i);
-			
-			long seconds = (difference/1000) % 60;
-			
-			result.put(this.labels.get(i+1), (int)seconds);
+		//values is cumulative
+		result.put(this.labels.get(0), 0l);
+		long previous = this.values.get(0);
+		for (int i = 1; i < this.values.size(); i++) {
+			long current = this.values.get(i);
+			long differenceMilliseconds = current - previous;
+			long differenceSeconds = differenceMilliseconds / 1000;
+			result.put(this.labels.get(i), differenceSeconds);
+			previous = current;
 		}
 		
 		return result;
 	}
 
 	@Override
-	public Map<String, Integer> getCumulativeResults() {
-		Map<String, Integer> result = new HashMap<String, Integer>();
+	public Map<String, Long> getCumulativeResults() {
+		HashMap<String, Long> result = new HashMap<>();
 		
-		long first = this.times.get(0);
-		for (int i = 0; i < this.times.size(); i++) {
-			long difference = this.times.get(i) - first;
-			
-			long seconds = (difference/1000);
-			
-			result.put(this.labels.get(i), (int)seconds);
+		//values is cumulative
+		long first = this.values.get(0);
+		for (int i = 0; i < this.values.size(); i++) {
+			long differenceMilliseconds = this.values.get(i) - first;
+			long differenceSeconds = differenceMilliseconds / 1000;
+			result.put(this.labels.get(i), differenceSeconds);
 		}
 		
 		return result;
-	}
-	
-	@Override
-	public List<String> getLabels() {
-		return this.labels;
 	}
 }

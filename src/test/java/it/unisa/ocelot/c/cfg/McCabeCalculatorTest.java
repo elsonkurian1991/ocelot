@@ -23,7 +23,7 @@ public class McCabeCalculatorTest {
         McCabeCalculator calculator = new McCabeCalculator(cfg);
         calculator.calculateMcCabePaths();
 
-        ArrayList<ArrayList<LabeledEdge>> mcCabeEdgePaths = calculator.getMcCabeEdgePaths();
+        ArrayList<ArrayList<LabeledEdge>> mcCabeEdgePaths = calculator.getMcCabePaths();
         List<String> stringed = new ArrayList<>();
 
         assertEquals(3, mcCabeEdgePaths.size());

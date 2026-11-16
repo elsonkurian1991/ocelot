@@ -1,43 +1,42 @@
 package it.unisa.ocelot.genetic.objectives;
 
 import java.util.HashMap;
+
 import jmetal.core.Solution;
 
-public class BranchObjective extends GenericObjective{
-	public String testObj;
-	public Solution DiscovererTestCase;
+public final class BranchObjective extends GenericObjective {
+	public final String branchId;
 	
-	public BranchObjective(boolean isCovered, int objectiveID, String testObj) {
-		super(isCovered, objectiveID);
-		this.testObj = testObj;
+	public BranchObjective(int objectiveId, String branchId) {
+		super(objectiveId);
+		this.branchId = branchId;
 	}
 	
-	@Override
-	public double getFitness(Object[][][] arguments) {
-		return calculateFitness(arguments);
+	public String getBranchId() {
+		return this.branchId;
 	}
-
-	private double calculateFitness(Object[][][] arguments) {
-		double fitness = 0.0;
-		HashMap<String, Double> branchDistances = BranchDistanceCache.getBranchDistances();
-
 		
-		if (branchDistances.containsKey(testObj))
-			fitness =  branchDistances.get(testObj);
-		else
-			fitness =  1;
-
-		if (fitness == Double.POSITIVE_INFINITY) {
-			fitness = Double.MAX_VALUE;
+	@Override
+	protected double calculateValue(Solution pSolution) {
+		// Here we assume that the last C run's output, read by 
+		// BranchDistancesReader, was that of pSolution
+		//TODO check it, or rerun pSolution
+		HashMap<String, Double> branchDistances = BranchDistancesReader.get();
+		
+		// The value of the objective, in this case, is just branch distance
+		double value;
+		if (branchDistances.containsKey(this.branchId)) {
+			value = branchDistances.get(this.branchId);
+		} else {
+			value = 1;
 		}
-		return fitness;
+
+		return value;
 	}
 
 	@Override
 	public String toString() {
-		return "BranchObjective [objective="+ testObj + ", isCovered()=" + isCovered() + ", getObjectiveID()=" + getObjectiveID()
-				+ ", hashCode()=" + hashCode() + ", toString()=" + super.toString() + ", getClass()=" + getClass()
+		return "BranchObjective [id=" + getId() + ", isCovered=" + isCovered()+ ", isActive=" + isActive() + ", hasCompanion=" + hasCompanion() + ", branchId=" + this.branchId
 				+ "]";
 	}
-
 }

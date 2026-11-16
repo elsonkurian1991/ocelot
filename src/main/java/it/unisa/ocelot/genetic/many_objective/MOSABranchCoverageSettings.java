@@ -6,7 +6,9 @@ import it.unisa.ocelot.genetic.algorithms.MOSA;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import jmetal.core.Algorithm;
 import jmetal.core.Operator;
@@ -26,130 +28,131 @@ import jmetal.util.MOSADominanceComparator;
  * @author giograno
  *
  */
-public class MOSABranchCoverageSettings extends Settings {
+//obsoleted by MOSASettings
+@Deprecated
+public final class MOSABranchCoverageSettings extends Settings {
+	private Set<LabeledEdge> targets; //necessary for creating the genetic operators
+	private List<Double> numericConstants; //necessary for creating the genetic operators
+	private double crossoverProbability;
+	private double mutationProbability;
 	private int populationSize;
 	private int maxEvaluations;
-	private double mutationProbability;
-	private double crossoverProbability;
-
-	private List<LabeledEdge> target;
-
-	private List<Double> numericConstants;
-
-	/**
-	 * Constructor with default parameters
-	 * 
-	 * @param problem
-	 *            MOSABranchCoverageProblem to configure
-	 */
-	public MOSABranchCoverageSettings(MOSABranchCoverageProblem problem) {
-		super();
-		this.problem_ = problem;
-		this.target = new ArrayList<>(problem.getTargetBranches());
-
-		populationSize = 100;
-		maxEvaluations = 25000;
-		mutationProbability = 1.0 / problem_.getNumberOfVariables();
-		crossoverProbability = 0.9;
-//		threads = 1;
-	}
+	private int maxGenerations;
+	private double maxCoverage;
+	private int maxTime;
+	
 
 	/**
 	 * Constructor with specified parameters
 	 * 
-	 * @param problem
-	 *            MOSABranchCoverageProblem to configure
-	 * @param config
-	 *            configuration taken by config.properties
+	 * @param pProblem MOSABranchCoverageProblem to configure
+	 * @param pConstantsNumeric
+	 * @param pConfigManager configuration taken by config file
 	 */
-	public MOSABranchCoverageSettings(MOSABranchCoverageProblem problem,
-			ConfigManager config) {
-		this(problem);
+	public MOSABranchCoverageSettings(MOSABranchCoverageProblem pProblem, List<Double> pConstantsNumeric, ConfigManager pConfigManager) {
+		this.problem_ = pProblem;
+		
+		this.targets = new HashSet<>(pProblem.getTargets()); //safety copy
+		
+		this.numericConstants = new ArrayList<>(pConstantsNumeric); //safety copy
 
 		try {
-			populationSize = config.getPopulationSize();
+			this.crossoverProbability = pConfigManager.getCrossoverProbability();
 		} catch (NumberFormatException e) {
+			//fall back on default from ConfigManager
+			this.crossoverProbability = 0.9;
 		}
-
+			
+		double mutationProbabilityDefault = 1.0 / pProblem.getNumberOfVariables();
 		try {
-			maxEvaluations = config.getMaxEvaluations();
+			this.mutationProbability = pConfigManager.getMutationProbability();
+			if (this.mutationProbability < 0) {
+				//fall back on default (not calculated by config manager!)
+				this.mutationProbability = mutationProbabilityDefault;
+			}
 		} catch (NumberFormatException e) {
+			//fall back on default (not calculated by config manager!)
+			this.mutationProbability = mutationProbabilityDefault;
 		}
-
+		
 		try {
-			crossoverProbability = config.getCrossoverProbability();
+			this.populationSize = pConfigManager.getPopulationSize();
 		} catch (NumberFormatException e) {
+			//fall back on default from ConfigManager
+			this.populationSize = 100;
 		}
-
+		
 		try {
-			mutationProbability = config.getMutationProbability();
+			this.maxEvaluations = pConfigManager.getEvaluationsMax();
 		} catch (NumberFormatException e) {
+			//fall back on default from ConfigManager
+			this.maxEvaluations = 0;
 		}
+		
+		try {
+			this.maxGenerations = pConfigManager.getAlgorithmGenerations();
+		} catch (NumberFormatException e) {
+			//fall back on default from ConfigManager
+			this.maxGenerations = 0;
+		}
+		
+		try {
+			this.maxCoverage = pConfigManager.getRequiredCoverage();
+		} catch (NumberFormatException e) {
+			//fall back on default from ConfigManager
+			this.maxCoverage = 1.0;
+		}
+		
+		try {
+			this.maxTime = pConfigManager.getAlgorithmTime();
+		} catch (NumberFormatException e) {
+			//fall back on default from ConfigManager
+			this.maxTime = 0;
+		}
+		
+		//TODO this.threads = 1;
 	}
 
 	@Override
 	public Algorithm configure() throws JMException {
-		Algorithm algorithm;
-		Operator selection;
-		Operator crossover;
-		Operator mutation;
-
-		HashMap<String, Object> parameters;
-
-		// Creating the problem
-		algorithm = new MOSA((MOSABranchCoverageProblem) problem_, target);
-
-		algorithm.setInputParameter("populationSize", populationSize);
-		algorithm.setInputParameter("maxEvaluations", maxEvaluations);
-
-		// Mutation and Crossover Permutation codification
-		parameters = new HashMap<String, Object>();
-		parameters.put("probability", crossoverProbability);
-		crossover = CrossoverFactory.getCrossoverOperator("SBXCrossover",
-				parameters);
-
-		parameters = new HashMap<String, Object>();
-		parameters.put("probability", mutationProbability);
-		parameters.put("realOperator", MutationFactory.getMutationOperator(
-				"PolynomialMutation", parameters));
-		parameters.put("metaMutationProbability", mutationProbability / 4);
-		List<Double> mutationElements = this.numericConstants;
-		parameters.put("mutationElements", mutationElements);
-		mutation = new ConstantMetaMutation(parameters);
-
-		// Selection Operator
-//		parameters = null;
+		// Create the algorithm
+		Algorithm algorithm = new MOSA((MOSABranchCoverageProblem) this.problem_);
 		
-		/* code for custom selection */
-		parameters = new HashMap<String, Object>();
-		parameters.put("comparator", new MOSADominanceComparator(target));
-		selection = SelectionFactory.getSelectionOperator("BinaryTournament2",
-				parameters);
+		// Parameters for operators creation
+		HashMap<String, Object> parameters;
+		
+		// Selection Operator
+		parameters = new HashMap<>();
+		Set<LabeledEdge> targetsSafetyCopy = new HashSet<>(this.targets);
+		parameters.put("comparator", new MOSADominanceComparator(targetsSafetyCopy));
+		Operator selection = SelectionFactory.getSelectionOperator("BinaryTournament2", parameters);
+
+		// Crossover operator
+		parameters = new HashMap<>();
+		parameters.put("probability", this.crossoverProbability);
+		Operator crossover = CrossoverFactory.getCrossoverOperator("SBXCrossover", parameters);
+
+		// Mutation operator
+		parameters = new HashMap<>();
+		parameters.put("probability", mutationProbability);
+		parameters.put("realOperator", MutationFactory.getMutationOperator("PolynomialMutation", parameters));
+		parameters.put("metaMutationProbability", this.mutationProbability / 4);
+		List<Double> mutationElements = new ArrayList<>(this.numericConstants); //safety copy
+		parameters.put("mutationElements", mutationElements);
+		Operator mutation = new ConstantMetaMutation(parameters);
 
 		// Add the operators to the algorithm
+		algorithm.addOperator("selection", selection);
 		algorithm.addOperator("crossover", crossover);
 		algorithm.addOperator("mutation", mutation);
-		algorithm.addOperator("selection", selection);
 
+		// Add numeric parameters
+		algorithm.setInputParameter("populationSize", this.populationSize);
+		algorithm.setInputParameter("maxEvaluations", this.maxEvaluations);
+		algorithm.setInputParameter("maxGenerations", this.maxGenerations);
+		algorithm.setInputParameter("maxCoverage", this.maxCoverage);
+		algorithm.setInputParameter("maxTime", this.maxTime);
+		
 		return algorithm;
-	}
-
-	/**
-	 * Get numeric constants literals extracted by target function
-	 * 
-	 * @return a List of Double numeric constants
-	 */
-	public List<Double> getNumericConstants() {
-		return numericConstants;
-	}
-
-	/**
-	 * Set numeric constants literals extracted by target function
-	 * 
-	 * @param numericConstants
-	 *            literals constants
-	 */
-	public void setNumericConstants(List<Double> numericConstants) {
-		this.numericConstants = numericConstants;
 	}
 }

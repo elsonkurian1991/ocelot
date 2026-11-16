@@ -78,7 +78,7 @@ public class EdgeDominatorsTest {
 
     @Test
     public void dominates() throws Exception {
-        EdgeDominators<CFGNode, LabeledEdge> dominators = new EdgeDominators<>(cfg, cfg.getStart(), cfg.getEnd());
+        DominanceCalculatorEdges<CFGNode, LabeledEdge> dominators = new DominanceCalculatorEdges<>(cfg, cfg.getEntry(), cfg.getExit());
 
         assertTrue(dominators.dominates(start_n1, n1_n2));
         assertTrue(dominators.dominates(start_n1, n2_n4));
@@ -97,7 +97,7 @@ public class EdgeDominatorsTest {
 
     @Test
     public void getStrictDominators() throws Exception {
-        EdgeDominators<CFGNode, LabeledEdge> dominators = new EdgeDominators<>(cfg, cfg.getStart(), cfg.getEnd());
+        DominanceCalculatorEdges<CFGNode, LabeledEdge> dominators = new DominanceCalculatorEdges<>(cfg, cfg.getEntry(), cfg.getExit());
 
         Set<LabeledEdge> dominatorsEnd = dominators.getStrictDominators(n5_end);
         Set<LabeledEdge> oracleDominatorsEnd = new HashSet<>(Arrays.asList(start_n1, n5_end));
@@ -110,7 +110,7 @@ public class EdgeDominatorsTest {
 
     @Test
     public void getNonDominators() throws Exception {
-        EdgeDominators<CFGNode, LabeledEdge> dominators = new EdgeDominators<>(cfg, cfg.getStart(), cfg.getEnd());
+        DominanceCalculatorEdges<CFGNode, LabeledEdge> dominators = new DominanceCalculatorEdges<>(cfg, cfg.getEntry(), cfg.getExit());
 
         assertTrue(dominators.getNonDominators().contains(n3_n5));
         assertTrue(dominators.getNonDominators().contains(n4_n5));
@@ -119,7 +119,7 @@ public class EdgeDominatorsTest {
 
     @Test
     public void autoTest() throws Exception {
-        EdgeDominators<CFGNode, LabeledEdge> dominators = new EdgeDominators<>(cfg, cfg.getStart(), cfg.getEnd());
+        DominanceCalculatorEdges<CFGNode, LabeledEdge> dominators = new DominanceCalculatorEdges<>(cfg, cfg.getEntry(), cfg.getExit());
 
         for (LabeledEdge labeledEdge : cfg.edgeSet()) {
             if (dominators.getNonDominators().contains(labeledEdge)) {

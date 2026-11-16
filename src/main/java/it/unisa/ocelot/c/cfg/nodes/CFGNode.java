@@ -19,28 +19,7 @@ import org.eclipse.cdt.core.dom.ast.IASTNode;
  *
  */
 public class CFGNode implements Comparable<CFGNode> {
-	private static int lastId;
-
-	private int id;
-	private List<IASTNode> nodes;
-	private boolean isSwitch;
-
-	/* */
-	private boolean isVisited;
-
-	private String name;
-
-	public boolean isVisited() {
-		return this.isVisited;
-	}
-
-	public void setVisited(boolean value) {
-		this.isVisited = value;
-	}
-
-	static {
-		lastId = -1;
-	}
+	private static int lastId = -1; //TODO should it be atomic?
 
 	private static int getID() {
 		lastId++;
@@ -48,72 +27,56 @@ public class CFGNode implements Comparable<CFGNode> {
 	}
 
 	/**
-	 * Resets the incremental id counter to 0.
+	 * Resets the incremental id counter.
 	 */
+	//TODO why do we want to reset the counter???
 	public static void reset() {
-		lastId = -1; // This is not an error! It starts from -1, it is
-						// incremented the first time, so it will be 0.
+		lastId = -1; // This is not an error! It starts from -1, it is incremented the first time, so it will be 0.
 	}
+	
+	private final int id;
+	private final List<IASTNode> nodes;
+	private final String name;
+	
+	private boolean isSwitch;
 
 	/**
-	 * Creates a node of the Control Flow Graph and assigns it an incremental
-	 * identifier.
+	 * Constructor (node associated to an AST node). 
 	 * 
-	 * @param pNode
-	 *            Node of the syntax tree from which this CFG node is generated
+	 * @param pNode the {@link IASTNode} of the syntax tree from which this 
+	 *        CFG node is generated.
 	 */
 	public CFGNode(IASTNode pNode) {
-		this.nodes = new ArrayList<IASTNode>();
+		this.id = getID();
+		this.nodes = new ArrayList<>();
 		this.nodes.add(pNode);
-		
-		this.name = this.toString();
-
-		this.id = CFGNode.getID();
+		this.name = toString();
+		this.isSwitch = false;
 	}
 
 	/**
-	 * Creates a node of the Control Flow Graph and assigns it an incremental
-	 * identifier.
-	 * 
-	 * @param pNodes
-	 *            List of nodes of the syntax tree from which this CFG node is
-	 *            generated
-	 */
-	public CFGNode(List<IASTNode> pNodes) {
-		this.nodes = pNodes;
-		
-		this.name = this.toString();
-
-		this.id = CFGNode.getID();
-	}
-
-	/**
-	 * Creates an empty node of the Control Flow Graph and assigns an
-	 * incremental identifier to it. It requires a string as a unique
-	 * identifier of the node.
+	 * Constructor (node not associated to any AST node).
 	 */
 	public CFGNode(String pName) {
-		this.nodes = new ArrayList<IASTNode>();
-
-		this.id = CFGNode.getID();
+		this.id = getID();
+		this.nodes = new ArrayList<>();
 		this.name = pName;
+		this.isSwitch = false;
 	}
 
 	/**
-	 * Adds a node of the syntax tree to the CFG node.
+	 * Returns the ID of the node
 	 * 
-	 * @param pNode
-	 *            node of the Abstract Syntax Tree to be added
+	 * @return
 	 */
-	public void addASTNode(IASTNode pNode) {
-		this.nodes.add(pNode);
+	public int getId() {
+		return this.id;
 	}
 
 	/**
 	 * Joins another CFGNode to this one.
 	 * 
-	 * @param pNode
-	 *            CFGNode to be joined
+	 * @param pNode CFGNode to be joined
 	 */
 	public void join(CFGNode pNode) {
 		this.nodes.addAll(pNode.nodes);
@@ -137,70 +100,59 @@ public class CFGNode implements Comparable<CFGNode> {
 		return this.nodes;
 	}
 
-	/**
-	 * Returns the ID of the node
-	 * 
-	 * @return
-	 */
-	public int getId() {
-		return id;
-	}
-
+	//TODO make a factory method for all these cases!!!
+	
 	public boolean isContinue() {
-		if (this.nodes.size() == 1
-				&& this.nodes.get(0) instanceof IASTContinueStatement)
-			return true;
-		return false;
+		return (this.nodes.size() == 1 && getLeadingNode() instanceof IASTContinueStatement);
 	}
 
 	public boolean isBreak() {
-		if (this.nodes.size() == 1
-				&& this.nodes.get(0) instanceof IASTBreakStatement)
-			return true;
-		return false;
+		return (this.nodes.size() == 1 && getLeadingNode() instanceof IASTBreakStatement);
 	}
 
 	public boolean isGoto() {
-		if (this.nodes.size() == 1
-				&& this.nodes.get(0) instanceof IASTGotoStatement)
-			return true;
-		return false;
+		return (this.nodes.size() == 1 && getLeadingNode() instanceof IASTGotoStatement);
 	}
 
 	public boolean isCase() {
-		if (this.nodes.size() > 0
-				&& this.nodes.get(0) instanceof IASTCaseStatement)
-			return true;
-		return false;
+		return (this.nodes.size() > 0 && getLeadingNode() instanceof IASTCaseStatement);
 	}
 
 	public boolean isSwitch() {
-		return isSwitch;
+		return this.isSwitch;
 	}
 
-	public void setSwitch(boolean isSwitch) {
-		this.isSwitch = isSwitch;
+	public void setSwitch() {
+		this.isSwitch = true;
 	}
 
 	@Override
 	public boolean equals(Object obj) {
-		if (!(obj instanceof CFGNode))
+		if (obj == null) {
 			return false;
+		}
+		if (this == obj) {
+			return true;
+		}
+		if (getClass() != obj.getClass()) {
+			return false;
+		}
 
 		CFGNode node = (CFGNode) obj;
-		if (this.nodes.size() > 0)
+		if (this.nodes.size() > 0) {
 			return node.nodes.equals(this.nodes);
-		else
+		} else {
 			return node.name.equals(this.name);
+		}
 	}
 
 	public boolean strongEquals(CFGNode pNode) {
-		return pNode.id == this.id;
+		return this.id == pNode.id;
 	}
 
+	@Deprecated
 	public CFGNodeNavigator navigate(CFG cfg) {
 		CFGNodeNavigator navigator = new CFGNodeNavigator(cfg, this);
-
 		return navigator;
 	}
 
@@ -208,9 +160,11 @@ public class CFGNode implements Comparable<CFGNode> {
 	public String toString() {
 		String result = "" + this.id + ": ";
 		if (this.nodes.size() > 0) {
-			for (IASTNode node : this.nodes)
-				if (node != null)
+			for (IASTNode node : this.nodes) {
+				if (node != null) { //TODO does node == null really happens???
 					result += node.getRawSignature() + "\n";
+				}
+			}
 		} else {
 			result += this.name;
 		}
@@ -220,6 +174,6 @@ public class CFGNode implements Comparable<CFGNode> {
 
 	@Override
 	public int compareTo(CFGNode o) {
-		return new Integer(this.id).compareTo(o.id);
+		return Integer.valueOf(this.id).compareTo(o.id);
 	}
 }

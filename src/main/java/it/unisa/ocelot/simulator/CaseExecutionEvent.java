@@ -1,31 +1,46 @@
 package it.unisa.ocelot.simulator;
 
-import it.unisa.ocelot.c.cfg.edges.LabeledEdge;
-
+/**
+ * An {@link ExecutionEvent} triggered by
+ * the traversal of a branch of a 'switch' 
+ * statement.
+ */
 public class CaseExecutionEvent extends ExecutionEvent {
-	public boolean chosen;
+	private final double distance;
+	private final boolean chosen;
 	
-	public CaseExecutionEvent(int choice, double distanceTrue, boolean chosen) {
-		this(null, choice, distanceTrue, chosen);
+	/**
+	 * Constructor.
+	 * 
+	 * @param pId an {@code int} identifying uniquely  
+	 *        this event.
+	 * @param pDistance the branch distance from
+	 *        the branch associated to this event.        
+	 * @param pChosen {@code true} iff the execution
+	 *        passed through the branch associated to
+	 *        this event. In such case it must be
+	 *        {@code pDistance == 0}.
+	 */
+	public CaseExecutionEvent(int pId, double pDistance, boolean pChosen) {
+		super(pId);
+		this.distance = pDistance;
+		this.chosen = pChosen;
 	}
-	
-	public CaseExecutionEvent(LabeledEdge pEdge, int choice, double distanceTrue, boolean chosen) {
-		super(pEdge, choice, distanceTrue, 0.0D);
 		
-		this.chosen = chosen;
+	public double getDistance() {
+		return this.distance;
 	}
 	
 	public boolean isChosen() {
-		return chosen;
+		return this.chosen;
 	}
 	
 	@Override
 	public String toString() {
-		String res = "{\n" + 
-				"\tBranchID: " + this.choice + "\n" +
-				"\tDistanceTrue: " + this.distanceTrue + "\n" +
-				"\tChosen: " + this.chosen +
-				"\n}";
+		String res = "CaseExecutionEvent [id=" + getId() + 
+				", distance=" + this.distance + 
+				", chosen=" + this.chosen + 
+				"]";
 		return res;
 	}
 }

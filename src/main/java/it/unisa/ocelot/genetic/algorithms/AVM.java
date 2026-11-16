@@ -2,167 +2,145 @@ package it.unisa.ocelot.genetic.algorithms;
 
 import java.util.Comparator;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
-import java.util.Set;
 
-//  pgGA.java
-//
-//  Author:
-//       Antonio J. Nebro <antonio@lcc.uma.es>
-//
-//  Copyright (c) 2013 Antonio J. Nebro
-//
-//  This program is free software: you can redistribute it and/or modify
-//  it under the terms of the GNU Lesser General Public License as published by
-//  the Free Software Foundation, either version 3 of the License, or
-//  (at your option) any later version.
-//
-//  This program is distributed in the hope that it will be useful,
-//  but WITHOUT ANY WARRANTY; without even the implied warranty of
-//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-//  GNU Lesser General Public License for more details.
-// 
-//  You should have received a copy of the GNU Lesser General Public License
-//  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
-import it.unisa.ocelot.c.cfg.edges.LabeledEdge;
 import it.unisa.ocelot.c.types.CType;
-import it.unisa.ocelot.genetic.OcelotAlgorithm;
-import it.unisa.ocelot.genetic.SerendipitousAlgorithm;
-import it.unisa.ocelot.genetic.SerendipitousProblem;
 import it.unisa.ocelot.genetic.StandardProblem;
-import jmetal.core.Problem;
+
 import jmetal.core.Solution;
 import jmetal.core.SolutionSet;
 import jmetal.util.JMException;
 import jmetal.util.comparators.ObjectiveComparator;
 import jmetal.util.wrapper.XParamArray;
 
-
 /**
  * Alternating Variable Method.
  */
-
-public class AVM extends OcelotAlgorithm implements SerendipitousAlgorithm<LabeledEdge>, SeedableAlgorithm {
+public final class AVM extends AbstractGeneticMemeticAlgorithm {
 	private static final long serialVersionUID = 720067051970162535L;
-	
-	private static final double EPSILON = 0.001;
-	private static final double DELTA = 1;
-	
-	private Comparator<Solution> comparator;
-	private int evaluations;
-	private SolutionBundle solutionBundle;
-	private double derivate;
+
+	private static class SolutionBundle {
+		public Solution solution;
+		public double branchDistance;
+		
+		public SolutionBundle() {
+			this(null, 0);
+		}
+
+		public SolutionBundle(Solution pSolution, double pBranchDistance) {
+			this.solution = pSolution;
+			this.branchDistance = pBranchDistance;
+		}
+	}
+
+	private final Map<Integer, Map<Integer, Boolean>> discreteValues;
+	private final Comparator<Solution> comparator;
+	private final SolutionBundle solutionBundle;
 	
 	private double delta;
 	private double epsilon;
-	
-	private Set<Solution> serendipitousSolutions;
-	private Set<LabeledEdge> serendipitousPotentials;
-	
-	private StandardProblem problem;
-	
+	private double derivate;
 	private Solution seededSolution;
-	private SolutionSet lastPopulation;
-	
-	private Map<Integer, Map<Integer, Boolean>> discreteValues;
+	private int evaluations;
 	
 	/**
-	 * Constructor
+	 * Constructor.
 	 * 
-	 * @param problem
-	 *            Problem to solve
-	 * @param evaluator
-	 *            Parallel evaluator
+	 * @param pStandardProblem {@link StandardProblem} to solve.
+	 * @throws JMException
 	 */
-	public AVM(Problem problem) {
-		super(problem);
-		
-		if (problem instanceof StandardProblem)
-			this.problem = (StandardProblem)problem;
-		else
-			throw new RuntimeException("Non standard problem used with AVM algorithm.");
-		
-		this.solutionBundle = new SolutionBundle(null, 0);
-		this.serendipitousSolutions = new HashSet<>();
+	@SuppressWarnings("unchecked")
+	public AVM(StandardProblem pStandardProblem) throws JMException {
+		super(pStandardProblem);
+
+		this.discreteValues = new HashMap<>();
+		initializeDiscreteness(pStandardProblem.getParametersTypes());
+		this.comparator = new ObjectiveComparator(0);
+		this.solutionBundle = new SolutionBundle();
 	}
-	
-	@Override
-	public void seedStartingPopulation(SolutionSet set, int keepNumber) {
-		if (keepNumber != 0 && set != null)
-			this.seededSolution = set.get(0);
-	}
-	
-	@Override
-	public SolutionSet getLastPopulation() {
-		return this.lastPopulation;
+
+	private void initializeDiscreteness(CType[] types) throws JMException {
+		Solution test;
+		try {
+			test = new Solution(this.problem_);
+		} catch (ClassNotFoundException e) {
+			final JMException exc = new JMException("Unexpected ClassNotFoundException while creating random Solution: " + e.getMessage());
+			exc.addSuppressed(e);
+			throw exc;
+		}
+		XParamArray modifier = new XParamArray(test);
+
+		int typeIndex = 0;
+		for (int i = 0; i < modifier.kinds(); i++) {
+			HashMap<Integer, Boolean> kindMap = new HashMap<>();
+
+			for (int j = 0; j < modifier.size(i); j++) {
+				if (i == modifier.kinds() - 1 && i > 0) {
+					// Pointers are always discrete
+					kindMap.put(j, true);
+				} else {
+					kindMap.put(j, types[typeIndex].isDiscrete());					
+					if (i == 0) {
+						typeIndex++;
+					}
+				}
+			}
+
+			if (i != 0) {
+				typeIndex++;
+			}
+
+			this.discreteValues.put(i, kindMap);
+		}
 	}
 
 	/**
 	 * Runs the AVM algorithm.
 	 * 
-	 * @return a <code>SolutionSet</code> that is a set of non dominated
+	 * @return a {@link SolutionSet} that is a set of non dominated
 	 *         solutions as a result of the algorithm execution
-	 * @throws jmetal.util.JMException
+	 * @throws JMException
+	 * @throws ClassNotFoundException 
 	 */
-	@SuppressWarnings("unchecked")
 	public SolutionSet execute() throws JMException, ClassNotFoundException {
-		try {
-			CType[] types = (CType[])getInputParameter("parametersTypes");
-			this.initializeDiscreteness(types);
-		} catch (ClassNotFoundException e) {
+		int maxEvaluations = ((Integer) getInputParameter("maxEvaluations")).intValue();
+		this.delta = ((Double) getInputParameter("delta")).doubleValue();
+		this.epsilon = ((Double) getInputParameter("epsilon")).doubleValue();
+		if (this.seededSolution == null && this.startingPopulation != null && this.startingPopulation.size() > 0) {
+			this.seededSolution = this.startingPopulation.get(0);
+		} else {
+			this.seededSolution = null;
 		}
-		
-		int maxEvaluations;
-		
-		comparator = new ObjectiveComparator(0); // Single objective comparator
 
-		maxEvaluations = ((Integer) getInputParameter("maxEvaluations"))
-				.intValue();
-		
-		if (getInputParameter("delta") != null)
-			delta = ((Double) getInputParameter("delta")).doubleValue();
-		else
-			delta = DELTA;
-		
-		if (getInputParameter("epsilon") != null)
-			epsilon = ((Double) getInputParameter("epsilon")).doubleValue();
-		else
-			epsilon = EPSILON;
-		
-		evaluations = 0;
-		
 		int strength = 0;
-		
+
 		if (this.seededSolution != null) {
-			solutionBundle.solution = new Solution(this.seededSolution);
-			this.prepareSerendipitous();
-			solutionBundle.branchDistance = problem.evaluateWithBranchDistance(solutionBundle.solution);
-			this.checkSerendipitous(solutionBundle.solution);
-			evaluations++;
+			this.solutionBundle.solution = new Solution(this.seededSolution);
+			prepareSerendipitous();
+			this.standardProblem.evaluate(this.solutionBundle.solution);
+			this.solutionBundle.branchDistance = this.standardProblem.getLastBranchDistance();
+			checkSerendipitous(this.solutionBundle.solution);
+			this.evaluations++;
 		}
 
 		boolean targetCovered = false;
-		
-		boolean dontRestart = (solutionBundle.solution != null);
+
 		// Generations
-		while (evaluations < maxEvaluations && !targetCovered) {
+		boolean dontRestart = (this.solutionBundle.solution != null);
+		while (this.evaluations < maxEvaluations && !targetCovered) {
 			//Creates a random solution
 			if (!dontRestart) {
-				solutionBundle.solution = new Solution(problem_);
-				
-				this.prepareSerendipitous();
-				solutionBundle.branchDistance = problem.evaluateWithBranchDistance(solutionBundle.solution);
-				this.checkSerendipitous(solutionBundle.solution);
+				this.solutionBundle.solution = new Solution(this.standardProblem);
+				prepareSerendipitous();
+				this.standardProblem.evaluate(this.solutionBundle.solution);
+				this.solutionBundle.branchDistance = this.standardProblem.getLastBranchDistance();
+				this.evaluations++;
+				checkSerendipitous(this.solutionBundle.solution);
 			}
 			dontRestart = false;
-			
-			XParamArray solutionModifier = new XParamArray(solutionBundle.solution);
-			
-			
-			evaluations++;
-			
+
+			XParamArray solutionModifier = new XParamArray(this.solutionBundle.solution);
+
 			int lastUpdatedKind = solutionModifier.kinds() - 1;
 			int lastUpdatedVariable = solutionModifier.size(lastUpdatedKind) - 1;
 			//In order to find local optima, it stores the last updated kind/variable
@@ -170,296 +148,240 @@ public class AVM extends OcelotAlgorithm implements SerendipitousAlgorithm<Label
 				lastUpdatedKind--;
 				lastUpdatedVariable = solutionModifier.size(lastUpdatedKind) - 1;
 			}
-			
+
 			boolean localOptimum = false;
 			int currentKind = 0;
 			int currentVariable = -1; //It will become 0 in the first iteration
 			double direction = 0;
 			boolean firstSelectionChange = false;
-			
-			while (!localOptimum && evaluations < maxEvaluations && !targetCovered) {
-				
+
+			//TODO sure we want to put the this.evaluations < maxEvaluations check here???
+			while (!localOptimum && this.evaluations < maxEvaluations && !targetCovered) {
+
 				//If we are in a optimum local to the specific kind/variable...
 				if (direction == 0) {
 					strength = 0;
+
 					//If update overflows the number of variables of this kind
-					if (currentVariable+1 == solutionModifier.size(currentKind)) {
+					if (currentVariable + 1 == solutionModifier.size(currentKind)) {
 						currentVariable = 0; //Reset variable
-						
+
 						//If update overflows the number of kinds
-						if (currentKind+1 == solutionModifier.kinds())
+						if (currentKind + 1 == solutionModifier.kinds()) {
 							currentKind = 0; //Reset kind
-						else //If the update doesn't overflow the number of kinds
+						} else { //If the update doesn't overflow the number of kinds
 							currentKind++; //Normally increments the kind
-						
+						}
+
 						//Searches for the kind with at least a variable
 						while (solutionModifier.size(currentKind) == 0) {
 							currentKind++;
-							if (currentKind == solutionModifier.kinds())
+							if (currentKind == solutionModifier.kinds()) {
 								currentKind = 0;
+							}
 						}
-						
-					} else //If the update doesn't overflow the number of variables
+					} else { //If the update doesn't overflow the number of variables
 						currentVariable++; //Normally increments the variable
-					
+					}
+
 					//Gets the direction of update (minus or plus). Besides, it updates the solution.
-					direction = this.getDirection(solutionBundle, currentKind, currentVariable);
-					
+					direction = getDirection(this.solutionBundle, currentKind, currentVariable);
+
 					if (direction == 0.0) {
-						if (solutionBundle.solution.getObjective(0) == 0.0)
+						if (this.solutionBundle.solution.getObjective(0) == 0.0) {
 							targetCovered = true;
-						if (lastUpdatedKind == currentKind && lastUpdatedVariable == currentVariable)
+						}
+
+						if (lastUpdatedKind == currentKind && lastUpdatedVariable == currentVariable) {
 							localOptimum = true;
-						
+						}
+
 						continue;
-					} else
+					} else {
 						firstSelectionChange = true;
+					}
 				}
-				
+
 				//Updates the last updated kind/variable to the current ones
 				lastUpdatedKind = currentKind;
 				lastUpdatedVariable = currentVariable;
-				
-				//Creates a new solution, updated toward the specified direction.
-				SolutionBundle newSolution = this.newSolution(
-						solutionBundle, 
+
+				// Create a new solution, updated towards the specified direction.
+				SolutionBundle newSolutionBundle = newSolutionBundle(
+						this.solutionBundle, 
 						currentKind, currentVariable, 
 						direction, strength);
-				
-				int comparison = comparator.compare(newSolution.solution, solutionBundle.solution);
-				if (comparison == -1 || (comparison == 0 && newSolution.branchDistance < solutionBundle.branchDistance)) {
-					solutionBundle.solution = newSolution.solution;
-					solutionBundle.branchDistance = newSolution.branchDistance;
+
+				int comparison = this.comparator.compare(newSolutionBundle.solution, this.solutionBundle.solution);
+				if (comparison == -1 || (comparison == 0 && newSolutionBundle.branchDistance < this.solutionBundle.branchDistance)) {
+					this.solutionBundle.solution = newSolutionBundle.solution;
+					this.solutionBundle.branchDistance = newSolutionBundle.branchDistance;
 					strength++;
 					firstSelectionChange = false;
+				} else if (firstSelectionChange) {
+					if (strength >= 0) {
+						strength -= 1;
+					} else {
+						strength *= 2;
+					}
 				} else {
-					if (firstSelectionChange) {
-						if (strength >= 0)
-							strength -= 1;
-						else
-							strength *= 2;
-					} else
-						direction = 0;
+					direction = 0;
 				}
-				
-				if (solutionBundle.solution.getObjective(0) == 0.0)
+
+				if (this.solutionBundle.solution.getObjective(0) == 0.0) {
 					targetCovered = true;
+				}
 			}
-		} // while
+		}
 
+		// Return a population with the best individual
 		SolutionSet resultPopulation = new SolutionSet(1);
+		resultPopulation.add(this.solutionBundle.solution);
 		this.lastPopulation = new SolutionSet(1);
-		resultPopulation.add(solutionBundle.solution);
-		this.lastPopulation.add(solutionBundle.solution);
+		this.lastPopulation.add(this.solutionBundle.solution);
 
-		this.algorithmStats.setEvaluations(evaluations);
+		// Set stats
+		this.algorithmStats.addEvaluations(this.evaluations);
+		
 		return resultPopulation;
-	} // execute
-	
-	
-	private SolutionBundle newSolution(
-			SolutionBundle pSolutionBundle,
-			int currentKind, int currentVariable,
-			double pDirection,
-			int pStength)
-					throws JMException {
+	}
+
+
+	private SolutionBundle newSolutionBundle(SolutionBundle pSolutionBundle, int pCurrentKind, int pCurrentVariable, double pDirection, int pStrength)
+	throws JMException {
 		Solution solution = new Solution(pSolutionBundle.solution);
 		XParamArray solutionModifier = new XParamArray(solution);
-		
-		double updateValue = solutionModifier.getValue(currentKind, currentVariable);
-		double difference = this.derivate * this.delta * pDirection * Math.pow(1.3, pStength);
-		if (Math.abs(difference) < epsilon)
-			difference = epsilon*pDirection;
-		
+
+		// Starts calculating updateValue
+		double updateValue = solutionModifier.getValue(pCurrentKind, pCurrentVariable);
+		double difference = this.derivate * this.delta * pDirection * Math.pow(1.3, pStrength);
+		if (Math.abs(difference) < this.epsilon) {
+			difference = this.epsilon * pDirection;
+		}
 		updateValue = updateValue + difference;
-		
-		if (updateValue > solutionModifier.getUpperBound(currentKind, currentVariable))
-			updateValue = solutionModifier.getUpperBound(currentKind, currentVariable);
-		else if (updateValue < solutionModifier.getLowerBound(currentKind, currentVariable))
-			updateValue = solutionModifier.getLowerBound(currentKind, currentVariable);
-		
-		double roundEpsilon = Math.pow(10, Math.floor(Math.log10(epsilon)));
-		
-		updateValue = Math.floor(updateValue / roundEpsilon) * roundEpsilon; //Rounds to the epsilonth decimal
-		
-		solutionModifier.getValue(currentKind, currentVariable);
-		solutionModifier.setValue(currentKind, currentVariable, updateValue);
-		
-		this.prepareSerendipitous();
-		double branchDistance = problem.evaluateWithBranchDistance(solution);
-		this.checkSerendipitous(solution);
-		evaluations++;
-				
-		this.derivate = this.derivate(
-				solution.getObjective(0), branchDistance, 
-				pSolutionBundle.solution.getObjective(0), pSolutionBundle.branchDistance, 
-				Math.abs(difference));
-		
+
+		// Clamps updateValue to the allowed range
+		if (updateValue > solutionModifier.getUpperBound(pCurrentKind, pCurrentVariable)) {
+			updateValue = solutionModifier.getUpperBound(pCurrentKind, pCurrentVariable);
+		} else if (updateValue < solutionModifier.getLowerBound(pCurrentKind, pCurrentVariable)) {
+			updateValue = solutionModifier.getLowerBound(pCurrentKind, pCurrentVariable);
+		}
+
+		// Rounds updateValue to the epsilonth decimal
+		double roundEpsilon = Math.pow(10, Math.floor(Math.log10(this.epsilon)));
+		updateValue = Math.floor(updateValue / roundEpsilon) * roundEpsilon; 
+
+		solutionModifier.setValue(pCurrentKind, pCurrentVariable, updateValue);
+
+		prepareSerendipitous();
+		this.standardProblem.evaluate(solution);
+		double branchDistance = this.standardProblem.getLastBranchDistance();
+		this.evaluations++;
+		checkSerendipitous(solution);
+
+		this.derivate = 
+				derivate(solution.getObjective(0), branchDistance, 
+						pSolutionBundle.solution.getObjective(0), 
+						pSolutionBundle.branchDistance, 
+						Math.abs(difference));
+
 		return new SolutionBundle(solution, branchDistance);
 	}
-	
+
 	private double getDirection(SolutionBundle pSolutionBundle, int pCurrentKind, int pCurrentVariable) throws JMException {
 		double epsilon;
-		
-		if (this.isDiscrete(pCurrentKind, pCurrentVariable)) {
+		if (isDiscrete(pCurrentKind, pCurrentVariable)) {
 			epsilon = 1;
 		} else {
 			epsilon = this.epsilon;
 		}
-		
+
 		Solution solutionPlus = new Solution(pSolutionBundle.solution);
 		Solution solutionMinus = new Solution(pSolutionBundle.solution);
-		
 		XParamArray modifierPlus = new XParamArray(solutionPlus);
 		XParamArray modifierMinus = new XParamArray(solutionMinus);
+
 		double currentValue = modifierPlus.getValue(pCurrentKind, pCurrentVariable);
-		if (currentValue+epsilon > modifierPlus.getUpperBound(pCurrentKind, pCurrentVariable)) {
+		if (currentValue + epsilon > modifierPlus.getUpperBound(pCurrentKind, pCurrentVariable)) {
 			modifierPlus.setValue(pCurrentKind, pCurrentVariable, currentValue);
-		} else
+		} else {
 			modifierPlus.setValue(pCurrentKind, pCurrentVariable, currentValue + epsilon);
-		
-		if (currentValue-epsilon < modifierMinus.getLowerBound(pCurrentKind, pCurrentVariable)) {
+		}
+		if (currentValue - epsilon < modifierMinus.getLowerBound(pCurrentKind, pCurrentVariable)) {
 			modifierMinus.setValue(pCurrentKind, pCurrentVariable, currentValue);
-		} else
+		} else {
 			modifierMinus.setValue(pCurrentKind, pCurrentVariable, currentValue - epsilon);
-		
-		this.prepareSerendipitous();
-		double branchDistancePlus = problem.evaluateWithBranchDistance(solutionPlus);
-		this.checkSerendipitous(solutionPlus);
-		
-		this.prepareSerendipitous();
-		double branchDistanceMinus = problem.evaluateWithBranchDistance(solutionMinus);
-		this.checkSerendipitous(solutionMinus);
-		evaluations += 2;
-				
-		int comparation = comparator.compare(solutionPlus, solutionMinus);
-		
+		}
+
+		prepareSerendipitous();
+		this.standardProblem.evaluate(solutionPlus);
+		double branchDistancePlus = this.standardProblem.getLastBranchDistance();
+		this.evaluations++;
+		checkSerendipitous(solutionPlus);
+
+		prepareSerendipitous();
+		this.standardProblem.evaluate(solutionMinus);
+		double branchDistanceMinus = this.standardProblem.getLastBranchDistance();
+		this.evaluations++;
+		checkSerendipitous(solutionMinus);
+
+		int comparation = this.comparator.compare(solutionPlus, solutionMinus);
+
 		if (comparation < 0 || (comparation == 0 && branchDistancePlus < branchDistanceMinus)) { //if solPlus < solMinus
-			int comparation2 = comparator.compare(solutionPlus, pSolutionBundle.solution);
+			int comparation2 = this.comparator.compare(solutionPlus, pSolutionBundle.solution);
 			if (comparation2 < 0 || (comparation2 == 0 && branchDistancePlus < pSolutionBundle.branchDistance)) { //if solPlus < solution
-				this.derivate = this.derivate(
+				this.derivate = derivate(
 						solutionPlus.getObjective(0), branchDistancePlus, 
 						pSolutionBundle.solution.getObjective(0), pSolutionBundle.branchDistance,
 						epsilon);
-				
+
 				this.solutionBundle.solution = solutionPlus;
 				this.solutionBundle.branchDistance = branchDistancePlus;
-				
-				if (this.solutionBundle.solution.getObjective(0) == 0.0)
+
+				if (this.solutionBundle.solution.getObjective(0) == 0.0) {
 					return 0.0;
-				
+				}
+
 				return 1;
-			} else
+			} else {
 				return 0;
+			}
 		} else if (comparation > 0 || (comparation == 0 && branchDistancePlus > branchDistanceMinus)) {
-			int comparation2 = comparator.compare(solutionMinus, pSolutionBundle.solution);
+			int comparation2 = this.comparator.compare(solutionMinus, pSolutionBundle.solution);
 			if (comparation2 < 0 || (comparation2 == 0 && branchDistanceMinus < pSolutionBundle.branchDistance)) {
 				this.derivate = this.derivate(
 						solutionMinus.getObjective(0), branchDistanceMinus,
 						pSolutionBundle.solution.getObjective(0), pSolutionBundle.branchDistance,
 						epsilon);
-				
+
 				this.solutionBundle.solution = solutionMinus;
 				this.solutionBundle.branchDistance = branchDistanceMinus;
-				
-				if (this.solutionBundle.solution.getObjective(0) == 0.0)
+
+				if (this.solutionBundle.solution.getObjective(0) == 0.0) {
 					return 0.0;
-				
+				}
+
 				return -1;
-			} else
+			} else {
 				return 0;
-		} else
-			return 0;
-	}
-	
-	@SuppressWarnings("unchecked")
-	private void prepareSerendipitous() {
-		if (problem_ instanceof SerendipitousProblem<?>) {
-			SerendipitousProblem<LabeledEdge> problem = (SerendipitousProblem<LabeledEdge>)problem_;
-			
-			problem.setSerendipitousPotentials(this.serendipitousPotentials);
-		}
-	}
-	
-	@SuppressWarnings("unchecked")
-	private void checkSerendipitous(Solution solution) {
-		if (problem_ instanceof SerendipitousProblem<?>) {
-			SerendipitousProblem<LabeledEdge> problem = (SerendipitousProblem<LabeledEdge>)problem_;
-			
-			if (problem.getSerendipitousCovered().size() > 0) {
-				this.serendipitousPotentials.removeAll(problem.getSerendipitousCovered());
-				
-				this.serendipitousSolutions.add(solution);
 			}
+		} else {
+			return 0;
 		}
-	}
-	
-	@Override
-	public Set<Solution> getSerendipitousSolutions() {
-		return this.serendipitousSolutions;
 	}
 
-	@Override
-	public void setSerendipitousPotentials(Set<LabeledEdge> pPotentials) {
-		this.serendipitousPotentials = pPotentials;
-	}
-	
-	private void initializeDiscreteness(CType[] types) throws ClassNotFoundException {
-		Solution test = new Solution(problem_);
-		
-		XParamArray modifier = new XParamArray(test);
-		
-		this.discreteValues = new HashMap<>();
-		int typeIndex = 0;
-		for (int i = 0; i < modifier.kinds(); i++) {
-			Map<Integer, Boolean> kindMap = new HashMap<Integer, Boolean>();
-			
-			for (int j = 0; j < modifier.size(i); j++) {
-				if (i == modifier.kinds() - 1 && i > 0) {
-					//Pointers are always discrete
-					kindMap.put(j, true);
-				} else {
-					if (types[typeIndex].isDiscrete()) {
-//						System.out.println("Discrete");
-						kindMap.put(j, true);
-					} else
-						kindMap.put(j, false);
-					
-					if (i == 0) {
-						typeIndex++;
-					}
-				}
-			}
-			
-			if (i != 0) {
-				typeIndex++;
-			}
-			
-			this.discreteValues.put(i, kindMap);
-		}
-	}
-	
 	private boolean isDiscrete(int pKind, int pVariable) {
 		return this.discreteValues.get(pKind).get(pVariable);
 	}
-	
+
 	private double derivate(double a, double bdA, double b, double bdB, double dx) {
 		double alA = Math.floor(a);
 		double alB = Math.floor(b);
-		
-		if (alA == alB)
-			return Math.abs(bdA - bdB)/dx;
-		else
-			return (alA - alB)/dx;
-	}
-} // pgGA
 
-class SolutionBundle {
-	public Solution solution;
-	public double branchDistance;
-	
-	public SolutionBundle(Solution pSolution, double pBranchDistance) {
-		this.solution = pSolution;
-		this.branchDistance = pBranchDistance;
+		if (alA == alB) {
+			return Math.abs(bdA - bdB)/dx;
+		} else {
+			return (alA - alB)/dx;
+		}
 	}
 }

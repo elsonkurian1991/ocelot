@@ -2,48 +2,47 @@ package it.unisa.ocelot.suites.minimization;
 
 import it.unisa.ocelot.TestCase;
 import it.unisa.ocelot.c.cfg.edges.LabeledEdge;
+import it.unisa.ocelot.conf.ConfigManager;
+import it.unisa.ocelot.simulator.CoverageCalculator;
 
 import java.util.HashSet;
 import java.util.Set;
 
-public class AdditionalGreedyMinimizer extends TestSuiteMinimizer {
-	public AdditionalGreedyMinimizer() {
+public final class AdditionalGreedyMinimizer extends TestSuiteMinimizer<LabeledEdge> {
+	public AdditionalGreedyMinimizer(ConfigManager pConfigManager, CoverageCalculator<LabeledEdge> pCoverageCalculator) {
+		super(pConfigManager, pCoverageCalculator);
 	}
-	
+
 	@Override
 	public Set<TestCase> minimize(Set<TestCase> pTestCases) {
-		Set<TestCase> selected = new HashSet<TestCase>();
-		Set<LabeledEdge> covered = new HashSet<LabeledEdge>();
-		Set<LabeledEdge> totalCovered = new HashSet<LabeledEdge>();
+		Set<TestCase> selected = new HashSet<>();
+		Set<LabeledEdge> covered = new HashSet<>();
+		Set<LabeledEdge> totalCovered = new HashSet<>();
 		
-		for (TestCase tc : pTestCases)
+		for (TestCase tc : pTestCases) {
 			totalCovered.addAll(tc.getCoveredEdges());
+		}
 		
 		do {
-			Set<LabeledEdge> maxCoverage = new HashSet<LabeledEdge>();
-			TestCase maxTC = null;
+			TestCase bestTestCase = null;
+			HashSet<LabeledEdge> bestCoveredEdges = new HashSet<>();
 			
-			//Search the TC with max additional coverage
+			//Search the test case with max additional coverage
 			for (TestCase tc : pTestCases) {
-				Set<LabeledEdge> localCoverage = new HashSet<LabeledEdge>(tc.getCoveredEdges());
-				localCoverage.removeAll(covered);
-				if (localCoverage.size() > maxCoverage.size()) {
-					maxCoverage = localCoverage;
-					maxTC = tc;
+				HashSet<LabeledEdge> tcCoveredEdges = new HashSet<>(tc.getCoveredEdges());
+				tcCoveredEdges.removeAll(covered);
+				if (tcCoveredEdges.size() > bestCoveredEdges.size()) {
+					bestTestCase = tc;
+					bestCoveredEdges = tcCoveredEdges;
 				}
 			}
 			
-			if (maxTC != null) {
-				selected.add(maxTC);
-				covered.addAll(maxCoverage);
+			if (bestTestCase != null) {
+				selected.add(bestTestCase);
+				covered.addAll(bestCoveredEdges);
 			}
 		} while (!covered.equals(totalCovered));
 		
 		return selected;
-	}
-	
-	@Override
-	public int getNumberOfEvaluations() {
-		return 0;
 	}
 }

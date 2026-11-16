@@ -1,144 +1,128 @@
 package it.unisa.ocelot.genetic.edges;
 
-import static org.mockito.Mockito.RETURNS_SMART_NULLS;
-
 import java.io.BufferedReader;
-import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-
-import javax.swing.text.StyleContext.SmallAttributeSet;
-
-import org.apache.commons.math3.analysis.function.Max;
-
-import io.github.pavelicii.allpairs4j.AllPairs;
-import io.github.pavelicii.allpairs4j.Parameter;
 
 public class CalculateFitnessFromEvalPC4 {
-
-	
-	public static double CalculateFitness(Object[][][] arguments) {
+	public static double calculateFitness(Object[][][] arguments) {
 		double fitness = 0.0;
-		//  to reset the fitness value for each iterations.
-		for (List<TestObjStateMachine> smList : ReadEFLfilesforPairCombination_V2.ListOfSMs) {
+		
+		// Reset the objects in ReadEFLFilesForPairCombinationV2.listOfSMs
+		// assigning them maximum branch distance
+		for (List<TestObjStateMachine> smList : ReadEFLFilesForPairCombinationV2.listOfSMs) {
 			for (TestObjStateMachine sm : smList) {
-				sm.setFitValOne(1);
-				sm.setFitValTwo(1);
+				sm.setBdOne(1.0);
+				sm.setBdTwo(1.0);
 			}
 		}
-		// read the fitness values from the file.
-		try (BufferedReader f_Val_File = new BufferedReader(new FileReader("./fitnessValues.txt"))) { 
-			String lineBr  = f_Val_File.readLine();
-			HashMap<String, Double> fitnessHashMap = new HashMap<String, Double>();
-			while (lineBr  != null) {
-				FunBranchNameAndFitness infoFromLinebr =  readInfoFromLine(lineBr);
-				fitnessHashMap.put(infoFromLinebr.getFunBranchName(), infoFromLinebr.getCurrFitnessVal());
-				lineBr  = f_Val_File.readLine();
+		
+		// Reads the branch distances from the file
+		try (BufferedReader fileReader = new BufferedReader(new FileReader("./fitnessValues.txt"))) {
+			// Reads the whole file into branchesToDistances
+			String line  = fileReader.readLine();
+			HashMap<String, Double> branchesToDistances = new HashMap<>();
+			while (line  != null) {
+				FunBranchNameAndDistance infoFromLine =  readInfoFromLine(line);
+				branchesToDistances.put(infoFromLine.getFunBranchName(), infoFromLine.getBranchDistance());
+				line = fileReader.readLine();
 			}
-			for (List<TestObjStateMachine> smList : ReadEFLfilesforPairCombination_V2.ListOfSMs) {
+			
+			// Updates all the objects in ReadEFLFilesForPairCombinationV2.listOfSMs
+			for (List<TestObjStateMachine> smList : ReadEFLFilesForPairCombinationV2.listOfSMs) {
 				for (TestObjStateMachine sm : smList) {
-					//update the fitness values for each state machine (considering each pair as a SM).
-					if (fitnessHashMap.get(sm.getTestObjOne()) != null) {
-						FunBranchNameAndFitness infoFromLinebr= new FunBranchNameAndFitness(sm.getTestObjOne(), fitnessHashMap.get(sm.getTestObjOne()));
-						sm.transition(infoFromLinebr);}
-					if (fitnessHashMap.get(sm.getTestObjTwo()) != null) {
-						FunBranchNameAndFitness infoFromLinebr= new FunBranchNameAndFitness(sm.getTestObjTwo(), fitnessHashMap.get(sm.getTestObjTwo()));
-						sm.transition(infoFromLinebr);}
+					if (branchesToDistances.get(sm.getTestObjOne()) != null) {
+						FunBranchNameAndDistance infoFromLine = new FunBranchNameAndDistance(sm.getTestObjOne(), branchesToDistances.get(sm.getTestObjOne()));
+						sm.transition(infoFromLine);
+					}
+					if (branchesToDistances.get(sm.getTestObjTwo()) != null) {
+						FunBranchNameAndDistance infoFromLine= new FunBranchNameAndDistance(sm.getTestObjTwo(), branchesToDistances.get(sm.getTestObjTwo()));
+						sm.transition(infoFromLine);
+					}
 				}
 			}
+		} catch (IOException e) {
+			System.err.println("Error while reading fitnessValues.txt file: " + e.getMessage());
 		}
-		catch (IOException e) {
-			System.err.println("Error reading fitnessValues.txt file: " + e.getMessage());
-		}
-		//check the fitness and state is covered or not? of each SM
+		
+		//checks coverage
 		boolean isCoveredThisTime = false;
-		for (List<TestObjStateMachine> smList : ReadEFLfilesforPairCombination_V2.ListOfSMs) {
+		for (List<TestObjStateMachine> smList : ReadEFLFilesForPairCombinationV2.listOfSMs) {
 			for (TestObjStateMachine sm : smList) {
 				if (!sm.isGenerated()) {
-					//FitType tempVal = set.getValue();
-					boolean pairCovered = true;
-					if(!sm.isCovered()) {//is SM is covered?
-						pairCovered = false;
-						if(sm.fitValOne>1 || sm.fitValTwo>1)
-							System.err.println("Wrong fitness value! Val1:"+sm.fitValOne+" Val2:"+sm.fitValTwo);
-						fitness += sm.fitValOne+sm.fitValTwo; //add the fitness values
-						if(fitness == Double.POSITIVE_INFINITY) {
+					if (sm.bdOne > 1 || sm.bdTwo > 1) {
+						System.err.println("Wrong branch distance value! bdOne=" + sm.bdOne + ", bdTwo=" + sm.bdTwo);
+					}
+					if (sm.isCovered()) {
+						isCoveredThisTime = true;
+						
+						//adds arguments to sm's argument list
+						String argumentsSMString = sm.getArgumentList();
+						argumentsSMString = argumentsSMString.replaceAll("null", "");
+						String argumentsString = argumentsToString(arguments);
+						if (!argumentsSMString.contains(argumentsString)) {
+							argumentsSMString = argumentsSMString + argumentsString;
+						}
+						sm.setArgumentList(argumentsSMString);
+					} else {
+						//updates branchDistance
+						fitness += (sm.bdOne + sm.bdTwo);
+						
+						//clamps
+						if (fitness == Double.POSITIVE_INFINITY) {
 							fitness= Double.MAX_VALUE;
 						}
-					}				
-					if (pairCovered) {
-						isCoveredThisTime = true;
-						String tempArgs = sm.getArgumentList();
-						tempArgs = tempArgs.replaceAll("null", "");
-						String args = GetArguInString(arguments);
-						if (!tempArgs.contains(args)) {
-							tempArgs = tempArgs + args;
-						}
-						sm.setArgumentList(tempArgs);
-					} 
+					}
 				}
 			}
 		}
 		if (isCoveredThisTime) {
-			return 0; //return 0 if the SM is covered in this time else sum of fitness values
+			return 0.0;
 		} else {
 			return fitness;
 		}
-
 	}
 
-	private static FunBranchNameAndFitness readInfoFromLine(String lineBr) {
-		FunBranchNameAndFitness infoFromLinebr = new FunBranchNameAndFitness();
-		String listOfItems[] = lineBr.split(";");
-		String fName = listOfItems[0];
+	private static FunBranchNameAndDistance readInfoFromLine(String line) {
+		String listOfItems[] = line.split(";");
+		String functionName = listOfItems[0];
 		String branchName = listOfItems[1];
-		String fitnessVal = listOfItems[2];
-		String fun_BranchName = fName + ":" + branchName;
-		fitnessVal = fitnessVal.replace(",", ".");
-		double currFitness = Double.parseDouble(fitnessVal);
-		infoFromLinebr.setFunBranchName(fun_BranchName);
-		infoFromLinebr.setCurrFitnessVal(currFitness);
-		return infoFromLinebr;
+		String branchDistanceString = listOfItems[2];
+		String functionAndBranchName = functionName + ":" + branchName;
+		branchDistanceString = branchDistanceString.replace(",", ".");
+		double branchDistance = Double.parseDouble(branchDistanceString);
+		FunBranchNameAndDistance infoFromLine = new FunBranchNameAndDistance(functionAndBranchName, branchDistance);
+		return infoFromLine;
 	}
 
-	public static String GetArguInString(Object[][][] args2) {
-		StringBuilder argsList = new StringBuilder();
-		for (int i = 0; i < args2.length; i++) {
-			for (int j = 0; j < args2[i].length; j++) {
-				for (int k = 0; k < args2[i][j].length; k++) {
-					argsList.append(args2[i][j][k]);
-					argsList.append(",");
+	public static String argumentsToString(Object[][][] arguments) {
+		StringBuilder result = new StringBuilder();
+		for (int i = 0; i < arguments.length; i++) {
+			for (int j = 0; j < arguments[i].length; j++) {
+				for (int k = 0; k < arguments[i][j].length; k++) {
+					result.append(arguments[i][j][k]);
+					result.append(",");
 				}
-
 			}
-
 		}
-		argsList.deleteCharAt(argsList.length() - 1);
-		argsList.append(";");
-		return argsList.toString();
+		result.deleteCharAt(result.length() - 1);
+		result.append(";");
+		return result.toString();
 	}
 
 	/*private static boolean checkIfKeySet(ArrayList<String> keySetsToCheck, String fileNameWOepc) {
 		// TODO Auto-generated method stub
-		boolean isfound = false;
+		boolean isfound;
 		if (keySetsToCheck.isEmpty()) {
 			isfound = false;
 		} else {
 			for (String key : keySetsToCheck) {
+				//TODO this if statement is incorrect!!!!!
 				if (key.contentEquals(fileNameWOepc)) {
 					isfound = true;
-				} else {
-					isfound = false;
 				}
-
 			}
 		}
 

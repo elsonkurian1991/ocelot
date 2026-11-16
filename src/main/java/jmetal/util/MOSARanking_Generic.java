@@ -6,7 +6,6 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 
-import it.unisa.ocelot.c.cfg.edges.LabeledEdge;
 import it.unisa.ocelot.genetic.objectives.GenericObjective;
 import jmetal.core.SolutionSet;
 
@@ -26,33 +25,32 @@ import jmetal.core.SolutionSet;
 public class MOSARanking_Generic {
 
 	/**
-	 * The <code>SolutionSet</code> to rank
+	 * The SolutionSet to rank.
 	 */
 	private SolutionSet solutionSet_;
 
 	/**
-	 * An array containing all the fronts found during the search
+	 * An array containing all the fronts found during the search.
 	 */
 	private SolutionSet[] ranking_;
 	
 	private List<GenericObjective> uncoveredObjectives;
 
 	/**
-	 * stores a <code>MOSADominanceComparator</code> for dominance checking
+	 * A {@link MOSADominanceComparator} for dominance checking.
 	 */
 	@SuppressWarnings("rawtypes")
 	private static Comparator dominance_;
 
 	/**
-	 * Constructor
+	 * Constructor.
 	 * 
-	 * @param solutionSet
-	 *            The <code>SolutionSet</code> to be ranked.
+	 * @param solutionSet the {@link SolutionSet} to be ranked.
 	 * @param allTargets
 	 */
 	@SuppressWarnings("unchecked")
-	public MOSARanking_Generic(SolutionSet solutionSet, List<GenericObjective> allTargets) {
-		solutionSet_ = solutionSet;
+	public MOSARanking_Generic(SolutionSet solutionSet, List<? extends GenericObjective> allTargets) {
+		this.solutionSet_ = solutionSet;
 		this.uncoveredObjectives = new ArrayList<>(allTargets);
 		MOSARanking_Generic.dominance_ = new MOSADominanceComparator_Generic(this.uncoveredObjectives);
 

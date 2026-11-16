@@ -1,70 +1,50 @@
 package jmetal.encodings.solutionType;
 
-import it.unisa.ocelot.genetic.StandardProblem;
-import jmetal.core.Problem;
 import jmetal.core.SolutionType;
 import jmetal.core.Variable;
 import jmetal.encodings.variable.ArrayParameters;
 
+import it.unisa.ocelot.genetic.StandardProblem;
 
+/**
+ * The {@link SolutionType} for {@link StandardProblem}s.
+ */
 public class ArrayParametersSolutionType extends SolutionType {
-	/**
-	 * Constructor
-	 * @param problem Problem to solve
-	 */
-	public ArrayParametersSolutionType(Problem problem) {
-		super(problem) ;
+	private final StandardProblem standardProblem;
+	
+	public ArrayParametersSolutionType(StandardProblem pProblem) {
+		super(pProblem);
+		this.standardProblem = pProblem;
 	}
 	
-	/**
-	 * Creates the variables of the solution
-	 */
+	@Override
 	public Variable[] createVariables() {
 		Variable[] variables;
+
+		//gets data
+		int numberOfVariables = this.standardProblem.getNumberOfVariables();
+		int numberOfArrayVariables = this.standardProblem.getNumberOfArrayVariables();
+		int arraySize = this.standardProblem.getArraySize();
 		
-		if (problem_ instanceof StandardProblem) {
-			StandardProblem problem = (StandardProblem)problem_;
-			int numberOfArrays = problem.getNumberOfArrays();
-			
-			variables = new Variable[2 + numberOfArrays];
-			variables[0] = new ArrayParameters(problem_.getNumberOfVariables() - problem.getNumberOfArrays() - 1, problem_, 0);
-			for (int i = 1; i <= numberOfArrays; i++) {
-				variables[i] = new ArrayParameters(problem.getArraySize(), problem_, i);
-			}
-			variables[numberOfArrays+1] = new ArrayParameters(numberOfArrays, problem_, numberOfArrays+1);
-		} else {
-			variables = new Variable[1];
-			variables[0] = new ArrayParameters(problem_.getNumberOfVariables(), problem_, 0);
+		//makes variables
+		variables = new Variable[2 + numberOfArrayVariables];
+		variables[0] = new ArrayParameters(0, numberOfVariables - numberOfArrayVariables - 1, this.standardProblem.setLimits(0));
+		for (int i = 1; i <= numberOfArrayVariables; i++) {
+			variables[i] = new ArrayParameters(i, arraySize, this.standardProblem.setLimits(i));
 		}
-			
-    return variables ;
-	} // createVariables
-	
-	/**
-	 * Copy the variables
-	 * @param vars Variables
-	 * @return An array of variables
-	 */
-	public Variable[] copyVariables(Variable[] vars) {
-		Variable[] variables = new Variable[vars.length];
-		
-		for (int i = 0; i < vars.length; i++)
-			variables[i] = vars[i].deepCopy();
-		
-//		if (problem_ instanceof StandardProblem) {
-//			StandardProblem problem = (StandardProblem)problem_;
-//			int numberOfArrays = problem.getNumberOfArrays();
-//			
-//			variables = new Variable[1 + numberOfArrays];
-//			variables[0] = vars[0].deepCopy();
-//			for (int i = 1; i <= numberOfArrays; i++) {
-//				variables[i] = vars[i].deepCopy();
-//			}
-//		} else {
-//			variables = new Variable[1];
-//			variables[0] = vars[0].deepCopy();
-//		}
-		
+		variables[numberOfArrayVariables + 1] = new ArrayParameters(numberOfArrayVariables + 1, numberOfArrayVariables, this.standardProblem.setLimits(numberOfArrayVariables + 1));
+
 		return variables ;
+	}
+	
+	@Override
+	public Variable[] copyVariables(Variable[] vars) {
+		Variable[] retVal = new Variable[vars.length];
+		
+		for (int i = 0; i < vars.length; i++) {
+			retVal[i] = vars[i].deepCopy();
+		}
+		
+		return retVal;
 	} // copyVariables
 } // ArrayRealSolutionType

@@ -1,5 +1,6 @@
 package it.unisa.ocelot.suites.benchmarks;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -7,61 +8,86 @@ import java.util.Set;
 
 import it.unisa.ocelot.TestCase;
 
+/**
+ * An abstract calculator for benchmarks.
+ * 
+ * @param <T> the type of the values returned by the benchmark.
+ */
 public abstract class BenchmarkCalculator<T> {
-	private String name;
-	private Map<String, Integer> labelCategories;
-	protected List<String> labels;
-	
-	public BenchmarkCalculator(String pName) {
+	private final String name;
+	private final HashMap<String, Integer> labelCategories;
+	protected final ArrayList<String> labels;
+	protected final ArrayList<T> values;
+
+	protected BenchmarkCalculator(String pName) {
 		this.name = pName;
-		this.labelCategories = new HashMap<String, Integer>();
+		this.labelCategories = new HashMap<>();
+		this.labels = new ArrayList<>();
+		this.values = new ArrayList<>();
 	}
 	
-	public abstract void start();
-	
-	public abstract void measure(String pLabel, Set<TestCase> pSuite, Integer evalations);
-	
-	public String getPrintableResults() {
-		String result = "";
-		
-		for (Map.Entry<String, T> entry : this.getCumulativeResults().entrySet()) {
-			result += entry.getKey() + ": " + entry.getValue() + "\n";
-		}
-		
-		return result;
+	public String getName() {
+		return this.name;
 	}
 
-	public String getPrintableCumulativeResults() {
-		String result = "";
-		Map<String, T> results = this.getCumulativeResults();
-		for (String label : this.labels) {
-			result += label + ": " + results.get(label).toString() + "\n";
+	public final List<String> getLabels() {
+		return this.labels;
+	}
+	
+	public final void start(Set<TestCase> pSuite) {
+		measure("Start", pSuite, 0); 
+	}
+	
+	public final void end(Set<TestCase> pSuite, int pEvaluations) {
+		measure("End", pSuite, pEvaluations);
+	}
+	
+	public abstract void measure(String pLabel, Set<TestCase> pSuite, int pEvaluations);
+	public abstract Map<String, T> getResults();
+	public abstract Map<String, T> getCumulativeResults();
+
+	public final void removeLast() {
+		this.labels.remove(this.labels.size() - 1);
+		this.values.remove(this.values.size() - 1);
+	}
+
+	protected final void add(String pLabel, T value) {
+		this.labels.add(getRealLabel(pLabel));
+		this.values.add(value);
+	}
+
+
+	private String getRealLabel(String pLabel) {
+		if (this.labelCategories.containsKey(pLabel)) {
+			this.labelCategories.put(pLabel, this.labelCategories.get(pLabel) + 1);
+		} else {
+			this.labelCategories.put(pLabel, 1);
 		}
-		
-		return result;
+
+		return pLabel + " " + this.labelCategories.get(pLabel);
+	}
+	
+	public final String getPrintableResults() {
+		return getPrintableResultsBoth(getResults());
+	}
+
+	public final String getPrintableCumulativeResults() {
+		return getPrintableResultsBoth(getCumulativeResults());
+	}
+	
+	private String getPrintableResultsBoth(Map<String, T> benchmarkResults) {
+		StringBuilder result = new StringBuilder();
+		for (String label : this.labels) {
+			result.append(label);
+			result.append(": ");
+			result.append(benchmarkResults.get(label).toString());
+			result.append('\n');
+		}
+		return result.toString();
 	}
 	
 	@Override
-	public String toString() {
-		return this.getSignature()+"\n"+this.getPrintableResults();
-	}
-	
-	public abstract Map<String, T> getResults();
-	public abstract Map<String, T> getCumulativeResults();
-	public abstract void removeLast();
-	public abstract List<String> getLabels();
-	
-	public String getSignature() {
-		return this.name;
-	}
-	
-	protected String getRealLabel(String pLabel) {
-		if (labelCategories.containsKey(pLabel)) {
-			labelCategories.put(pLabel, labelCategories.get(pLabel) + 1);
-		} else {
-			labelCategories.put(pLabel, 1);
-		}
-		
-		return pLabel + " " + labelCategories.get(pLabel);
+	public final String toString() {
+		return getName() + "\n" + getPrintableResults();
 	}
 }

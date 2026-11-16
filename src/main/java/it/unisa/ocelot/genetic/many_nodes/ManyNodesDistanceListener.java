@@ -1,145 +1,156 @@
 package it.unisa.ocelot.genetic.many_nodes;
 
+import static org.jgrapht.alg.DijkstraShortestPath.findPathBetween;
+
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import org.jgrapht.alg.DijkstraShortestPath;
-
 import it.unisa.ocelot.c.cfg.CFG;
 import it.unisa.ocelot.c.cfg.edges.LabeledEdge;
 import it.unisa.ocelot.c.cfg.nodes.CFGNode;
+import it.unisa.ocelot.simulator.CaseExecutionEvent;
 import it.unisa.ocelot.simulator.ExecutionEvent;
+import it.unisa.ocelot.simulator.IfExecutionEvent;
 import it.unisa.ocelot.simulator.SimulatorListener;
+import it.unisa.ocelot.util.Utils;
 
-public class ManyNodesDistanceListener implements SimulatorListener {
-	private CFG cfg;
-	private List<CFGNode> targetNodes;
+//TODO DUPLICATES!!! This class and ManyNodesDistanceListenerShortestPath and ManyEdgesDistanceListener and DominatorListener are almost identical
+public final class ManyNodesDistanceListener implements SimulatorListener {
+	private final CFG cfg;
+	private final List<CFGNode> targets;
+	private final Map<CFGNode, Integer> fixedApproachLevels;
+	private final Map<CFGNode, Set<CFGNode>> dominators;
 	
-	private Map<CFGNode, Integer> fixedApproachLevels;
-	private int targetNodeIndex;
-	
-	private Map<CFGNode, Set<CFGNode>> dominators;
-	
-	private CFGNode nearestNode;
-	
-	private List<ExecutionEvent> nearestEvents;
+	private int currentTargetIndex;
 	private CFGNode currentTarget;
 	
+	private final List<ExecutionEvent> nearestEvents;
+	private CFGNode nearest;
+	
 	public ManyNodesDistanceListener(
-			CFG pCFG, List<CFGNode> pTargetNodes, 
-			Map<CFGNode, Integer> pFixedDistances, Map<CFGNode, Set<CFGNode>> pDominators) {
-		this.cfg = pCFG;
+			CFG pCfg, List<CFGNode> pTargets, 
+			Map<CFGNode, Integer> pFixedApproachLevels, Map<CFGNode, Set<CFGNode>> pDominators) {
+		this.cfg = pCfg;
+		this.targets = pTargets;
+		this.fixedApproachLevels = pFixedApproachLevels;
+		this.dominators = pDominators;
 		
-		this.targetNodes = pTargetNodes;
-		this.fixedApproachLevels = pFixedDistances;
-		
-		this.targetNodeIndex = 0;
-		this.currentTarget = this.targetNodes.get(this.targetNodeIndex);
-		
-		this.nearestEvents = new ArrayList<ExecutionEvent>();
-		
-		this.dominators = new HashMap<CFGNode, Set<CFGNode>>(pDominators);
-	}
+		this.currentTargetIndex = 0;
+		this.currentTarget = this.targets.get(this.currentTargetIndex);
+
+		this.nearestEvents = new ArrayList<>();
+		this.nearest = null;
+}
 
 	@Override
 	public void onEdgeVisit(LabeledEdge pEdge) {
+		//nothing to do
 	}
 
 	@Override
-	public void onEdgeVisit(LabeledEdge pEdge, ExecutionEvent pEvent) {
+	public void onEdgeVisit(LabeledEdge pEdge, IfExecutionEvent pEvent) {
 		CFGNode node = this.cfg.getEdgeSource(pEdge);
 
-		if (node.equals(this.nearestNode)) {
-			nearestEvents.clear();
-			nearestEvents.add(pEvent);
+		if (node.equals(this.nearest)) {
+			this.nearestEvents.clear();
+			this.nearestEvents.add(pEvent);
 		}
-
 	}
 
 	@Override
-	public void onEdgeVisit(LabeledEdge pEdge, ExecutionEvent pEvent,
-			List<ExecutionEvent> pCases) {
-
+	public void onEdgeVisit(LabeledEdge pEdge, CaseExecutionEvent pEvent, List<CaseExecutionEvent> pCases) {
 		CFGNode node = this.cfg.getEdgeSource(pEdge);
 
-		if (node.equals(this.nearestNode)) {
-			nearestEvents.clear();
-			nearestEvents.addAll(pCases);
+		if (node.equals(this.nearest)) {
+			this.nearestEvents.clear();
+			this.nearestEvents.addAll(pCases);
 		}
 	}
 
 	@Override
 	public void onNodeVisit(CFGNode pNode) {
-		if (pNode.equals(currentTarget)) {
-			this.targetNodeIndex++;
-			
+		if (pNode.equals(this.currentTarget)) {
+			this.currentTargetIndex++;
 			try {
-				currentTarget = this.targetNodes.get(this.targetNodeIndex);
+				this.currentTarget = this.targets.get(this.currentTargetIndex);
 			} catch (IndexOutOfBoundsException e) {
-				currentTarget = null;
+				this.currentTarget = null;
 			}
 		}
 		
-		if (currentTarget == null)
+		if (this.currentTarget == null) {
 			return;
+		}
 		
-		Set<CFGNode> dominators = this.dominators.get(currentTarget);
+		Set<CFGNode> dominators = this.dominators.get(this.currentTarget);
 		if (dominators.contains(pNode)) {
 			dominators.remove(pNode);
-			this.nearestNode = pNode;
+			this.nearest = pNode;
 		}
 	}
 	
+	/**
+	 * Calculates the approach level
+	 * 
+	 * @return an approach level {@code int} value.
+	 */
 	//TODO fix here
 	public int getApproachLevel() {
 		//If the last target node is reached, return 0
-		if (this.currentTarget == null)
+		if (this.currentTarget == null) {
 			return 0;
-		
-		int additionalAL = this.fixedApproachLevels.get(this.currentTarget);
-		
-		int al = this.dominators.get(this.currentTarget).size();
-		
-		return additionalAL + al;
-	}
-	
-	public void debug() {
-	}
-	
-	public double getNormalizedBranchDistance() {
-		double distance = getBranchDistance();
-		
-		return distance / (distance + 1);
-	}
-	
-	public double getBranchDistance() {
-		double distance = 0;
-
-		if (this.getApproachLevel() == 0) {
-			return 0D;
 		}
 		
-		LabeledEdge nearestEdge;
+		int approachLevel = this.dominators.get(this.currentTarget).size();
+		int additionalApproachLevel = this.fixedApproachLevels.get(this.currentTarget);
+		return approachLevel + additionalApproachLevel;
+	}
+	
+	/**
+	 * Calculates the branch distance.
+	 * 
+	 * @return a {@code double} value of branch distance.
+	 */
+	//TODO we want it private, but unfortunately this method is used outside this class...
+	public double getBranchDistance() {
+		if (getApproachLevel() == 0) {
+			return 0d;
+		}
 		
-		List<LabeledEdge> path = DijkstraShortestPath.findPathBetween(this.cfg, this.nearestNode, this.currentTarget);
-		nearestEdge = path.get(0);
-
 		// approach level more than 0
-		if (nearestEvents.size() == 1) {
+		
+		List<LabeledEdge> path = findPathBetween(this.cfg, this.nearest, this.currentTarget);
+		LabeledEdge nearestEdge = path.get(0);
+
+		double distance = 0;
+		if (this.nearestEvents.size() == 1) {
 			// single condition
-			ExecutionEvent event = nearestEvents.get(0);
-			distance = Math.max(event.distanceTrue, event.distanceFalse);
+			//TODO is this cast correct? Possibly this is a CaseExecutionEvent
+			IfExecutionEvent event = (IfExecutionEvent) this.nearestEvents.get(0);
+			distance = Math.max(event.getDistanceThen(), event.getDistanceElse());
 		} else {
 			for (ExecutionEvent event : this.nearestEvents) {
-				if (event.getEdge().equals(nearestEdge))
-					distance = Math.max(event.distanceTrue, event.distanceFalse);
+				if (event.getEdge().equals(nearestEdge)) {
+					//TODO is this cast correct? Possibly this is a IfExecutionEvent
+					CaseExecutionEvent eEvent = (CaseExecutionEvent) event;
+					distance = eEvent.getDistance();
+					//TODO break?
+				}
 			}
 			assert distance != 0 : "non-positive distance error!";
 		}
 		
 		return distance;
+	}
+	
+	/**
+	 * Return the value of the many-nodes distance.
+	 * 
+	 * @return a {@code double} value of many-nodes distance.
+	 */
+	public double getDistance() {
+		return getApproachLevel() + Utils.normalize(getBranchDistance());
 	}
 }

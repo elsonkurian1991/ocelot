@@ -2,6 +2,7 @@ package it.unisa.ocelot.simulator;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
@@ -15,26 +16,32 @@ import it.unisa.ocelot.util.Utils;
  * distance metrics and, so, the fitness function.
  * 
  * @author simone
- *
  */
+//TODO make it work over *many* CFGs and thus support projects with many C functions/files.
 public class Simulator {
-	private CFG cfg;
-	private List<ExecutionEvent> events;
-	private List<SimulatorListener> listeners;
+	private final CFG cfg;
+	private final List<ExecutionEvent> events;
+	private final ArrayList<SimulatorListener> listeners;
+
+	// Used during simulation
 	private int currentEventIndex;
 	
 	public Simulator(CFG pCFG, List<ExecutionEvent> pEvents) {
 		this.cfg = pCFG;
 		this.events = pEvents;
 		//It is useless, but it prevents ArrayIndexOutOfBound in "simulate" when there is no event.
-		if (this.events.size() == 0)
-			this.events.add(null); //It is useless, but it prevents ArrayIndexOutOfBound in "simulate"
-		this.listeners = new ArrayList<SimulatorListener>();
+		//TODO a bit ugly, can we do better, e.g., by using iterators?
+		if (this.events.size() == 0) {
+			this.events.add(null);
+		}
+		this.listeners = new ArrayList<>();
 	}
 	
 	/**
-	 * Set a single listener, removing the previous ones.
-	 * @param pListener
+	 * Sets a single listener, removing all the previously
+	 * registered ones.
+	 * 
+	 * @param pListener a {@link SimulatorListener}.
 	 */
 	public void setListener(SimulatorListener pListener) {
 		this.listeners.clear();
@@ -42,89 +49,108 @@ public class Simulator {
 	}
 	
 	/**
-	 * Add a listener to the simulator
-	 * @param pListener
+	 * Adds a listener.
+	 * 
+	 * @param pListener a {@link SimulatorListener}.
 	 */
 	public void addListener(SimulatorListener pListener) {
 		this.listeners.add(pListener);
 	}
 	
 	/**
+	 * Adds many listeners.
+	 * 
+	 * @param pListeners a varargs of {@link SimulatorListener}s.
+	 */
+	public void addListeners(SimulatorListener... pListeners) {
+		Collections.addAll(this.listeners, pListeners);
+	}
+	
+	/**
 	 * Perform the simulation
 	 */
-	public void simulate() {	
-		this.reset();
-		//Consumes the first event
-		ExecutionEvent currentEvent = this.getNextEvent();
-		int lastExecutionEvent = 0;
+	public void simulate() {
+		// Resets the event iterator
+		reset();
 		
-		//Takes the first node
-		CFGNode currentNode = cfg.getStart();
-		CFGNode lastNode = null;
-		String emergencyLog = "";
+		String emergencyLog = ""; //TODO do we really want to log? And where?
 		
-		//Loop until we don't reach the end of the execution
-		while (!currentNode.strongEquals(cfg.getEnd())) {
-			//Notifies the visit of the node to each listener
-			for (SimulatorListener listener : this.listeners)
-				listener.onNodeVisit(currentNode);
-			Set<LabeledEdge> edges = cfg.outgoingEdgesOf(currentNode);
-			lastNode = currentNode;
-			lastExecutionEvent = this.currentEventIndex;
+		// Gets the exit node of the CFG
+		// (termination condition)
+		CFGNode exitNode = this.cfg.getExit();
+		
+		// Gets the first event and
+		// the entry node of the CFG 
+		// and initializes the visit
+		CFGNode currentNode = this.cfg.getEntry();
+		ExecutionEvent currentEvent = getNextEvent();
+		
+		// Loop until we reach the exit of the cfg
+		while (!currentNode.strongEquals(exitNode)) {
+			// Notifies the node visit
+			onNodeVisit(currentNode);
+			
+			// Stores info from the previous iteration
+			CFGNode lastNode = currentNode;
+			int lastEventIndex = this.currentEventIndex;
 
-//			emergencyLog += currentNode.toString() + "\n";
-//			if (currentEvent != null)
-//				emergencyLog += currentEvent.toString() + "\n\n";
+			// Takes all the outgoing edges
+			// of the current node
+			Set<LabeledEdge> currentOutgoingEdges = this.cfg.outgoingEdgesOf(currentNode);
 			
-			//If we have a switch, we get all the execution events related to this switch
-			//(one for each edge) and we set currentEvent as the event related to the chosen branch.
-			List<ExecutionEvent> caseEvents = null;
+			// If on a switch statement, gets all the events for it
+			// (one for each edge) and sets currentEvent to the one 
+			// for the chosen branch.
+			ArrayList<CaseExecutionEvent> caseEvents;
 			if (currentNode.isSwitch()) {
-				currentEvent = null;
-				caseEvents = new ArrayList<ExecutionEvent>();
-				emergencyLog += "------ Case events -------\n";
-				ExecutionEvent currentCaseEvent;
+				caseEvents = new ArrayList<>();
 				
-				//Goes back of one event
-				this.rewind(1);
-				for (LabeledEdge edge : edges) {
-					currentCaseEvent = this.getNextEvent();
-//					emergencyLog += currentCaseEvent.toString() + "\n";
+				emergencyLog += "------ Case events -------\n";
+				
+				// Goes back of one event
+				rewind(1);
+				
+				// Resets the current event (for safety)
+				currentEvent = null;
+				
+				// Gets all the events for the switch statement
+				// and sets the current event to the one
+				// associated to the edge that was actually 
+				// taken during execution
+				for (LabeledEdge edge : currentOutgoingEdges) {
+					CaseExecutionEvent eventCase = (CaseExecutionEvent) getNextEvent();
+					//associates the event with the corresponding edge
+					//TODO are we sure this is the right edge?
+					eventCase.setEdge(edge); 
+					caseEvents.add(eventCase);
 					
-					caseEvents.add(currentCaseEvent);
-					currentCaseEvent.setEdge(edge);
-					if (((CaseExecutionEvent) currentCaseEvent).isChosen()) {
-						currentEvent = currentCaseEvent;
-						currentEvent.setEdge(edge);
+					// Sets currentEvent
+					if (eventCase.isChosen()) {
+						currentEvent = eventCase;
 					}
-					
-				} //for each edge
-			} //if is a switch
+				}
+			} else {
+				//it is not a switch
+				caseEvents = null;
+			}
 			
-			//New event not needed
+			// Do we need a new event?
 			boolean newEvent = false;
 			
-			//For each outgoing edge from the current node
-			for (LabeledEdge edge : edges) {
-				
-				//If the edge is a FlowEdge, notifies to the listeners and changes the current node
-				if (!edge.needsEvent()) {
-					for (SimulatorListener listener : this.listeners)
-						listener.onEdgeVisit(edge);
-					currentNode = this.cfg.getEdgeTarget(edge);
-					
-				} else {
-					//Take the edge matching the execution event
-					if (edge.matchesExecution(currentEvent)) {
+			// Scans the current outgoing edges
+			for (LabeledEdge edge : currentOutgoingEdges) {
+				if (edge.needsEvent()) {
+					// Takes the edge matching the execution event
+					if (edge.matchesEvent(currentEvent)) {
 						currentEvent.setEdge(edge);
 						
-						//Notifies the visit of the edge to the listeners.
-						if (currentNode.isSwitch())
-							for (SimulatorListener listener : this.listeners)
-								listener.onEdgeVisit(edge, currentEvent, caseEvents);
-						else
-							for (SimulatorListener listener : this.listeners)
-								listener.onEdgeVisit(edge, currentEvent);
+						// Notifies the visit of the edge 
+						// to the listeners.
+						if (currentNode.isSwitch()) {
+							onEdgeVisit(edge, (CaseExecutionEvent) currentEvent, caseEvents);
+						} else {
+							onEdgeVisit(edge, (IfExecutionEvent) currentEvent);
+						}
 						
 						//Changes the current node
 						currentNode = this.cfg.getEdgeTarget(edge);
@@ -132,25 +158,33 @@ public class Simulator {
 						//Need a new event!
 						newEvent = true;
 					} //if matches the execution event
-				} //if doesn't need events
+				} else {
+					// Ihe edge is a FlowEdge
+					onEdgeVisit(edge);
+					currentNode = this.cfg.getEdgeTarget(edge);
+				} //if needs events
 			} //while end not reached
 			
+			// Checks invariant
 			if (currentNode == lastNode && 
-					lastExecutionEvent == this.currentEventIndex) {
+				lastEventIndex == this.currentEventIndex) {
 				try {
 					Utils.writeFile("EMERGENCY_LOG", emergencyLog);
 				} catch (IOException e) {
+					//nothing that we can do...
 				}
 				throw new SimulationException("Simulation error");
 			}
 			
 			//If needs a new event, consumes a new event.
-			if (newEvent)
-				currentEvent = this.getNextEvent();
+			if (newEvent) {
+				currentEvent = getNextEvent();
+			}
 		}
 		
-		if (!this.isSimulationCorrect())
+		if (!isSimulationCorrect()) {
 			throw new SimulationException("Simulation not ended!! " + this.currentEventIndex + " in " + this.events.size());
+		}
 	}
 	
 	/**
@@ -159,6 +193,7 @@ public class Simulator {
 	 */
 	public boolean isSimulationCorrect() {
 		if (this.currentEventIndex == 0) {
+			//no events
 			return (this.events.size() == 1 && this.events.get(0) == null);
 		} else {
 			return this.currentEventIndex == this.events.size();
@@ -166,29 +201,91 @@ public class Simulator {
 	}
 	
 	/**
-	 * Resets the simulation
+	 * Resets the simulation.
 	 */
+	//TODO just use a (bidirectional) Iterator?
 	private void reset() {
 		this.currentEventIndex = -1;
 	}
 	
 	/**
-	 * Consumes an execution event
-	 * @return
+	 * Consumes an execution event.
+	 * 
+	 * @return the next {@link ExecutionEvent}
+	 *         or {@code null} if there are
+	 *         no other events.
 	 */
+	//TODO just use a (bidirectional) Iterator?
 	private ExecutionEvent getNextEvent() {
 		this.currentEventIndex++;
-		if (this.currentEventIndex < this.events.size())
+		if (this.currentEventIndex < this.events.size()) {
 			return this.events.get(this.currentEventIndex);
-		else
+		} else {
 			return null;
+		}
 	}
 	
 	/**
-	 * Goes back of "number" execution events
-	 * @param number Number of execution events to go back
+	 * Goes back of {@code number} execution events.
+	 * 
+	 * @param number number of execution events to go back
 	 */
+	//TODO just use a (bidirectional) Iterator?
 	private void rewind(int number) {
 		this.currentEventIndex -= number;
+	}
+	
+	/**
+	 * Notifies all listeners of a node visit.
+	 * 
+	 * @param pNode the visited {@link CFGNode}. 
+	 */
+	private void onNodeVisit(CFGNode pNode) {
+		for (SimulatorListener listener : this.listeners) {
+			listener.onNodeVisit(pNode);
+		}
+	}
+	
+	/**
+	 * Notifies all listeners of an edge visit.
+	 * The edge is a flow edge.
+	 * 
+	 * @param pEdge the visited {@link LabeledEdge}. 
+	 */
+	private void onEdgeVisit(LabeledEdge pEdge) {
+		for (SimulatorListener listener : this.listeners) {
+			listener.onEdgeVisit(pEdge);
+		}
+	}
+	
+	/**
+	 * Notifies all listeners of an edge visit. 
+	 * The edge is a branch of a switch statement.
+	 * 
+	 * @param pEdge the visited {@link LabeledEdge}.
+	 * @param pEvent the {@link IfExecutionEvent}
+	 *        associated to {@code pEdge}.
+	 */
+	private void onEdgeVisit(LabeledEdge pEdge, IfExecutionEvent pEvent) {
+		for (SimulatorListener listener : this.listeners) {
+			listener.onEdgeVisit(pEdge, pEvent);
+		}
+	}
+	
+	/**
+	 * Notifies all listeners of an edge visit. 
+	 * The edge is a branch of a switch statement.
+	 * 
+	 * @param pEdge the visited {@link LabeledEdge}.
+	 * @param pEvent the {@link CaseExecutionEvent}
+	 *        associated to {@code pEdge}.
+	 * @param pCases a {@link List}{@code <}{@link CaseExecutionEvent}{@code >}
+	 *        containing all the events generated by the execution of the 
+	 *        switch statement.  
+	 */
+	private void onEdgeVisit(LabeledEdge pEdge, CaseExecutionEvent pEvent, List<CaseExecutionEvent> pCases) {
+		for (SimulatorListener listener : this.listeners) {
+			listener.onEdgeVisit(pEdge, pEvent, pCases);
+		}
 	}
 }

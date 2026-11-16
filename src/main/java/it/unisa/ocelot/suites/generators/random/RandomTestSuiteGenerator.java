@@ -8,13 +8,17 @@ import org.apache.commons.lang3.Range;
 
 import it.unisa.ocelot.TestCase;
 import it.unisa.ocelot.c.cfg.CFG;
-import it.unisa.ocelot.c.types.CDouble;
-import it.unisa.ocelot.c.types.CInteger;
+import it.unisa.ocelot.c.cfg.edges.LabeledEdge;
+import it.unisa.ocelot.c.types.CTypeDouble;
+import it.unisa.ocelot.c.types.CTypeInteger;
 import it.unisa.ocelot.c.types.CType;
 import it.unisa.ocelot.conf.ConfigManager;
+import it.unisa.ocelot.simulator.CoverageCalculatorEdges;
 import it.unisa.ocelot.suites.TestSuiteGenerationException;
-import it.unisa.ocelot.suites.generators.CascadeableGenerator;
-import it.unisa.ocelot.suites.generators.TestSuiteGenerator;
+import it.unisa.ocelot.suites.generators.CascadeableTestSuiteGenerator;
+import jmetal.core.Solution;
+import jmetal.core.Variable;
+import it.unisa.ocelot.suites.generators.AbstractTestSuiteGeneratorCFG;
 
 /**
  * Randomly generates test cases, keeping only the ones that improve coverage. The maximum number of generations
@@ -22,113 +26,93 @@ import it.unisa.ocelot.suites.generators.TestSuiteGenerator;
  * @author simone
  *
  */
-public class RandomTestSuiteGenerator extends TestSuiteGenerator implements CascadeableGenerator {
+public final class RandomTestSuiteGenerator extends AbstractTestSuiteGeneratorCFG<LabeledEdge> implements CascadeableTestSuiteGenerator {
+	private final static int SECONDS_TO_MILLIS = 1000;
+	
 	private Random random;
 	private Range<Double>[] ranges;
-	private boolean satisfied;
 	
-	public RandomTestSuiteGenerator(ConfigManager pConfigManager, CFG pCFG) {
-		super(pCFG,null);
-		this.config = pConfigManager;
+	public RandomTestSuiteGenerator(ConfigManager pConfigManager, CFG pCfg) {
+		super(pConfigManager, new CoverageCalculatorEdges(pCfg), pCfg);
 		this.random = new Random();
-		this.ranges = this.config.getTestRanges();
+		this.ranges = this.configManager.getTestRanges();
 	}
 	
 	@Override
-	public Set<TestCase> generateTestSuite(Set<TestCase> pSuite) throws TestSuiteGenerationException {
-		Set<TestCase> suite = new HashSet<TestCase>(pSuite);
-		
-		this.startBenchmarks();
-		
-		calculator.calculateCoverage(suite);
-		
-		this.generateRandomSuite(suite);
-		
-		calculator.calculateCoverage(suite);
-		if (calculator.getObjectiveCoverage() >= this.config.getRequiredCoverage()) {
-			this.satisfied = true;
-		}
+	protected Set<TestCase> doGenerateTestSuite(Set<TestCase> pSuite) throws TestSuiteGenerationException {
+		HashSet<TestCase> suite = new HashSet<>(pSuite);
+		generateRandomSuite(suite);
 		
 		return suite;
 	}
 	
-	public boolean isSatisfied() {
-		return satisfied;
-	}
-	
 	private void generateRandomSuite(Set<TestCase> suite) throws TestSuiteGenerationException {
 		long time = 0;
-		long timeout = System.currentTimeMillis() + this.config.getRandomTimeLimit()*1000;
-		if (this.config.getRandomTimeLimit() < 0)
+		long timeout = System.currentTimeMillis() + this.configManager.getRandomTimeLimit() * SECONDS_TO_MILLIS;
+		if (this.configManager.getRandomTimeLimit() < 0) {
 			timeout = Long.MAX_VALUE;
+		}
 		
-		int sizeout = config.getRandomSizeLimit();
-		if (sizeout < 0)
+		int sizeout = this.configManager.getRandomSizeLimit();
+		if (sizeout < 0) {
 			sizeout = Integer.MAX_VALUE;
+		}
 		
 		double lastCoverage = 0.0;
-		while (calculator.getObjectiveCoverage() < this.config.getRequiredCoverage() &&
+		while (this.coverageCalculator.getCoverage() < this.configManager.getRequiredCoverage() &&
 				suite.size() <= sizeout &&
 				time < timeout) {
 			coverRandom(suite);
-			calculator.calculateCoverage(suite);
 			
-			if (calculator.getObjectiveCoverage() > lastCoverage) {
-				this.measureBenchmarks("Random", suite, null);
-				lastCoverage = calculator.getObjectiveCoverage();
-				
-				this.println(calculator.getObjectiveCoverage());
-				this.println(suite.size());
-				this.printSeparator();
-			}
-			if (suite.size() % 10000 == 0) {
-				this.print("Temporary size: ");
-				this.println(suite.size());
+			// Updates current coverage 
+			this.coverageCalculator.updateCoverage(suite);
+			if (this.coverageCalculator.getCoverage() > lastCoverage) {
+				measureBenchmarks("Random", suite, 0);
+				print("Current coverage: ");
+				print(this.coverageCalculator.getCoverage());
+				print(", current suite size: ");
+				println(suite.size());
 			}
 			
 			time = System.currentTimeMillis();
-			this.println("Time: " + (timeout-time));
+			println("Remaining time: " + (timeout - time));
 		}
-		
-		this.measureBenchmarks("End", suite, null);
 	}
 	
 	private void coverRandom(Set<TestCase> suite) throws TestSuiteGenerationException {
-		for (int i = 0; i < this.config.getRandomGranularity(); i++) {
-			Object[][][] numericParams = random(cfg.getParameterTypes());
-			TestCase testCase = this.createTestCase(numericParams, suite.size());
+		for (int i = 0; i < this.configManager.getRandomGranularity(); i++) {
+			Solution solution = random(this.cfg.getParameterTypes());
+			TestCase testCase = new TestCase(suite.size(), solution, this.cfg.getParameterTypes());
 			suite.add(testCase);
 		}
 	}
 	
 	//TODO Make this method work. Now it doesn't, due to the major change of parameters
-	private Object[][][] random(CType[] pParamTypes) {
+	private Solution random(CType[] pParamTypes) {
+		Solution solution = new Solution(pParamTypes.length);
+		
 		Object[][][] parameters = new Object[pParamTypes.length][][];
 		parameters[0] = new Object[1][];
 		parameters[0][0] = new Object[pParamTypes.length];
 		
 		for (int i = 0; i < pParamTypes.length; i++) {
-			if (pParamTypes[i] instanceof CDouble) {
-				double param = random.nextDouble() * (ranges[i].getMaximum() - ranges[i].getMinimum());
-				param += ranges[i].getMinimum();
+			double currentMinimum = this.ranges[i].getMinimum();
+			double currentRange = this.ranges[i].getMaximum() - currentMinimum;
+			if (pParamTypes[i] instanceof CTypeDouble) {
+				double param = this.random.nextDouble() * currentRange;
+				param += currentMinimum;
 				parameters[0][0][i] = param;
-			} else if (pParamTypes[i] instanceof CInteger) {
-				int param = random.nextInt((int)(ranges[i].getMaximum() - ranges[i].getMinimum()));
-				param += ranges[i].getMinimum();
+			} else if (pParamTypes[i] instanceof CTypeInteger) {
+				int param = this.random.nextInt((int) currentRange);
+				param += currentMinimum;
 				parameters[0][0][i] = param;
 			} else {
-				double param = random.nextDouble() * (ranges[i].getMaximum() - ranges[i].getMinimum());
-				param += ranges[i].getMinimum();
+				double param = this.random.nextDouble() * currentRange;
+				param += currentMinimum;
 				parameters[0][0][i] = param;
 			}
 		}
 		
 		return parameters; 
-	}
-	
-	@Override
-	public int getNumberOfEvaluations() {
-		// TODO Auto-generated method stub
-		return 0;
 	}
 }

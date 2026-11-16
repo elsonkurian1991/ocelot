@@ -1,132 +1,190 @@
 package it.unisa.ocelot.c.cfg.edges;
+
+import it.unisa.ocelot.genetic.objectives.GenericObjective;
 import it.unisa.ocelot.simulator.ExecutionEvent;
 
 import org.jgrapht.graph.DefaultWeightedEdge;
 
-
 /**
- * This class represents an edge with a label. The label could an object of any kind.
+ * This class represents a (possibly) labeled edge of a CFG. 
+ * Any object can be a label. Unlabeled edges are represented
+ * by a {@code null} label. It is mutable.
+ * 
  * @author simone
- *
  */
-public abstract class LabeledEdge extends DefaultWeightedEdge implements Comparable<LabeledEdge> {
+public abstract class LabeledEdge extends DefaultWeightedEdge {
 	private static final long serialVersionUID = -1013876340016911304L;
 	
-	private Object label;
-	private int id;
-	private static int availableId;
-	private int objectiveID;
-	private boolean isCovered;
-	
-	static {
-		availableId = 0;
-	}
-	
-	private static int nextId() {
-		return availableId++; //returns non incremented availableId!
-	}
+	public static final int NOT_AN_OBJECTIVE = -1;
 	
 	/**
-	 * Creates an edge with an empty label
+	 * A numeric identifier for this edge.
+	 * It univocally identifies the corresponding
+	 * branch in the C source code <em>relatively
+	 * to the branching statement</em> it belongs
+	 * (i.e., among all the companion branch edges, 
+	 * outgoing from this edge's source vertex).
 	 */
-	public LabeledEdge() {
-		super();
-		this.id = LabeledEdge.nextId();
+	private final int id;
+	
+	/**
+	 * The label of this edge, or {@code null}
+	 * if the edge is unlabeled.
+	 */
+	private final Object label;
+	
+	//set externally
+	/**
+	 * When this edge is an objective, 
+	 * this fields contains the id of
+	 * the associated {@link GenericObjective}.
+	 * Otherwise, it has as value NOT_AN_OBJECTIVE.
+	 */
+	private int objectiveId;
+	
+	/**
+	 * Indicates whether this edge was covered
+	 * by an execution.
+	 */
+	private boolean isCovered;
+	
+	/**
+	 * Constructor (unlabeled).
+	 */
+	protected LabeledEdge(int pId) {
+		this.id = pId;
+		this.label = null;
 		this.isCovered = false;
 	}
 	
 	/**
-	 * Creates an edge with a specified label
-	 * @param pLabel Label
+	 * Constructor (labeled).
+	 * 
+	 * @param pLabel the label. It can be 
+	 *        any {@link Object} (perhaps better
+	 *        if immutable).
 	 */
-	public LabeledEdge(Object pLabel) {
-		this();
-		this.setLabel(pLabel);
+	protected LabeledEdge(int pId, Object pLabel) {
+		this.id = pId;
+		this.label = pLabel;
+		this.isCovered = false;
 	}
 	
 	/**
-	 * Sets the label of the edge
-	 * @param label
+	 * Returns the id number 
+	 * of this edge.
+	 *
+	 * @return an {@code int}, the id.
 	 */
-	public void setLabel(Object label) {
-		this.label = label;
+	public int getId() {
+		return this.id; 
 	}
 	
 	/**
-	 * Returns the label of the edge
-	 * @return
+	 * Returns the label of this edge.
+	 * 
+	 * @return the {@link Object} used
+	 *         to label this edge, or 
+	 *         {@code null} if this
+	 *         edge is unlabeled.
 	 */
 	public Object getLabel() {
-		return label;
-	}
-	
-	@Override
-	public String toString() {
-		if (this.label == null)
-			return "";
-		return this.label.toString();
+		return this.label;
 	}
 	
 	/**
-	 * Returns true if this branch matches the execution event
-	 * @return
+	 * Returns the objective id number 
+	 * of this edge.
+	 * 
+	 * @return the progressive {@code int} 
+	 *         objective id number
+	 *         of this object.
 	 */
-	public abstract boolean matchesExecution(ExecutionEvent pEvent);
-	
-	/**
-	 * Returns true if this branch needs an event to be triggered in order to execute
-	 * @return
-	 */
-	public abstract boolean needsEvent();
-	
-	/**@Override
-	public boolean equals(Object obj) {
-		if (!(obj instanceof LabeledEdge))
-			return false;
-		
-		LabeledEdge edge = (LabeledEdge)obj;
-		if (edge.label == this.label) {
-				return true;
-		} else {
-			if (edge.label == null || this.label == null)
-				return false;
-			return edge.label.equals(this.label);
-		}
-	}
-	**/
-	
-	@Override
-	public int compareTo(LabeledEdge o) {
-		return new Integer(this.id).compareTo(o.id);
-	}
-	
-	/**
-	 * Return the ID number of this LabeledEdge
-	 * @return a progressive ID number
-	 */
-	public int getObjectiveID() {
-		return objectiveID;
+	public int getObjectiveId() {
+		return this.objectiveId;
 	}
 
 	/**
-	 * Set the ID number for this LabeledEdge
-	 * @param objectiveID the id to set
+	 * Associates this {@link LabeledEdge}
+	 * to an objective.
+	 * 
+	 * @param a {@code int} id number
+	 *        identifying the associated 
+	 *        objective.
 	 */
-	public void setObjectiveID(int objectiveID) {
-		this.objectiveID = objectiveID;
+	public void setObjectiveId(int pObjectiveId) {
+		this.objectiveId = pObjectiveId;
 	}
 	
-	public int getID() { return this.id; }
-
+	/**
+	 * Checks whether this edge
+	 * has been covered.
+	 * 
+	 * @return {@code true} iff it was covered.
+	 */
 	public boolean isCovered() {
-		return isCovered;
+		return this.isCovered;
 	}
 
+	/**
+	 * Sets this edge to covered state.
+	 */
 	public void setCovered() {
 		this.isCovered = true;
 	}
 	
+	/**
+	 * Sets this edge to uncovered state.
+	 */
 	public void setUncovered() {
 		this.isCovered = false;
+	}
+	
+	public abstract boolean isBranch();
+	
+	/**
+	 * Returns true if this branch needs an event to be triggered 
+	 * in order to execute.
+	 * 
+	 * @return a {@code boolean}.
+	 */
+	public abstract boolean needsEvent();
+	
+	/**
+	 * Returns true if an event is the one that 
+	 * triggered this branch.
+	 * 
+	 * @param pEvent an {@link ExecutionEvent}.
+	 * @return {@code true} iff {@code pEvent} refers
+	 *         to this edge.
+	 * @throws RuntimeException if {@link #needsEvent()}{@code == false}.
+	 */
+	//TODO this method's implementations actually does VERY LENIENT checks.
+	public abstract boolean matchesEvent(ExecutionEvent pEvent) throws RuntimeException;
+	
+	@Override
+	public String toString() {
+		if (this.label == null) {
+			return "";
+		}
+		return this.label.toString();
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj) {
+			return true;
+		}
+		if (obj == null) {
+			return false;
+		}
+		if (getClass() != obj.getClass()) {
+			return false;
+		}
+		LabeledEdge other = (LabeledEdge) obj;
+		if (this.id != other.id) {
+			return false;
+		}
+		return true;
 	}
 }

@@ -80,7 +80,6 @@ public class GenericPolynomialMutation extends Mutation {
 	 * @return An object containing the mutated solution
 	 * @throws JMException
 	 */
-	@SuppressWarnings("rawtypes")
 	public Object execute(Object object) throws JMException {
 		Solution solution = (Solution) object;
 
@@ -90,8 +89,7 @@ public class GenericPolynomialMutation extends Mutation {
 							+ "type " + solution.getType()
 							+ " is not allowed with this operator");
 
-			Class cls = java.lang.String.class;
-			String name = cls.getName();
+			String name = getClass().getName();
 			throw new JMException("Exception in " + name + ".execute()");
 		} // if
 

@@ -142,10 +142,9 @@ public class SBXGenericCrossover extends Crossover {
 			Class cls = java.lang.String.class;
 			String name = cls.getName();
 			throw new JMException("Exception in " + name + ".execute()");
-		} // if
+		}
 
-		Solution[] offSpring;
-		offSpring = doCrossover(crossoverProbability_, parents[0], parents[1]);
+		Solution[] offSpring = doCrossover(this.crossoverProbability_, parents[0], parents[1]);
 
 		// for (int i = 0; i < offSpring.length; i++)
 		// {
@@ -153,5 +152,5 @@ public class SBXGenericCrossover extends Crossover {
 		// offSpring[i].setRank(0);
 		// }
 		return offSpring;
-	} // execute
-} // SBXCrossover
+	}
+}

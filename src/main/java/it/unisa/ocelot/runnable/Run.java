@@ -15,6 +15,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.Scanner;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.codec.digest.DigestUtils;
@@ -24,18 +25,18 @@ import it.unisa.ocelot.c.BuildingException;
 import it.unisa.ocelot.c.StandardBuilder;
 import it.unisa.ocelot.c.makefile.DynamicMakefileGenerator;
 import it.unisa.ocelot.c.makefile.JNIMakefileGenerator;
-import it.unisa.ocelot.c.makefile.LinuxMakefileGenerator;
+import it.unisa.ocelot.c.makefile.POSIXMakefileGenerator;
 import it.unisa.ocelot.c.makefile.MacOSXMakefileGenerator;
 import it.unisa.ocelot.c.makefile.WindowsMakefileGenerator;
 import it.unisa.ocelot.conf.ConfigManager;
 import it.unisa.ocelot.genetic.edges.CalculateFitnessFromEvalPC3;
 import it.unisa.ocelot.genetic.edges.FitType;
-import it.unisa.ocelot.genetic.edges.ReadEFLfilesforPairCombination;
-import it.unisa.ocelot.genetic.edges.ReadEFLfilesforPairCombination_V2;
+import it.unisa.ocelot.genetic.edges.ReadEFLFilesForPairCombination;
+import it.unisa.ocelot.genetic.edges.ReadEFLFilesForPairCombinationV2;
 import it.unisa.ocelot.genetic.edges.TestObjStateMachine;
 import it.unisa.ocelot.genetic.objectives.BranchManager;
 import it.unisa.ocelot.genetic.objectives.GenericObjective;
-import it.unisa.ocelot.genetic.objectives.PC_PairObjective;
+import it.unisa.ocelot.genetic.objectives.PCPairObjective;
 import it.unisa.ocelot.genetic.objectives.PC_PairsManager;
 import it.unisa.ocelot.runnable.runners.ExecuteExperiment;
 import it.unisa.ocelot.runnable.runners.ExecuteWholeCoverage;
@@ -66,9 +67,9 @@ public class Run {
 	private String configFilename;
 	private boolean forceNoBuild;
 	
-	//List of generated objectives
-	public static List<GenericObjective> generatedObjectives;
-	public static List<GenericObjective> branchObjective;
+	//Generated objectives
+	public static Set<? extends GenericObjective> chainPairsObjectives;
+	public static Set<? extends GenericObjective> branchObjectives;
 	
 	enum State {
 		zeroCover,
@@ -81,7 +82,7 @@ public class Run {
 			welcome();
 		}
 
-		System.out.println("Now deleting old build file.... just for better debuging");
+		System.out.println("Now deleting old build file.... just for better debugging");
 		String filePathToDelete1 = localOcelotDir+"/.lastbuild.cks";
 		deleteFileIfExists(filePathToDelete1);
 		String filePathToDelete2 = localOcelotDir+"/libTest.so";
@@ -97,49 +98,27 @@ public class Run {
 		if (runner.mustBuild())
 			runner.build();
 		runner.saveHash();
-		if(isExpWithEvalFun) {
-			//logWriter.append("\n");
-			//logWriter.append("Info:");
-			//logWriter.append("\n");
-			//ReadEFLfilesforPairCombination_V2.RunEFLfilesforPairCombination(); // run this to read the efl file and create pairwise combinations. find a best place to call this
-			generatedObjectives = PC_PairsManager.loadObjectives();
-			branchObjective = BranchManager.loadObjectives(0);
-			//logWriter.append("\n");
-			//logWriter.append("List of PC PairCombinations:");
-			//logWriter.append("\n{\n");
-			//for(TestObjStateMachine sm:ReadEFLfilesforPairCombination_V2.files_SM_PC_FitVals) {
-			//logWriter.append(sm.getSMPairName().toString());
-			//logWriter.append("\n");
-			//}
-			//logWriter.append("}\n");
-
+		if (isExpWithEvalFun) {
+			chainPairsObjectives = PC_PairsManager.loadObjectives();
+			branchObjectives = BranchManager.loadObjectives();
 		}
 		runner.run();
-		if(isExpWithEvalFun) {
+		if (isExpWithEvalFun) {
 			//System.out.println(ReadEFLfilesforPairCombination.files_PC_PairCom_FitnessVals);
-			long endTime=System.currentTimeMillis();
-			long time=endTime-startTime;
+			long endTime = System.currentTimeMillis();
+			long time = endTime - startTime;
 			long hours = time / 3600000;
 			long minutes = (time / 60000) % 60;
 			long seconds = (time / 1000) % 60;
 
-			PrintNumOfPathCovered();
+			printPathCoverage();
 			System.out.println("Execution time: " + hours + " hours, " + minutes + " minutes, " + seconds + " seconds");
 			logWriter.append("Execution time: " + hours + " hours, " + minutes + " minutes, " + seconds + " seconds");
 			logWriter.append("\n");
-			//logWriter.append("\n");
-			/*logWriter.append("files_PC_PairCom_FitnessVals");*/
 			logWriter.append("\n");
-			logWriter.append(generatedObjectives.toString());
-
-			/*for (TestObjStateMachine sm : ReadEFLfilesforPairCombination_V2.files_SM_PC_FitVals) {
-
-			}*/
-
+			logWriter.append(chainPairsObjectives.toString());
 		}
 		createLogFile(logWriter);
-		//System.out.println(CalculateFitnessFromEvalPC3.linesFromFitnessFiles);
-		//delete all the target source files from the jni folder
 		deleteTargetSourceFilesFromJni();
 	}
 	private static void deleteTargetSourceFilesFromJni() throws IOException {
@@ -187,6 +166,7 @@ public class Run {
 		TimeUnit.SECONDS.sleep(1);
 
 	}
+	
 	public static void createLogFile(StringBuilder logWriter) throws IOException {
 		LocalDateTime now = LocalDateTime.now();
 		DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss");
@@ -198,41 +178,35 @@ public class Run {
 		}
 
 	}
-	private static void PrintNumOfPathCovered() {
-
-
-		int totalPairCombination= generatedObjectives.size();
+	
+	private static void printPathCoverage() {
+		int totalPairCombination = chainPairsObjectives.size();
 		int totalPairTestGenerated = 0;
-		String pairList="";
+		String pairList = "";
 
 		logWriter.append("\n");
-		//System.out.println("Test case NOT generated for following pair combination: ");
-		//logWriter.append("Test case NOT generated for following pair combination: ");
-		//logWriter.append("\n");logWriter.append("\n");
+		
 		int totalCovered = 0;
 		int forwardLevel1covered = 0;
 		int forwardLevel2covered = 0;
 		
 		int forwardLevel1notCovered = 0;
 		int forwardLevel2notCovered = 0;
-		for (GenericObjective obj : generatedObjectives) {	
-			PC_PairObjective pairObj = (PC_PairObjective) obj;
+		for (GenericObjective obj : chainPairsObjectives) {	
+			PCPairObjective pairObj = (PCPairObjective) obj;
 			
 			
 			// TODO: refactor to handle multiple indirections level and to allow non PC_PairObjective as objective
 			if (obj.isCovered()) {
-				if ( pairObj.indirectionLevel == 1) {
+				if (pairObj.indirectionLevel == 1) {
 					forwardLevel1covered++;
-				}
-				else if (pairObj.indirectionLevel == 2) {
+				} else if (pairObj.indirectionLevel == 2) {
 					forwardLevel2covered++;
 				}
-			}
-			else if (!obj.isCovered()) {
+			} else { //(!obj.isCovered())
 				if ( pairObj.indirectionLevel == 1) {
 					forwardLevel1notCovered++;
-				}
-				else if (pairObj.indirectionLevel == 2) {
+				} else if (pairObj.indirectionLevel == 2) {
 					forwardLevel2notCovered++;
 				}
 			}
@@ -387,33 +361,37 @@ public class Run {
 	public void build() throws Exception {
 		ConfigManager config = ConfigManager.getInstance();
 
+		JNIMakefileGenerator generator = new DynamicMakefileGenerator(config);
+		/*		String os = System.getProperty("os.name");
+				if (os.contains("Win"))
+					generator = new WindowsMakefileGenerator();
+				else if (os.contains("Mac"))
+					generator = new MacOSXMakefileGenerator();
+				else if (os.contains("nix") || os.contains("nux") || os.contains("aix"))
+					generator = new POSIXMakefileGenerator();
+				//else if (os.contains("sunos"))
+				else {
+					throw new BuildingException("Your operative system \"" + os + "\" is not supported");
+				}
+		 */
+
+		for (String linkLibrary : config.getTestLink()) {
+			generator.addLinkLibrary(linkLibrary);
+		}
+
 		Builder builder = new StandardBuilder(
+				System.out,
+				generator,
 				config.getTestFilename(), 
 				config.getTestFunction(), 
-				config.getTestIncludePaths());
-
-		JNIMakefileGenerator generator = new DynamicMakefileGenerator(config);
-		//		String os = System.getProperty("os.name");
-		//		if (os.contains("Win"))
-		//			generator = new WindowsMakefileGenerator();
-		//		else if (os.contains("Mac"))
-		//			generator = new MacOSXMakefileGenerator();
-		//		else if (os.contains("nix") || os.contains("nux") || os.contains("aix"))
-		//			generator = new LinuxMakefileGenerator();
-		//		//else if (os.contains("sunos"))
-		//		else {
-		//			throw new BuildingException("Your operative system \"" + os + "\" is not supported");
-		//		}
-
-		for (String linkLibrary : config.getTestLink())
-			generator.addLinkLibrary(linkLibrary);
-
-		builder.setMakefileGenerator(generator);
-		builder.setOutput(System.out);
-
+				config.getTestSourcePaths(), 
+				config.getTestIncludePaths(),
+				config.getUnitComponents(),
+				config.isSplitBooleans(),
+				config.getTestArraysSize());
 		builder.build();
 		/*update the population.size and evaluations.max value to a var*/
-		evaluations_max= config.getMaxEvaluations();
+		evaluations_max= config.getEvaluationsMax();
 		population_size= config.getPopulationSize();
 	}
 
@@ -468,6 +446,7 @@ public class Run {
 					Thread.sleep(1000);
 				}
 			} catch (InterruptedException e) {
+				//TODO fall through?
 			}
 
 			return;
@@ -479,8 +458,9 @@ public class Run {
 			return;
 		}
 
-		if (parts.length != 2)
+		if (parts.length != 2) {
 			throw new IllegalArgumentException("The passed parameter is not valid: " + arg);
+		}
 
 		String property = parts[0];
 		String value = parts[1];
@@ -494,11 +474,13 @@ public class Run {
 				this.runnerType = RUNNER_EXPERIMENT;
 			} else if (value.equalsIgnoreCase("write")) {
 				this.runnerType = RUNNER_WRITE;
-			} else
+			} else {
 				throw new IllegalArgumentException("Illegal run type '" + value + "'. Use 'simple', 'experiment' or 'write'.");
+			}
 		} else if (property.equalsIgnoreCase("config")) {
-			if (changedProperty)
+			if (changedProperty) {
 				throw new IllegalArgumentException("Illegal config position: set the configuration file before editing specific properties.");
+			}
 
 			this.configFilename = value;
 			ConfigManager.setFilename(value);

@@ -7,16 +7,13 @@ import java.io.PrintStream;
 
 
 public abstract class Builder {
-	protected PrintStream stream;
-	protected JNIMakefileGenerator makefileGenerator;
+	protected final PrintStream stream;
+	protected final JNIMakefileGenerator makefileGenerator;
+	
+	protected Builder(PrintStream pStream, JNIMakefileGenerator pMakefileGenerator) {
+		this.stream = pStream;
+		this.makefileGenerator = pMakefileGenerator;
+	}
 
 	public abstract void build() throws IOException, BuildingException;
-	
-	public void setOutput(PrintStream pStream) {
-		this.stream = pStream;
-	}
-	
-	public void setMakefileGenerator(JNIMakefileGenerator makefileGenerator) {
-		this.makefileGenerator = makefileGenerator;
-	}
 }

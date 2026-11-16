@@ -9,17 +9,21 @@ import it.unisa.ocelot.c.cfg.edges.TrueEdge;
 import java.util.ArrayList;
 import java.util.List;
 
-public class CFGNodeNavigator {
+//TODO how is this class supposed to work????
+@Deprecated
+public final class CFGNodeNavigator {
 	private CFG cfg;
 	private CFGNode currentNode;
 	private List<LabeledEdge> edges;
 	
+	@Deprecated
 	public CFGNodeNavigator(CFG pCFG, CFGNode pNode) {
 		this.cfg = pCFG;
 		this.currentNode = pNode;
-		this.edges = new ArrayList<LabeledEdge>();
+		this.edges = new ArrayList<>();
 	}
 	
+	@Deprecated
 	public CFGNodeNavigator goFlow() {
 		LabeledEdge flowEdge = null;
 		for (LabeledEdge edge : this.cfg.outgoingEdgesOf(this.currentNode)) {
@@ -34,6 +38,7 @@ public class CFGNodeNavigator {
 		return this;
 	}
 	
+	@Deprecated
 	public CFGNodeNavigator goTrue() {
 		for (LabeledEdge edge : this.cfg.outgoingEdgesOf(this.currentNode)) {
 			if (edge instanceof TrueEdge) {
@@ -45,6 +50,7 @@ public class CFGNodeNavigator {
 		return this;
 	}
 	
+	@Deprecated
 	public CFGNodeNavigator goFalse() {
 		for (LabeledEdge edge : this.cfg.outgoingEdgesOf(this.currentNode)) {
 			if (edge instanceof FalseEdge) {
@@ -56,10 +62,11 @@ public class CFGNodeNavigator {
 		return this;
 	}
 	
+	@Deprecated
 	public CFGNodeNavigator goCase(String pLabel) {
 		for (LabeledEdge edge : this.cfg.outgoingEdgesOf(this.currentNode)) {
 			if (edge instanceof CaseEdge) {
-				CaseEdge caseEdge = (CaseEdge)edge;
+				CaseEdge caseEdge = (CaseEdge) edge;
 				if (caseEdge.getLabel().toString().equals(pLabel)) {
 					this.currentNode = this.cfg.getEdgeTarget(edge);
 					this.edges.add(caseEdge);
@@ -74,26 +81,29 @@ public class CFGNodeNavigator {
 	 * Returns the node navigated
 	 * @return
 	 */
+	@Deprecated
 	public CFGNode node() {
 		return this.currentNode;
 	}
 	
+	@Deprecated
 	public LabeledEdge edge() {
-		return this.edges.get(this.edges.size()-1);
+		return this.edges.get(this.edges.size() - 1);
 	}
 	
 	/**
 	 * Returns the path navigated
 	 * @return
 	 */
+	@Deprecated
 	public List<LabeledEdge> path() {
 		return this.edges;
 	}
 
+	@Deprecated
 	@Override
 	public String toString() {
 		return "CFGNodeNavigator [currentNode=" + currentNode + ", edges="
 				+ edges + "]";
 	}
 }
-//cfg.getStart().goFlow().goFlow().goFalse().node()

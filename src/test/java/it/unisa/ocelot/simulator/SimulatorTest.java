@@ -1,7 +1,9 @@
 package it.unisa.ocelot.simulator;
 
+import static org.powermock.reflect.Whitebox.getInternalState;
+
 import it.unisa.ocelot.c.cfg.CFG;
-import it.unisa.ocelot.c.cfg.dominators.Dominators;
+import it.unisa.ocelot.c.cfg.dominators.DominanceCalculatorVertices;
 import it.unisa.ocelot.c.cfg.edges.FalseEdge;
 import it.unisa.ocelot.c.cfg.edges.FlowEdge;
 import it.unisa.ocelot.c.cfg.edges.LabeledEdge;
@@ -10,15 +12,16 @@ import it.unisa.ocelot.c.cfg.nodes.CFGNode;
 import it.unisa.ocelot.genetic.edges.EdgeDistanceListener;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import org.powermock.reflect.Whitebox;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
 import static org.junit.Assert.assertEquals;
 
 /**
- * Test the simulation on the CFG to calculate the fitness function
+ * Tests the simulation on the CFG to calculate the fitness function.
+ * 
  * @author Giovanni Grano
  */
 public class SimulatorTest {
@@ -48,16 +51,14 @@ public class SimulatorTest {
         cfg.addVertex(n1);
         cfg.addVertex(n2);
         cfg.addVertex(n3);
-
         cfg.addVertex(end);
 
         cfg.setStart(start);
         cfg.setEnd(end);
 
-
         cfg.addEdge(start, n1, new FlowEdge());
         cfg.addEdge(n1, n2, new TrueEdge());
-        cfg.addEdge(n1, n3, target=new FalseEdge());
+        cfg.addEdge(n1, n3, target = new FalseEdge());
         cfg.addEdge(n2, end, new FlowEdge());
         cfg.addEdge(n3, end, new FlowEdge());
 
@@ -65,14 +66,14 @@ public class SimulatorTest {
 //                .filter(e ->
 //                e.getID() == targetBranch.getID()).collect(Collectors.toList()).get(0);
 
-        Dominators<CFGNode, LabeledEdge> dominators = new Dominators<>(cfg, cfg.getStart());
+        DominanceCalculatorVertices<CFGNode, LabeledEdge> dominators = new DominanceCalculatorVertices<>(cfg, cfg.getEntry());
         CFGNode parent = cfg.getEdgeSource(target);
         dominatorNodes = dominators.getStrictDominators(parent);
     }
 
     @Test
-    public void simulate() throws Exception {
-        EdgeDistanceListener listener = new EdgeDistanceListener(cfg, target, dominatorNodes);
+    public void testSimulate1() throws Exception {
+        EdgeDistanceListener listener = new EdgeDistanceListener(cfg, target, dominatorNodes, Collections.emptySet());
         EventsHandler events = new EventsHandler();
         events.add(1, 0.0, 1.5);
         Simulator simulator = new Simulator(cfg, events.getEvents());
@@ -81,31 +82,36 @@ public class SimulatorTest {
         double branchDistance = listener.getNormalizedBranchDistance();
         int approachLevel = listener.getApproachLevel();
         assertEquals(0.6, branchDistance, 0.0);
-        assertEquals( 0, approachLevel);
+        assertEquals(0, approachLevel);
+    }
 
-        events = new EventsHandler();
+    @Test
+    public void testSimulate2() throws Exception {
+        EdgeDistanceListener listener = new EdgeDistanceListener(cfg, target, dominatorNodes, Collections.emptySet());
+    	EventsHandler events = new EventsHandler();
+        events.add(1, 0.0, 1.5);
         events.add(0, 1.5, 0.0);
-        simulator = new Simulator(cfg, events.getEvents());
+        Simulator simulator = new Simulator(cfg, events.getEvents());
         simulator.addListener(listener);
         simulator.simulate();
-        branchDistance = listener.getNormalizedBranchDistance();
-        approachLevel = listener.getApproachLevel();
+        double branchDistance = listener.getNormalizedBranchDistance();
+        int approachLevel = listener.getApproachLevel();
         assertEquals(0.0, branchDistance, 0.0);
-        assertEquals( 0, approachLevel, 0);
+        assertEquals(0, approachLevel, 0);
 
-        int currentEventIndex = Whitebox.getInternalState(simulator, "currentEventIndex");
+        int currentEventIndex = getInternalState(simulator, "currentEventIndex");
         boolean correct = currentEventIndex == events.getEvents().size();
         assertEquals(correct, simulator.isSimulationCorrect());
     }
 
     @Test
-    public void addListener() throws Exception {
-        EdgeDistanceListener listener = new EdgeDistanceListener(cfg, target, dominatorNodes);
+    public void setListener() throws Exception {
+        EdgeDistanceListener listener = new EdgeDistanceListener(cfg, target, dominatorNodes, Collections.emptySet());
         EventsHandler events = new EventsHandler();
         events.add(1, 0.0, 1.5);
         Simulator simulator = new Simulator(cfg, events.getEvents());
         simulator.setListener(listener);
-        List<SimulatorListener> listeners = Whitebox.getInternalState(simulator, "listeners");
+        List<SimulatorListener> listeners = getInternalState(simulator, "listeners");
         assertEquals(1, listeners.size());
     }
 }

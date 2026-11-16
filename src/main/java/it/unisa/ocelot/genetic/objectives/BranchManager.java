@@ -1,75 +1,55 @@
 package it.unisa.ocelot.genetic.objectives;
 
-
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
+import java.util.Set;
 
 import it.unisa.ocelot.util.Utils;
 
-
 public class BranchManager {
-	public static HashSet<EvalFunPathType> listofFunPaths = new HashSet<>();// ok
-	public static HashSet<FunctionPair> listofIntRelationKeys = new HashSet<>();// ok
-	public static Map<String, ArrayList<String>> listofKeys = new HashMap<>();// ok
-	
-	public static List<String> ListOfBranches;
-	
-	public static List<GenericObjective> generatedObjectives;
+	private static Set<? extends GenericObjective> generatedObjectives;
 
-	public static List<GenericObjective> loadObjectives(int objectiveID) throws IOException { 
+	public static Set<? extends GenericObjective> loadObjectives() throws IOException { 
 		if (generatedObjectives == null) {
-			// Reading the object from a file
-			ListOfBranches = Arrays.asList(Utils.readFile("branchObjectives.txt").split(","));
+			// Reads the list of branches from branchObjective.txt
+			String[] listOfBranches = Utils.readFile("branchObjectives.txt").split(",");
 	
-			List<GenericObjective> objectives = new ArrayList<GenericObjective>();
-
-			for (String Branch : ListOfBranches) {
-				BranchObjective branchObj = new BranchObjective(false, objectiveID, Branch);
-				objectives.add(branchObj);
-				objectiveID++;
-				}
+			Set<BranchObjective> objectives = new HashSet<>();
 			
-			
-			generatedObjectives = objectives;
-			
-			// For every objective find it's triggering pair
-			for (GenericObjective obj : generatedObjectives) {
-				findTriggeredPair((BranchObjective) obj, generatedObjectives);
+			int objectiveId = 0;
+			for (String branchId : listOfBranches) {
+				BranchObjective branchObjective = new BranchObjective(objectiveId, branchId);
+				objectives.add(branchObjective);
+				objectiveId++;
 			}
 			
-			return generatedObjectives;
+			// For every objective finds its triggering pair
+			for (BranchObjective objective : objectives) {
+				findTriggeredPair(objective, objectives);
+			}					
+			
+			generatedObjectives = objectives;
 		}
-		else 
-			return generatedObjectives;
+		
+		return generatedObjectives;
 	}
 
-	private static void findTriggeredPair(BranchObjective branch, List<GenericObjective> objectives) {
-		
-		String branchString = branch.testObj;
-		String secondBranchTriggered;
-		if (branchString.indexOf("-false") != -1) {
-			secondBranchTriggered = branchString.replaceAll("-false", "-true");
-			
-		}
-		else if (branchString.indexOf("-true") != -1) {
-			secondBranchTriggered = branchString.replaceAll("-true", "-false");
-		}
-		else {
-			secondBranchTriggered = "Error";
+	private static void findTriggeredPair(BranchObjective objective, Set<BranchObjective> objectives) {
+		String objectiveBranchId = objective.getBranchId();
+		String triggeredBranchId;
+		if (objectiveBranchId.indexOf("-false") != -1) {
+			triggeredBranchId = objectiveBranchId.replaceAll("-false", "-true");
+		} else if (objectiveBranchId.indexOf("-true") != -1) {
+			triggeredBranchId = objectiveBranchId.replaceAll("-true", "-false");
+		} else {
+			triggeredBranchId = "Error";
 			System.out.println("Error in reading objectPairs");
 		}
 		
-		for (GenericObjective obj : objectives) {
-			BranchObjective branchObjective = (BranchObjective) obj;
-			
-			if (branchObjective.testObj.equals(secondBranchTriggered)) {
-				// Insert in triggerd fiels of branchObj
-				branch.TriggeredPair =  obj;
+		for (BranchObjective objectiveTriggered : objectives) {
+			if (objectiveTriggered.getBranchId().equals(triggeredBranchId)) {
+				// Sets it as a companion objective
+				objective.setCompanion(objectiveTriggered);
 			}
 		}
 	}
