@@ -85,6 +85,8 @@ public class CBridge {
 	
 	public native void memoryDump();
 	
+	public static native void shutdown();
+	
 	public void onCrash() {
 		System.err.println("A crash occurred...");
 	}

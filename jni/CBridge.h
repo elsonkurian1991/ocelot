@@ -30,6 +30,13 @@ JNIEXPORT void JNICALL Java_it_unisa_ocelot_simulator_CBridge_getEvents(JNIEnv *
  */
 JNIEXPORT void JNICALL Java_it_unisa_ocelot_simulator_CBridge_memoryDump(JNIEnv *, jobject);
 
+/*
+ * Class:     it/unisa/ocelot/simulator/CBridge
+ * Method:    shutdown
+ * Signature: ()V
+ */
+JNIEXPORT void JNICALL Java_it_unisa_ocelot_simulator_CBridge_shutdown(JNIEnv *, jobject);
+
 #ifdef __cplusplus
 }
 #endif

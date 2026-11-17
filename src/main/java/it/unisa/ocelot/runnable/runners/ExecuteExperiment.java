@@ -127,6 +127,9 @@ public class ExecuteExperiment {
 		for (int i = 0; i < configManager.getExperimentRuns(); i++) {
 			runOnce(i, objectives, objectivesToEvaluate);
 		}
+		
+		// Shuts down the C bridge
+		CBridge.shutdown();
 	}
 
 	private void runOnce(int pTime, Set<? extends GenericObjective> pObjectives, Set<? extends GenericObjective> pObjectivesToEvaluate) throws IOException, TestSuiteGenerationException {

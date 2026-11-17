@@ -214,28 +214,27 @@ public class Run {
 			
 			int acc = 0;
 		}
+		
 		//System.out.println(listofObjNotCov);
 		logWriter.append("\n");
 		logWriter.append("The covered pair combinations are: ");
-		logWriter.append("\n");logWriter.append("{\n");
+		logWriter.append("\n{\n");
 		//System.out.print(pairList);
 		logWriter.append(pairList.toString());
-		logWriter.append("}\n");
-		logWriter.append("\n");logWriter.append("\n");
-		logWriter.append("population.size:"+population_size);
-		logWriter.append("\n");logWriter.append("\n");
-		logWriter.append("evaluations.max:"+evaluations_max);
-		logWriter.append("\n");logWriter.append("\n");
-		System.out.println("population.size:"+population_size);
-		System.out.println("evaluations.max:"+evaluations_max);
-		System.out.println((forwardLevel1covered + forwardLevel2covered)+" out of "+totalPairCombination+" pair combination  covered in the generated test suite ");
-		System.out.println("Forward pairs covered:" + (forwardLevel1covered + forwardLevel2covered));
-		System.out.println("Forward pairs size:" + totalPairCombination);
-		logWriter.append((forwardLevel1covered + forwardLevel2covered)+" out of "+totalPairCombination+" pair combination  covered in the generated test suite ");
+		logWriter.append("}\n\n");
+		logWriter.append("population.size:");
+		logWriter.append(population_size);
 		logWriter.append("\n");
-		logWriter.append("\n");
-		//System.out.println("The covered pair combinations are: ");
-
+		logWriter.append("evaluations.max:");
+		logWriter.append(evaluations_max);
+		logWriter.append("\n\n");
+		System.out.println("population.size:" + population_size + "\n");
+		System.out.println("evaluations.max:" + evaluations_max + "\n");
+		System.out.println((forwardLevel1covered + forwardLevel2covered) + " out of " + totalPairCombination + " pair combinations covered in the generated test suite");
+		logWriter.append((forwardLevel1covered + forwardLevel2covered));
+		logWriter.append(" out of ");
+		logWriter.append(totalPairCombination);
+		logWriter.append(" pair combinations covered in the generated test suite\n\n");
 	}
 	private static void deleteOldEvalPCfiles(String directoryPath) {
 		File directory = new File(directoryPath);
@@ -299,8 +298,9 @@ public class Run {
 	}
 
 	public boolean mustBuild() {
-		if (this.forceBuild)
+		if (this.forceBuild) {
 			return true;
+		}
 
 		if (this.forceNoBuild) {
 			System.err.println("WARNING: Forcing the system not to build. This could lead to errors.");

@@ -8,7 +8,7 @@
  */
  
 //uncomment for debugging/logging
-//#define DEBUG
+#define DEBUG
 //#define LOG
 
 #include "CBridge.h"
@@ -336,7 +336,7 @@
 } while (0)
 #define GRAB_RETURN_MEM_RECV do {\
 	LOCK_RETURN_MEM; \
-	WAIT_RETURN_MEM_RECV; \
+	WAIT_RETURN_MEM_RECV; \	
 } while (0)
 #define RELEASE_RETURN_MEM do { \
 	NOTIFY_RETURN_MEM; \
@@ -345,11 +345,12 @@
 #define RELEASE_RETURN_MEM_SEND RELEASE_RETURN_MEM
 #define RELEASE_RETURN_MEM_RECV RELEASE_RETURN_MEM
 
-#define OCELOT_MSG_CAN_WRITE 0
-#define OCELOT_MSG_CAN_READ 1
-#define OCELOT_MSG_ERR 90
-#define OCELOT_MSG_ERR_TOOMANYEVENTS 90
-#define OCELOT_MSG_ERR_UNKNOWN 91
+#define OCELOT_MSG_CAN_WRITE (1u << 0)
+#define OCELOT_MSG_CAN_READ (1u << 1)
+#define OCELOT_MSG_ERR (1u << 2)
+#define OCELOT_MSG_ERR_TOOMANYEVENTS (OCELOT_MSG_ERR | (1u << 0))
+#define OCELOT_MSG_ERR_UNKNOWN (OCELOT_MSG_ERR | (1u << 1))
+#define OCELOT_MSG_END (1u << 3)
 
 //shape of shared memory; used to determine
 //the features of the shared memory block
@@ -361,7 +362,7 @@
 typedef struct {
 	pthread_mutex_t mutex;
 	pthread_cond_t ready;
-	uint8_t msg;
+	uint16_t msg;
 	uint64_t events_length;
 	_T_ocelot_event events[MAX_EVENTS_NUMBER];
 } _T_ocelot_shm_return;
@@ -370,7 +371,7 @@ typedef struct {
 typedef struct {
 	pthread_mutex_t mutex;
 	pthread_cond_t ready;
-	uint8_t msg;
+	uint16_t msg;
 	uint64_t values_length;
 	uint64_t arrays_length;
 	uint64_t pointers_length;
@@ -386,7 +387,7 @@ typedef struct {
 typedef struct {
 	pthread_mutex_t *mutex;
 	pthread_cond_t *ready;
-	uint8_t *msg;
+	uint16_t *msg;
 	size_t *events_length;
 	_T_ocelot_event *events;
 } _T_ocelot_view_shm_return;
@@ -394,7 +395,7 @@ typedef struct {
 typedef struct {
 	pthread_mutex_t *mutex;
 	pthread_cond_t *ready;
-	uint8_t *msg;
+	uint16_t *msg;
 	size_t *values_length;
 	size_t *arrays_length;
 	size_t *pointers_length;
@@ -423,7 +424,7 @@ static pid_t pid_children[OCELOT_CORES];
 
 //identifiers for shared memory
 static int shm_id_return[OCELOT_CORES];
-int shm_id_call[OCELOT_CORES];
+static int shm_id_call[OCELOT_CORES];
 
 //pointers to shared memory (base address)
 static void *shm_ptr_return[OCELOT_CORES];
@@ -765,7 +766,7 @@ JNIEXPORT void JNICALL Java_it_unisa_ocelot_simulator_CBridge_getEvents
 	GRAB_RETURN_MEM_RECV;
 	_f_ocelot_debug("PARENT: Grabbed return memory to receive from CHILD %zu\n", i);
 	
-	uint8_t msg = GETRETURNMSG;
+	uint16_t msg = GETRETURNMSG;
 	if (msg == OCELOT_MSG_CAN_READ) {
 		//The child answered: transmit all the events to Java
 		_f_ocelot_transmit_events_to_java(env, eventHandler, i);
@@ -826,6 +827,11 @@ JNIEXPORT void JNICALL Java_it_unisa_ocelot_simulator_CBridge_memoryDump(JNIEnv 
 	
 	_f_ocelot_memory_dump(i);
 }
+
+JNIEXPORT void JNICALL Java_it_unisa_ocelot_simulator_CBridge_shutdown(JNIEnv *env, jclass cbridge) {
+	_f_ocelot_shutdown();
+}
+
 
 //private functions
 
@@ -1400,7 +1406,52 @@ static void _f_ocelot_end_child(size_t i) {
 	if (pid_children[i] == NO_PID) {
 		return;
 	}
-	kill(pid_children[i], SIGTERM);
+		
+	//Gets a local view of the call memory
+	_T_ocelot_view_shm_call v_call;
+	_f_ocelot_view_shm_call_init(&v_call, i);
+
+	//Gets a local view of the return memory
+	_T_ocelot_view_shm_return v_return;
+	_f_ocelot_view_shm_return_init(&v_return, i);
+
+	_f_ocelot_debug("PARENT: Grabbing call memory to send to CHILD %zu...\n", i);
+	GRAB_CALL_MEM_SEND;
+	_f_ocelot_debug("PARENT: Grabbed call memory to send to CHILD %zu\n", i);
+	
+	SETCALLMSG(OCELOT_MSG_END);
+	
+	_f_ocelot_debug("PARENT: Releasing call memory to send to CHILD %zu...\n", i);
+	RELEASE_CALL_MEM_SEND;
+	_f_ocelot_debug("PARENT: Released call memory to send to CHILD %zu\n", i);
+	
+	int status;
+	pid_t pid_child = waitpid(pid_children[i], &status, 0);
+	if (pid_child == -1) {
+		//error
+		if (errno == ECHILD) {
+			_f_ocelot_debug("PARENT: CHILD %zu process does not exist\n", i);
+		} else {
+			//this should never happen
+			kill(pid_child, SIGKILL);
+		}		
+	} else if (pid_child == pid_children[i]) {
+		if (WIFEXITED(status)) {
+			int exit_status = WEXITSTATUS(status);
+			if (exit_status == ERROR_CODE_OK) {
+				_f_ocelot_debug("PARENT: CHILD %zu process terminated correctly\n", i);
+			} else {
+				_f_ocelot_debug("PARENT: CHILD %zu process terminated incorrectly\n", i);
+			}
+		} else {
+			_f_ocelot_debug("PARENT: CHILD %zu changed status but did not exit (killing child)\n", i);
+			kill(pid_child, SIGKILL);
+		}
+	} else {
+		_f_ocelot_debug("PARENT: Unexpected error while waiting for CHILD %zu\n", i);
+		kill(pid_child, SIGKILL);
+	}
+		
 	pid_children[i] = NO_PID;
 }
 
@@ -1452,8 +1503,9 @@ static int _f_ocelot_unlock_shm_call(_T_ocelot_view_shm_call *v_call_ptr) {
 }
 
 static int _f_ocelot_wait_shm_return(_T_ocelot_view_shm_return *v_return_ptr, bool send) {
-	while ((*(v_return_ptr->msg) != (send ? OCELOT_MSG_CAN_WRITE : OCELOT_MSG_CAN_READ)) &&
-	       (*(v_return_ptr->msg) < OCELOT_MSG_ERR)) {
+	while (!(*(v_return_ptr->msg) & (send ? OCELOT_MSG_CAN_WRITE : OCELOT_MSG_CAN_READ)) &&
+	       !(*(v_return_ptr->msg) & OCELOT_MSG_ERR) &&
+	       !(*(v_return_ptr->msg) & OCELOT_MSG_END)) {
 		int error_code = pthread_cond_wait(v_return_ptr->ready, v_return_ptr->mutex);
 		if (error_code != 0) {
 			return ERROR_CODE_WAIT_FAILED;
@@ -1464,8 +1516,9 @@ static int _f_ocelot_wait_shm_return(_T_ocelot_view_shm_return *v_return_ptr, bo
 }
 
 static int _f_ocelot_wait_shm_call(_T_ocelot_view_shm_call *v_call_ptr, bool send) {
-	while ((*(v_call_ptr->msg) != (send ? OCELOT_MSG_CAN_WRITE : OCELOT_MSG_CAN_READ)) &&
-	       (*(v_call_ptr->msg) < OCELOT_MSG_ERR)) {
+	while (!(*(v_call_ptr->msg) & (send ? OCELOT_MSG_CAN_WRITE : OCELOT_MSG_CAN_READ)) &&
+	       !(*(v_call_ptr->msg) & OCELOT_MSG_ERR) &&
+	       !(*(v_call_ptr->msg) & OCELOT_MSG_END)) {
 		int error_code = pthread_cond_wait(v_call_ptr->ready, v_call_ptr->mutex);
 		if (error_code != 0) {
 			return ERROR_CODE_WAIT_FAILED;
@@ -1506,10 +1559,11 @@ static void _f_ocelot_child_main(size_t i) {
 	sa.sa_handler = SIG_DFL;
 	sigfillset(&sa.sa_mask); //block all signals while in the handler
 	for (int s = 1; s < NSIG; s++) {
-		if (s != SIGKILL && s != SIGSTOP) {
+		if (s != SIGKILL && s != SIGSTOP && s != SIGTERM) {
 			sigaction(s, &sa, NULL);
 		}
 	}
+
 	_f_ocelot_debug("CHILD %zu: Set signal handlers\n", i);
 	
 	//reactivates all signals (especially SIGTERM)
@@ -1541,7 +1595,14 @@ static void _f_ocelot_child_main(size_t i) {
 		//Note: the check of parent status has to be performed right before the call. This is
 		//because it could happen that the resources are released only because the parent
 		//process died.
-
+		if (GETCALLMSG == OCELOT_MSG_END) {
+			_f_ocelot_debug("CHILD %zu: Received termination message from PARENT\n", i);
+			_f_ocelot_debug("CHILD %zu: Releasing call memory to receive from PARENT...\n", i);
+			RELEASE_CALL_MEM_RECV;
+			_f_ocelot_debug("CHILD %zu: Released call memory to receive from PARENT\n", i);
+			goto end;
+		}
+		
 		size_t values_length = (size_t) GETVALUESLENGTH;
 		size_t arrays_length = (size_t) GETARRAYSLENGTH;
 		size_t pointers_length = (size_t) GETPOINTERSLENGTH;
@@ -1572,7 +1633,6 @@ static void _f_ocelot_child_main(size_t i) {
 		_f_ocelot_debug("CHILD %zu: Grabbed return memory to send results of test execution to PARENT\n", i);
 		
 		if (OCLIST_LENGTH(_v_ocelot_events) > MAX_EVENTS_NUMBER) {
-			//TODO Move next line in parent: It is a VERY BAD idea to invoke malloc/free in the child process (see point 3 in the discussion of _f_ocelot_ensure_child).
 			_f_ocelot_debug("CHILD %zu: ERROR: too many events\n", i);
 			SETRETURNMSG(OCELOT_MSG_ERR_TOOMANYEVENTS);
 		} else {
@@ -1611,17 +1671,23 @@ static void _f_ocelot_child_main(size_t i) {
 	int error_code;
 	if (errno == ESRCH) {
 		_f_ocelot_debug("CHILD %zu: Parent has exited\n", i);
-		error_code = ERROR_CODE_OK;
+		goto end_ok;
 	} else if (errno == EPERM) {
 		//this should never happen
 		_f_ocelot_debug("CHILD %zu: Unexpected error: I do not have the permission to send signals to the parent process\n", i);
 		error_code = ERROR_CODE_UNEXPECTED;
+		goto end;
 	} else {
 		//this should never happen
 		_f_ocelot_debug("CHILD %zu: Unexpected error: Unexpected value for errno\n", i);
 		error_code = ERROR_CODE_UNEXPECTED;
+		goto end;
 	}
 	
+end_ok:
+	error_code = ERROR_CODE_OK;
+
+end:
 	_f_ocelot_debug("CHILD %zu: Shutting down\n", i);
 	shmdt(shm_ptr_call[i]);
 	shmdt(shm_ptr_return[i]);
@@ -1642,7 +1708,7 @@ static void _f_ocelot_init_arrays(double *array, int arrays_length, char *types[
 			}
 		}
 		int type = atoi(num_buf);
-		for (int j = 0; j < OCELOT_ARRAY_LENGTH; j++) {
+		for (int j = 0; j < OCELOT_ARRAY_LENGTH; ++j) {
 			/*int index = i * OCELOT_ARRAY_LENGTH + j;*/
 
 			/*int valueInt = (int) array[index];

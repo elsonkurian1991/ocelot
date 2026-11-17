@@ -98,6 +98,9 @@ public class GenAndWrite {
 
 			// Generates the test suite
 			Set<TestCase> suite = generator.generateTestSuite();
+			
+			// Shuts down the C bridge
+			CBridge.shutdown();
 	
 			// Possibly minimizes the test suite
 			Set<TestCase> minimizedSuite = (config.isExperimentMinimization() ? minimizer.minimize(suite) : suite);

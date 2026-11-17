@@ -104,7 +104,7 @@ public class ExecuteWholeCoverage {
 		System.out.println("Running generator: " + config.getTestSuiteGenerator());
 		TestSuiteGenerator generator = TestSuiteGeneratorHandler.getInstance(config, cfg, objectives);
 
-		TestSuiteMinimizer<?> minimizer = null;;
+		TestSuiteMinimizer<?> minimizer = null;
 		if (config.isExperimentMinimization()) {
 			GenericCoverageCalculator coverageCalculator = new GenericCoverageCalculator(objectives);
 			minimizer = TestSuiteMinimizerHandler.getInstance(config, coverageCalculator);
@@ -129,6 +129,9 @@ public class ExecuteWholeCoverage {
 
 		// Generates the test suite
 		Set<TestCase> suite = generator.generateTestSuite();
+		
+		// Shuts down the C bridge
+		CBridge.shutdown();
 
 		// Possibly minimizes the test suite
 		Set<TestCase> minimizedSuite = (config.isExperimentMinimization() ? minimizer.minimize(suite) : suite);
